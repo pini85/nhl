@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Leaders } from "@/components/club/Leaders";
@@ -12,13 +13,19 @@ import { RecordsView } from "@/components/club/RecordsView";
 import { LinesView } from "@/components/club/LinesView";
 import { chemistry, withWithout } from "@/lib/stats/chemistry";
 import { heatMap } from "@/lib/stats/trends";
+import { playerCard } from "@/lib/stats/cards";
 
 export const metadata = { title: "Players" };
 
 export default function PlayersPage() {
   return (
     <>
-      <h1 className="text-2xl font-black">Players</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black">Players</h1>
+        <Link href="/players/compare" className="rounded-full border border-[var(--card-border)] px-3 py-1 text-xs font-semibold text-[var(--accent-blue)]">
+          Compare ⚖️
+        </Link>
+      </div>
       <Tabs defaultValue="leaders" className="mt-2">
         <TabsList className="w-full">
           <TabsTrigger value="leaders">Leaders</TabsTrigger>
@@ -55,7 +62,10 @@ async function LeadersData() {
     return playerTotals(lines.filter((l) => ids.has(l.matchId)), games, snapshot?.members ?? null, CLUB_ID);
   };
   const heat = Object.fromEntries(heatMap(lines, games, CLUB_ID));
-  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} />;
+  const ovr = Object.fromEntries(
+    [...new Set(lines.map((l) => l.eaPlayerId))].map((id) => [id, playerCard(lines, games, id)?.ovr ?? null]),
+  );
+  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} ovr={ovr} />;
 }
 
 async function RecordsData() {

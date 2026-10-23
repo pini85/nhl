@@ -18,6 +18,10 @@ import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { groupGameNights, nightMvp } from "@/lib/stats/nights";
 import { hotPlayers } from "@/lib/stats/players";
 import { seasonProgress } from "@/lib/stats/season";
+import { celebrationFor } from "@/lib/stats/celebrate";
+import { funFacts } from "@/lib/stats/funfacts";
+import { FunFacts } from "@/components/club/FunFacts";
+import { Celebrate } from "@/components/club/Celebrate";
 
 export default async function Home() {
   const [snapshot, games, lines, clubRows, scouted, history] = await Promise.all([
@@ -52,7 +56,9 @@ export default async function Home() {
     ? `Division ${snapshot.division}${season?.division ? ` · ${season.division.conference}` : ""} · ${snapshot.wins}-${snapshot.losses}-${snapshot.otl} all-time`
     : "NHL 26 Pro Club";
 
+  const party = season && snapshot ? celebrationFor(season.state, snapshot.division, snapshot.seasons) : null;
   const blocks = [
+    party && <Celebrate key="party" message={party.message} storageKey={party.key} />,
     season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
     snapshot && (
       <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations} />
@@ -61,6 +67,13 @@ export default async function Home() {
     latest && <LatestNight key="night" night={latest} mvp={mvp} />,
     nights.length > 0 && <NightTrendChart key="trend" data={nightSeries(nights)} />,
     <HotPlayers key="hot" players={hot} />,
+    games.length >= 3 && (
+      <Link key="wrapped" href="/wrapped" className="arena-card my-3 flex items-center justify-between px-3.5 py-3 text-sm font-semibold">
+        <span>🎁 Your season, wrapped</span>
+        <span className="text-[var(--accent-blue)]">Open →</span>
+      </Link>
+    ),
+    <FunFacts key="facts" facts={funFacts(lines, games, CLUB_ID).map(({ key, text }) => ({ key, text }))} />,
     <Link key="search" href="/opponents" className="arena-card my-3 flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted-fg)]">
       <Search className="size-4" aria-hidden /> Scouting a club? Search opponents
     </Link>,

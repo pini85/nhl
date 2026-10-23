@@ -1,5 +1,6 @@
 import { GrowBar } from "@/components/club/FadeIn";
 import { ResultPill } from "@/components/club/ResultPill";
+import { WhatIf } from "@/components/club/WhatIf";
 import { MAX_POINTS, SEASON_GAMES } from "@/lib/divisions";
 import type { SeasonProgress } from "@/lib/stats/season";
 
@@ -72,6 +73,7 @@ export function SeasonCard({ season, seasonResults }: { season: SeasonProgress; 
           <ResultPill key={i} outcome={r === "wins" ? "W" : r === "losses" ? "L" : r === "otl" ? "OTL" : null} className="min-w-0 flex-1" />
         ))}
       </div>
+      {d && <WhatIf seasonResults={seasonResults} division={d.id} />}
     </section>
   );
 }

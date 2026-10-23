@@ -26,6 +26,8 @@ export type PlayerLine = {
   hits: number;
   pim: number;
   takeaways: number;
+  passAttempts: number;
+  passes: number;
   giveaways: number;
   ppg: number;
   shg: number;

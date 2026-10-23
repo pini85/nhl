@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22"];
+const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare"];
 
 for (const path of pages) {
   test(`renders ${path} on a phone without errors or sideways scroll`, async ({ page }) => {
@@ -68,4 +68,29 @@ test("home has the goals-per-night chart", async ({ page }) => {
 test("player page has the form chart", async ({ page }) => {
   await page.goto("/players/828785353");
   await expect(page.getByRole("region", { name: "Points per game, last games" })).toBeVisible();
+});
+
+test("what-if simulator updates the outlook", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /What if\?/ }).click();
+  await page.getByRole("button", { name: "Remaining game 1: not played" }).click();
+  await expect(page.getByText("Promotion secured · 1 win to title").last()).toBeVisible();
+});
+
+test("home works when localStorage is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await expect(page.getByText("Division 8").first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("wrapped story advances on tap", async ({ page }) => {
+  await page.goto("/wrapped");
+  await expect(page.getByText("Games played", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Goals scored", { exact: true })).toBeVisible();
 });

@@ -67,7 +67,7 @@ function Chips<T extends string>({ items, value, onChange }: { items: { key: T; 
   );
 }
 
-export function Leaders({ data, heat = {} }: { data: Data; heat?: Record<string, Heat> }) {
+export function Leaders({ data, heat = {}, ovr = {} }: { data: Data; heat?: Record<string, Heat>; ovr?: Record<string, number | null> }) {
   const [range, setRange] = useState<Range>("all");
   const [kind, setKind] = useState<"skaters" | "goalies">("skaters");
   const [sort, setSort] = useState<string>("points");
@@ -100,6 +100,7 @@ export function Leaders({ data, heat = {} }: { data: Data; heat?: Record<string,
             <thead className="text-[10px] text-[var(--muted-fg)]">
               <tr>
                 <th className="sticky left-0 bg-[#0b1220] px-3 py-2 text-left font-medium">Player</th>
+                <th className="px-1.5 py-2 text-right font-medium" title="Card overall">OVR</th>
                 {cols.map((c) => (
                   <th key={String(c.key)} className="px-1.5 py-2 text-right font-medium last:pr-3">
                     <button onClick={() => setSort(String(c.key))} className={cn(sort === c.key && "text-[var(--accent-blue)]")}>
@@ -126,6 +127,7 @@ export function Leaders({ data, heat = {} }: { data: Data; heat?: Record<string,
                       </span>
                     </div>
                   </td>
+                  <td className="px-1.5 text-right font-bold text-[var(--accent-blue)]">{ovr[r.eaPlayerId] ?? "—"}</td>
                   {cols.map((c) => {
                     const v = Number((r as Record<string, unknown>)[c.key as string] ?? 0);
                     return (
