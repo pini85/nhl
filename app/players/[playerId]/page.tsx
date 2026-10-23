@@ -8,7 +8,10 @@ import { Section } from "@/components/club/Section";
 import { StatTile } from "@/components/club/StatTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CLUB_ID } from "@/lib/config";
-import { getPlayer, getSnapshot } from "@/lib/data/club";
+import { getGames, getOurLines, getPlayer, getSnapshot } from "@/lib/data/club";
+import { getClubRows } from "@/lib/data/opponents";
+import { allAwards, badgeCabinet } from "@/lib/stats/awards";
+import { BadgeCabinet } from "@/components/club/AwardChips";
 import { playerTotals } from "@/lib/stats/players";
 import { heat, playerForm } from "@/lib/stats/trends";
 import { FormChart } from "@/components/charts/FormChart";
@@ -26,7 +29,7 @@ export default function PlayerPage({ params }: PageProps<"/players/[playerId]">)
 
 async function PlayerContent({ params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
-  const [detail, snapshot] = await Promise.all([getPlayer(playerId), getSnapshot()]);
+  const [detail, snapshot, allGames, allLines, clubRows] = await Promise.all([getPlayer(playerId), getSnapshot(), getGames(), getOurLines(), getClubRows()]);
   if (!detail) notFound();
   const { lines, games } = detail;
   const roster = snapshot?.members ?? null;
@@ -84,6 +87,8 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
           </div>
         </Section>
       )}
+
+      <BadgeCabinet badges={badgeCabinet(allAwards(allLines, allGames, clubRows, CLUB_ID), playerId)} />
 
       {bestGame && best && best.goals + best.assists > 0 && (
         <Section title="Best game">

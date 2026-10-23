@@ -11,6 +11,8 @@ import { CLUB_CREST_ASSET, CLUB_ID, CLUB_NAME } from "@/lib/config";
 import { getMatch } from "@/lib/data/club";
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { threeStars } from "@/lib/stats/nights";
+import { gameAwards, seasonDivisionFromMatch } from "@/lib/stats/awards";
+import { AwardChips } from "@/components/club/AwardChips";
 
 export default function GamePage({ params }: PageProps<"/games/[matchId]">) {
   return (
@@ -59,6 +61,7 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
           <div className="flex flex-col items-center gap-1.5">
             <Crest assetId={ours?.crestAssetId ?? CLUB_CREST_ASSET} size={52} name={CLUB_NAME} />
             <span className="text-xs font-semibold">{CLUB_NAME}</span>
+            {ours && ours.division > 0 && <span className="text-[10px] text-[var(--muted-fg)]">Div {seasonDivisionFromMatch(ours.division)}</span>}
           </div>
           <div>
             <div className="glow tabular text-4xl font-black">
@@ -71,6 +74,7 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
           <div className="flex flex-col items-center gap-1.5">
             <Crest assetId={theirs?.crestAssetId} size={52} name={oppName} />
             <span className="line-clamp-2 text-xs font-semibold">{oppName}</span>
+            {theirs && theirs.division > 0 && <span className="text-[10px] text-[var(--muted-fg)]">Div {seasonDivisionFromMatch(theirs.division)}</span>}
           </div>
         </div>
         {game.dnf === "opponent_quit" && <p className="mt-3 text-center text-[11px] text-[var(--muted-fg)]">⚑ Opponent quit this game</p>}
@@ -116,6 +120,8 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
               </ol>
             </Section>
           )}
+
+          <AwardChips awards={gameAwards(lines, game, clubs, CLUB_ID)} />
 
           <BoxScore title={CLUB_NAME} lines={lines.filter((l) => l.clubId === CLUB_ID)} linkPlayers />
           <BoxScore title={oppName} lines={lines.filter((l) => l.clubId === game.opponentClubId)} linkPlayers={false} />

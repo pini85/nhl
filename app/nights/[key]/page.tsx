@@ -9,6 +9,9 @@ import { StatTile } from "@/components/club/StatTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CLUB_ID, CLUB_NAME } from "@/lib/config";
 import { getGames, getOurLines } from "@/lib/data/club";
+import { getClubRows } from "@/lib/data/opponents";
+import { gameAwards } from "@/lib/stats/awards";
+import { AwardChips } from "@/components/club/AwardChips";
 import { nightRecap } from "@/lib/stats/nightRecap";
 
 export default function NightPage({ params }: PageProps<"/nights/[key]">) {
@@ -21,7 +24,7 @@ export default function NightPage({ params }: PageProps<"/nights/[key]">) {
 
 async function NightContent({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
-  const [games, lines] = await Promise.all([getGames(), getOurLines()]);
+  const [games, lines, clubRows] = await Promise.all([getGames(), getOurLines(), getClubRows()]);
   const recap = nightRecap(key, games, lines, CLUB_ID);
   if (!recap) notFound();
   const { night, mvp, stars, leaders, hasPlayerData } = recap;
@@ -93,6 +96,11 @@ async function NightContent({ params }: { params: Promise<{ key: string }> }) {
           </div>
         </Section>
       )}
+
+      <AwardChips
+        title="Awards tonight"
+        awards={night.games.flatMap((g) => gameAwards(lines, g, clubRows.filter((c) => c.matchId === g.matchId), CLUB_ID))}
+      />
 
       <Section title="Games">
         <ul className="divide-y divide-white/[0.05]">
