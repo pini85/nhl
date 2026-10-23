@@ -17,10 +17,20 @@ A record of the build for the final run report the user asked for (tokens, start
 ## Sessions and resumes
 Each line is one active stretch of work. A new line is added whenever work resumes after a pause (usage limit, sleep or restart).
 - Session 1: 2026-10-23 15:14 to 2026-10-23 17:42 (paused: usage limit reached #1)
-- Session 2: 2026-10-23 20:12 to (ongoing): resumed after usage-limit reset #1
+- Session 2: 2026-10-23 20:12 to 2026-10-23 20:29: resumed after usage-limit reset #1
   - Found: the GitHub schedule had never fired; offset the cron to 3-59/10 and started a backup collector loop on the Mac
 
 ## Token use
 Exact totals come from Claude Code's `/cost` or `/usage`. Estimates are added here at each milestone.
 - At Plan 3 completion (2026-10-23 17:24): third Fable review ≈ 100k tokens.
 - At Plan 2 completion: main session context ≈ 190k tokens consumed in this window. Subagents: Opus review ≈ 115k, Fable review ≈ 99k.
+
+## Final run report (2026-10-23 20:29)
+- Started: 2026-10-23 15:14 (repo created, brainstorming began)
+- Finished: 2026-10-23 20:29 (all 6 plans built, reviewed by Fable/Opus, fixed and merged to main)
+- Wall-clock time: about 5 h 20 min, in 2 active sessions (15:14–17:42 and 20:11–20:29) with 1 usage-limit reset (pause 17:42 → 20:11)
+- Plans: 6 (collector, core screens, opponents, charts, extras I, extras II); 6 final code reviews (1 Opus, 5 Fable, plus one Fable re-run after the pause)
+- Output: 68 commits on main, about 6,200 lines of app code, about 2,000 lines of tests; 220 unit tests and 26 phone-size end-to-end tests, all passing
+- Subagent tokens (reported): Plan 1 review (Opus) ≈115k · Plan 2 ≈99k · Plan 3 ≈100k · Plan 4 ≈69k · Plan 5 ≈89k (plus a partial run that was stopped) · Plan 6 ≈71k → ≈540k+ tokens in reviews
+- Main session tokens: not visible to the agent; run `/cost` (or `/usage`) in Claude Code for the exact total
+- Collector: GitHub's cron never fired on this new repo, so the workflow now restarts itself every ~10 min (self-chaining); a backup loop on the Mac covered the gap
