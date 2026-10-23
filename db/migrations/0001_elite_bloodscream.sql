@@ -1,0 +1,1 @@
+ALTER TABLE "club_snapshots" ADD COLUMN "members" jsonb;

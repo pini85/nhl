@@ -70,6 +70,7 @@ describe("recovery during collect", () => {
 
   it("opponent EA failure becomes a warning", async () => {
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: (id, type) =>
         id === 56507
           ? fixtureEa.clubMatches(id, type)
@@ -85,6 +86,7 @@ describe("recovery during collect", () => {
   it("retries a failed opponent fetch on the next run", async () => {
     let opponentsDown = true;
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: (id, type) =>
         id !== 56507 && opponentsDown
           ? Promise.resolve({ ok: false, error: { kind: "http", status: 403, message: "EA responded 403" } })
@@ -101,6 +103,7 @@ describe("recovery during collect", () => {
   it("recovers on a later run when seasonalStats failed during the gap run", async () => {
     let seasonalDown = true;
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: fixtureEa.clubMatches,
       seasonalStats: () =>
         seasonalDown
@@ -130,6 +133,7 @@ describe("recovery during collect", () => {
   it("never writes a score-only row for a game still in our own last 5", async () => {
     // Our own list fails, so the 5 newest results are uncovered but must stay pending.
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: (id, type) =>
         id === 56507
           ? Promise.resolve({ ok: false, error: { kind: "http", status: 403, message: "EA responded 403" } })

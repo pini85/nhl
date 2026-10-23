@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { PLATFORM } from "@/lib/config";
 import { eaFetch, type EaResult } from "@/lib/ea/http";
+import { toRosterMember, type RosterMember } from "@/lib/ea/normalize";
 import {
+  EaMembersSchema,
   EaMatchSchema,
   EaSeasonalStatsListSchema,
   type EaMatch,
@@ -11,6 +13,7 @@ import {
 export interface EaApi {
   clubMatches(clubId: number, matchType: string): Promise<EaResult<EaMatch[]>>;
   seasonalStats(clubId: number): Promise<EaResult<EaSeasonalStats>>;
+  members(clubId: number): Promise<EaResult<RosterMember[]>>;
 }
 
 function validate<T>(r: EaResult<unknown>, schema: z.ZodType<T>): EaResult<T> {
@@ -53,6 +56,11 @@ export function createEaApi(opts: { fetchImpl?: typeof fetch } = {}): EaApi {
       const r = await eaFetch("clubs/seasonalStats", { platform: PLATFORM, clubIds: String(clubId) }, opts);
       const list = validate(r, EaSeasonalStatsListSchema);
       return list.ok ? { ok: true, data: list.data[0] as EaSeasonalStats } : list;
+    },
+    async members(clubId) {
+      const r = await eaFetch("members/stats", { platform: PLATFORM, clubId: String(clubId) }, opts);
+      const parsed = validate(r, EaMembersSchema);
+      return parsed.ok ? { ok: true, data: parsed.data.members.map(toRosterMember) } : parsed;
     },
   };
 }
