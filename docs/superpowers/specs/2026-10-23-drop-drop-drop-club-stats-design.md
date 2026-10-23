@@ -157,6 +157,15 @@ Mobile-first, **Arena Night** style: dark, ice-blue neon glow, scoreboard-style 
 4. **Charts and form:** GF/GA trend, player form charts, hot/cold, division history from snapshots.
 5. **Extras:** lines, records and milestones, share image, PWA.
 
-## 9. Out of scope
+## 9. Final deliverable: run report
+
+The user asked for a report when everything is finished. The record is kept in `docs/superpowers/run-log.md` and updated at each milestone and each resume. The report covers:
+- when the project started and finished
+- tokens used (exact totals from `/cost` or `/usage`, plus per-agent estimates)
+- how many usage-limit resets and resumes happened
+- how many active sessions/stretches of work there were
+- what was built, the rulings made, and deferred items
+
+## 10. Out of scope
 
 Logins or admin pages, push notifications, archiving other clubs' full histories, importing data from chelhead, multiple "home" clubs.
