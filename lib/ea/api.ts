@@ -1,8 +1,8 @@
-import type { z } from "zod";
+import { z } from "zod";
 import { PLATFORM } from "@/lib/config";
 import { eaFetch, type EaResult } from "@/lib/ea/http";
 import {
-  EaMatchListSchema,
+  EaMatchSchema,
   EaSeasonalStatsListSchema,
   type EaMatch,
   type EaSeasonalStats,
@@ -24,6 +24,11 @@ function validate<T>(r: EaResult<unknown>, schema: z.ZodType<T>): EaResult<T> {
   };
 }
 
+function matchIdOf(item: unknown): string | undefined {
+  const id = (item as { matchId?: unknown } | null)?.matchId;
+  return typeof id === "string" || typeof id === "number" ? String(id) : undefined;
+}
+
 export function createEaApi(opts: { fetchImpl?: typeof fetch } = {}): EaApi {
   return {
     async clubMatches(clubId, matchType) {
@@ -32,7 +37,17 @@ export function createEaApi(opts: { fetchImpl?: typeof fetch } = {}): EaApi {
         { platform: PLATFORM, clubIds: String(clubId), matchType },
         opts,
       );
-      return validate(r, EaMatchListSchema) as EaResult<EaMatch[]>;
+      // Validate each match separately so one odd game doesn't hide the others.
+      const list = validate(r, z.array(z.unknown()));
+      if (!list.ok) return list;
+      const data: EaMatch[] = [];
+      const warnings: string[] = [];
+      list.data.forEach((item, i) => {
+        const parsed = EaMatchSchema.safeParse(item);
+        if (parsed.success) data.push(parsed.data);
+        else warnings.push(`invalid-match:${matchIdOf(item) ?? `#${i}`}`);
+      });
+      return warnings.length ? { ok: true, data, warnings } : { ok: true, data };
     },
     async seasonalStats(clubId) {
       const r = await eaFetch("clubs/seasonalStats", { platform: PLATFORM, clubIds: String(clubId) }, opts);

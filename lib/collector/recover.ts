@@ -1,6 +1,6 @@
 import type { Db } from "@/db/client";
 import { insertMatchRow, insertNormalizedMatch, recentStoredResults } from "@/db/repo";
-import { CLUB_ID, MATCH_TYPES } from "@/lib/config";
+import { CLUB_ID } from "@/lib/config";
 import type { EaApi } from "@/lib/ea/api";
 import { normalizeMatch, type RecentResult } from "@/lib/ea/normalize";
 
@@ -23,6 +23,10 @@ export function findUncovered(recent: RecentResult[], stored: ScoreKey[]): Recen
 }
 
 const STORED_WINDOW = 30;
+// EA's recent results list season games; only those can cover an entry.
+const SEASON_TYPE = "gameType5";
+// Entries 0-4 can still arrive through our own last-5 list, so they never become score-only.
+const SUMMARY_MIN_INDEX = 5;
 
 export async function recoverMissing(
   deps: { db: Db; ea: EaApi; now: () => Date },
@@ -32,29 +36,32 @@ export async function recoverMissing(
   const warnings: string[] = [];
   let recovered = 0;
 
-  const initiallyUncovered = findUncovered(recent, await recentStoredResults(db, STORED_WINDOW));
+  const initiallyUncovered = findUncovered(recent, await recentStoredResults(db, STORED_WINDOW, SEASON_TYPE));
   if (!initiallyUncovered.length) return { recovered: 0, summaries: 0, warnings };
 
   // A game is in both clubs' lists, so it may still be in the opponent's last 5.
+  const failedOpponents = new Set<number>();
   const opponents = [...new Set(initiallyUncovered.map((e) => e.opponentClubId))];
   for (const opponentId of opponents) {
-    let failed = false;
-    for (const type of MATCH_TYPES) {
-      const r = await ea.clubMatches(opponentId, type);
-      if (!r.ok) {
-        failed = true;
-        continue;
-      }
-      for (const raw of r.data) {
-        if (!(String(CLUB_ID) in raw.clubs)) continue;
-        if (await insertNormalizedMatch(db, normalizeMatch(raw, type, CLUB_ID))) recovered++;
+    const r = await ea.clubMatches(opponentId, SEASON_TYPE);
+    if (!r.ok) {
+      failedOpponents.add(opponentId);
+      warnings.push(`recover-failed:${opponentId}`);
+      continue;
+    }
+    for (const raw of r.data) {
+      if (!(String(CLUB_ID) in raw.clubs)) continue;
+      try {
+        if (await insertNormalizedMatch(db, normalizeMatch(raw, SEASON_TYPE, CLUB_ID))) recovered++;
+      } catch (e) {
+        warnings.push(`recover-insert-failed:${raw.matchId}:${e instanceof Error ? e.message : String(e)}`);
       }
     }
-    if (failed) warnings.push(`recover-failed:${opponentId}`);
   }
 
-  // Whatever is still missing becomes a score-only game.
-  const stored = await recentStoredResults(db, STORED_WINDOW);
+  // A game becomes score-only only when we read the opponent's list and it wasn't
+  // there (it never comes back). Failed reads stay pending for the next run.
+  const stored = await recentStoredResults(db, STORED_WINDOW, SEASON_TYPE);
   const playedAtByKey = new Map<string, Date>();
   for (const s of [...stored].reverse()) playedAtByKey.set(keyOf(s), s.playedAt); // newest wins
 
@@ -63,6 +70,7 @@ export async function recoverMissing(
   let summaries = 0;
 
   for (const entry of findUncovered(recent, stored)) {
+    if (entry.index < SUMMARY_MIN_INDEX || failedOpponents.has(entry.opponentClubId)) continue;
     const newer = [...byIndex.values()]
       .filter((e) => e.index < entry.index)
       .sort((a, b) => b.index - a.index)[0];

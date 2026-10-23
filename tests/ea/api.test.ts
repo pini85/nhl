@@ -22,6 +22,18 @@ describe("createEaApi", () => {
     ]);
   });
 
+  it("keeps the valid matches when one is malformed", async () => {
+    const list = JSON.parse(read("matches-gameType5.json"));
+    const pid = Object.keys(list[4].players["56507"])[0];
+    delete list[4].players["56507"][pid].position;
+    const r = await apiServing(JSON.stringify(list)).clubMatches(56507, "gameType5");
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data).toHaveLength(4);
+      expect(r.warnings).toEqual(["invalid-match:2782122360291"]);
+    }
+  });
+
   it("treats [] as no games", async () => {
     expect(await apiServing("[]").clubMatches(56507, "gameType10")).toEqual({ ok: true, data: [] });
   });

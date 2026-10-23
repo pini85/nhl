@@ -57,9 +57,15 @@ export async function collect(
         summary.errors.push(`matches ${type}: ${r.error.message}`);
         continue;
       }
+      summary.warnings.push(...(r.warnings ?? []));
       let newHere = 0;
       for (const raw of r.data) {
-        if (await insertNormalizedMatch(db, normalizeMatch(raw, type, CLUB_ID))) newHere++;
+        // One game we can't store must not stop the rest of the run.
+        try {
+          if (await insertNormalizedMatch(db, normalizeMatch(raw, type, CLUB_ID))) newHere++;
+        } catch (e) {
+          summary.errors.push(`match ${raw.matchId}: ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
       summary.newMatches += newHere;
 
@@ -83,8 +89,9 @@ export async function collect(
       summary.errors.push(`seasonalStats: ${seasonal.error.message}`);
     }
 
-    // First run, or games may have slipped past us: look in opponents' lists.
-    if ((opts.recover ?? true) && seasonal.ok && (previousNewest === null || gapDetected)) {
+    // Every run: any of EA's last 10 results we don't have yet gets looked for
+    // in the opponent's list. Stateless, so a failed attempt is retried next run.
+    if ((opts.recover ?? true) && seasonal.ok) {
       const rec = await recoverMissing({ db, ea, now }, parseRecentResults(seasonal.data));
       summary.recoveredMatches = rec.recovered;
       summary.summaryMatches = rec.summaries;

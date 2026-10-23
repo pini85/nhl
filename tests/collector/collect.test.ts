@@ -69,6 +69,35 @@ describe("collect", () => {
     expect(run.error).toContain("boom");
   });
 
+  it("skips a match it cannot store and still collects the rest", async () => {
+    const ea: EaApi = {
+      clubMatches: async (id, type) => {
+        const r = await fixtureEa.clubMatches(id, type);
+        if (!r.ok || type !== "gameType5") return r;
+        const foreign = { ...r.data[0], matchId: "foreign-1", clubs: { "1": r.data[0].clubs["1808"] } };
+        return { ok: true, data: [foreign, ...r.data] };
+      },
+      seasonalStats: fixtureEa.seasonalStats,
+    };
+    const s = await collect({ db, ea }, "cron", { recover: false });
+    expect(s.newMatches).toBe(5);
+    expect(s.status).toBe("partial");
+    expect(s.errors.join()).toContain("foreign-1");
+    expect(await db.select().from(clubSnapshots)).toHaveLength(1);
+  });
+
+  it("passes through warnings about skipped malformed matches", async () => {
+    const ea: EaApi = {
+      clubMatches: async (id, type) => {
+        const r = await fixtureEa.clubMatches(id, type);
+        return r.ok && type === "gameType5" ? { ...r, warnings: ["invalid-match:x"] } : r;
+      },
+      seasonalStats: fixtureEa.seasonalStats,
+    };
+    const s = await collect({ db, ea }, "cron", { recover: false });
+    expect(s.warnings).toContain("invalid-match:x");
+  });
+
   it("flags a gap when 5 new games are all newer than the stored newest", async () => {
     await insertMatchRow(db, {
       matchId: "old-1",

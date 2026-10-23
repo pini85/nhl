@@ -54,8 +54,8 @@ export type StoredResult = {
   source: "full" | "summary";
 };
 
-export async function recentStoredResults(db: Db, limit: number): Promise<StoredResult[]> {
-  return db
+export async function recentStoredResults(db: Db, limit: number, matchType?: string): Promise<StoredResult[]> {
+  const q = db
     .select({
       matchId: matches.matchId,
       playedAt: matches.playedAt,
@@ -64,9 +64,8 @@ export async function recentStoredResults(db: Db, limit: number): Promise<Stored
       goalsAgainst: matches.goalsAgainst,
       source: matches.source,
     })
-    .from(matches)
-    .orderBy(desc(matches.playedAt))
-    .limit(limit);
+    .from(matches);
+  return (matchType ? q.where(eq(matches.matchType, matchType)) : q).orderBy(desc(matches.playedAt)).limit(limit);
 }
 
 export async function newestStoredPlayedAt(db: Db): Promise<Date | null> {

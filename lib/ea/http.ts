@@ -6,7 +6,7 @@ export type EaError = {
   message: string;
 };
 
-export type EaResult<T> = { ok: true; data: T } | { ok: false; error: EaError };
+export type EaResult<T> = { ok: true; data: T; warnings?: string[] } | { ok: false; error: EaError };
 
 // EA's firewall rejects requests that don't look like a browser.
 const EA_HEADERS: Record<string, string> = {
