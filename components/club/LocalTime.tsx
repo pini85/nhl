@@ -10,7 +10,7 @@ export function LocalTime({ iso, format = "time" }: { iso: string; format?: "tim
     subscribe,
     () => {
       const d = new Date(iso);
-      if (format === "date") return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      if (format === "date") return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
       if (format === "datetime")
         return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
