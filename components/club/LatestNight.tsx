@@ -40,7 +40,7 @@ export function LatestNight({
         </div>
       </Link>
 
-      {mvp && (
+      {mvp && mvp.points > 0 && (
         <p className="mt-2 text-xs text-[var(--muted-fg)]">
           ⭐ Night MVP <b className="text-[var(--fg)]">{mvp.playerName}</b> · {mvp.goals}G {mvp.assists}A
         </p>

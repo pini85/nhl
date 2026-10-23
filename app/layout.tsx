@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { BottomNav } from "@/components/club/BottomNav";
+import { Suspense } from "react";
+import { BottomNav, BottomNavView } from "@/components/club/BottomNav";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="min-h-dvh">
         <main className="mx-auto w-full max-w-md px-4 pt-4 pb-28">{children}</main>
-        <BottomNav />
+        <Suspense fallback={<BottomNavView path={null} />}>
+          <BottomNav />
+        </Suspense>
       </body>
     </html>
   );

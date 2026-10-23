@@ -128,3 +128,4 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}

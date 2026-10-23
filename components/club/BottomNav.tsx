@@ -13,7 +13,10 @@ const TABS = [
 ];
 
 export function BottomNav() {
-  const path = usePathname();
+  return <BottomNavView path={usePathname()} />;
+}
+
+export function BottomNavView({ path }: { path: string | null }) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--card-border)] bg-[rgba(7,11,20,0.92)] backdrop-blur"
@@ -21,7 +24,7 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-md justify-around py-2">
         {TABS.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? path === "/" : path.startsWith(href);
+          const active = path !== null && (href === "/" ? path === "/" : path.startsWith(href));
           return (
             <li key={href}>
               <Link
