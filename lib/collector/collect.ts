@@ -7,6 +7,7 @@ import {
   startRun,
   type RunTrigger,
 } from "@/db/repo";
+import { recoverMissing } from "@/lib/collector/recover";
 import { CLUB_ID, MATCH_TYPES } from "@/lib/config";
 import type { EaApi } from "@/lib/ea/api";
 import { normalizeMatch, parseRecentResults, toInt } from "@/lib/ea/normalize";
@@ -82,8 +83,13 @@ export async function collect(
       summary.errors.push(`seasonalStats: ${seasonal.error.message}`);
     }
 
-    // Step 5 (recovery) is added in Task 6.
-    void opts;
+    // First run, or games may have slipped past us: look in opponents' lists.
+    if ((opts.recover ?? true) && seasonal.ok && (previousNewest === null || gapDetected)) {
+      const rec = await recoverMissing({ db, ea, now }, parseRecentResults(seasonal.data));
+      summary.recoveredMatches = rec.recovered;
+      summary.summaryMatches = rec.summaries;
+      summary.warnings.push(...rec.warnings);
+    }
 
     summary.status = summary.errors.length === 0 ? "ok" : summary.errors.length >= calls ? "error" : "partial";
   } catch (e) {
