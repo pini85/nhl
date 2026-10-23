@@ -49,7 +49,7 @@ export function heat(lines: PlayerLine[], games: GameLite[], eaPlayerId: string)
   const overall = form.reduce((s, f) => s + f.points, 0) / form.length;
   const recent = form.slice(-WINDOW).reduce((s, f) => s + f.points, 0) / WINDOW;
   if (recent > 0 && recent >= overall * 1.25) return "hot";
-  if (recent <= overall * 0.75) return "cold";
+  if (overall > 0 && recent <= overall * 0.75) return "cold";
   return null;
 }
 

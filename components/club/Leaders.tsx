@@ -119,7 +119,7 @@ export function Leaders({ data, heat = {} }: { data: Data; heat?: Record<string,
                         {r.name}
                       </Link>
                       <span className="ml-1 shrink-0">
-                        <HeatBadge heat={heat[r.eaPlayerId]} />
+                        {kind === "skaters" && <HeatBadge heat={heat[r.eaPlayerId]} />}
                       </span>
                       <span className="shrink-0">
                         <BadgeChip badge={r.badge} />

@@ -36,6 +36,13 @@ describe("playerForm", () => {
 describe("heat", () => {
   it("ThePooker is hot (3.2 PPG last 5 vs 2.33 overall)", () => expect(heat(lines, games, "828785353")).toBe("hot"));
   it("players with fewer than 8 games get no label", () => expect(heat(lines, games, "1744375404")).toBeNull());
+  it("a player who never scores is not cold", () => {
+    const base = lines.find((l) => l.eaPlayerId === "828785353")!;
+    const zero: PlayerLine[] = Array.from({ length: 9 }, (_, i) => ({ ...base, eaPlayerId: "z", matchId: `z${i}`, goals: 0, assists: 0 }));
+    const g: GameLite[] = zero.map((l, i) => ({ ...games[0], matchId: l.matchId, playedAt: new Date(Date.UTC(2026, 9, 1 + i)) }));
+    expect(heat(zero, g, "z")).toBeNull();
+  });
+
   it("cold when last 5 are well below average", () => {
     const base = lines.find((l) => l.eaPlayerId === "828785353")!;
     const synthetic: PlayerLine[] = Array.from({ length: 10 }, (_, i) => ({
