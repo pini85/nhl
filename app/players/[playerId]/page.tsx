@@ -14,6 +14,8 @@ import { allAwards, badgeCabinet } from "@/lib/stats/awards";
 import { BadgeCabinet } from "@/components/club/AwardChips";
 import { playerTotals } from "@/lib/stats/players";
 import { heat, playerForm } from "@/lib/stats/trends";
+import { playerCard } from "@/lib/stats/cards";
+import { PlayerCard } from "@/components/club/PlayerCard";
 import { FormChart } from "@/components/charts/FormChart";
 import { HeatBadge } from "@/components/club/HeatBadge";
 
@@ -59,6 +61,8 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
           {POS[mainPos] ?? mainPos} · {lines.length} games for Drop drop drop
         </p>
       </header>
+
+      <PlayerCard card={playerCard(lines, games, playerId)} name={name} position={mainPos} heat={heat(lines, games, playerId)} />
 
       {sk && (
         <Section title="Club stats · skater">

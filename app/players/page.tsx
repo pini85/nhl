@@ -12,6 +12,7 @@ import { RecordsView } from "@/components/club/RecordsView";
 import { LinesView } from "@/components/club/LinesView";
 import { chemistry, withWithout } from "@/lib/stats/chemistry";
 import { heatMap } from "@/lib/stats/trends";
+import { playerCard } from "@/lib/stats/cards";
 
 export const metadata = { title: "Players" };
 
@@ -55,7 +56,10 @@ async function LeadersData() {
     return playerTotals(lines.filter((l) => ids.has(l.matchId)), games, snapshot?.members ?? null, CLUB_ID);
   };
   const heat = Object.fromEntries(heatMap(lines, games, CLUB_ID));
-  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} />;
+  const ovr = Object.fromEntries(
+    [...new Set(lines.map((l) => l.eaPlayerId))].map((id) => [id, playerCard(lines, games, id)?.ovr ?? null]),
+  );
+  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} ovr={ovr} />;
 }
 
 async function RecordsData() {
