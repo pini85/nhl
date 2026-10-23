@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CLUB_ID } from "@/lib/config";
 import { getPlayer, getSnapshot } from "@/lib/data/club";
 import { playerTotals } from "@/lib/stats/players";
+import { heat, playerForm } from "@/lib/stats/trends";
+import { FormChart } from "@/components/charts/FormChart";
+import { HeatBadge } from "@/components/club/HeatBadge";
 
 const POS: Record<string, string> = { center: "Center", leftWing: "Left wing", rightWing: "Right wing", defenseMen: "Defense", goalie: "Goalie" };
 
@@ -46,7 +49,7 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
     <>
       <header className="py-2">
         <h1 className="text-2xl font-black">
-          {name}
+          {name} <HeatBadge heat={heat(lines, games, playerId)} />
           <BadgeChip badge={badge} />
         </h1>
         <p className="text-xs text-[var(--muted-fg)]">
@@ -68,6 +71,8 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
           </div>
         </Section>
       )}
+
+      {sk && <FormChart data={playerForm(lines, games)} />}
 
       {gl && (
         <Section title="Club stats · goalie">

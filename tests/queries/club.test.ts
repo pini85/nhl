@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/db/client";
 import { clubSnapshots } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
-import { allGames, latestSnapshot, matchDetail, ourPlayerLines, playerDetail } from "@/lib/queries/club";
+import { allGames, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
 import { createTestDb } from "../helpers/db";
 import { createFixtureEa } from "../helpers/fixture-ea";
 
@@ -72,6 +72,11 @@ describe("club queries after collecting the fixtures", () => {
     const s = (await latestSnapshot(db))!;
     await db.insert(clubSnapshots).values({ ...s, id: undefined, takenAt: new Date("2026-10-24T12:00:00Z"), members: null });
     expect((await latestSnapshot(db))?.members).toHaveLength(4);
+  });
+
+  it("returns the division history of snapshots", async () => {
+    const h = await snapshotHistory(db);
+    expect(h).toEqual([{ takenAt: new Date("2026-10-23T12:00:00Z"), division: 8 }]);
   });
 
   it("returns player detail", async () => {
