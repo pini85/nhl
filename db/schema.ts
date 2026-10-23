@@ -171,6 +171,7 @@ export const scoutRequests = pgTable(
     requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
     status: text("status", { enum: ["pending", "done", "not_found", "error"] }).notNull().default("pending"),
     clubId: integer("club_id"),
+    attempts: integer("attempts").notNull().default(0),
     processedAt: timestamp("processed_at", { withTimezone: true }),
   },
   (t) => [uniqueIndex("scout_requests_pending_uq").on(t.normalized).where(sql`status = 'pending'`)],

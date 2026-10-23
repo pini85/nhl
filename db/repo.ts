@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, max, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, max, notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { clubSnapshots, collectorRuns, matchClubs, matches, matchPlayers, opponentSnapshots, scoutRequests } from "@/db/schema";
 import type { MatchClubRow, MatchPlayerRow, MatchRow, NormalizedMatch } from "@/lib/ea/normalize";
@@ -148,4 +148,25 @@ export async function insertOpponentSnapshot(db: Db, row: typeof opponentSnapsho
 export async function knownClubName(db: Db, clubId: number): Promise<string | null> {
   const [row] = await db.select({ name: matchClubs.name }).from(matchClubs).where(eq(matchClubs.clubId, clubId)).limit(1);
   return row?.name ?? null;
+}
+
+// Counts a failed attempt; returns the new attempt count.
+export async function bumpScoutAttempt(db: Db, id: number): Promise<number> {
+  const [row] = await db
+    .update(scoutRequests)
+    .set({ attempts: sql`${scoutRequests.attempts} + 1` })
+    .where(eq(scoutRequests.id, id))
+    .returning({ attempts: scoutRequests.attempts });
+  return row?.attempts ?? 0;
+}
+
+// Keep only the newest `keep` snapshots per club so storage stays small.
+export async function pruneOpponentSnapshots(db: Db, clubId: number, keep = 3): Promise<void> {
+  const rows = await db
+    .select({ id: opponentSnapshots.id })
+    .from(opponentSnapshots)
+    .where(eq(opponentSnapshots.clubId, clubId))
+    .orderBy(desc(opponentSnapshots.takenAt), desc(opponentSnapshots.id));
+  const old = rows.slice(keep).map((r) => r.id);
+  if (old.length) await db.delete(opponentSnapshots).where(inArray(opponentSnapshots.id, old));
 }

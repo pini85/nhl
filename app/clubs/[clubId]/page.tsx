@@ -115,7 +115,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
 
       {!snapshot && (
         <Section>
-          <ScoutButton name={name} />
+          <ScoutButton name={name} clubId={clubId} />
         </Section>
       )}
 

@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { matchClubs, matches, matchPlayers, opponentSnapshots, scoutRequests } from "@/db/schema";
 import type { MatchClubRow } from "@/lib/ea/normalize";
@@ -46,13 +46,29 @@ export async function opponentLines(db: Db, clubId: number): Promise<PlayerLine[
 }
 
 const MAX_QUERY = 40;
+const MAX_PENDING = 20;
 
-export async function createScoutRequest(db: Db, query: string): Promise<"created" | "exists" | "invalid"> {
-  const trimmed = query.trim();
-  if (!trimmed || trimmed.length > MAX_QUERY) return "invalid";
+// Queue a club for the collector. Input is cleaned and the queue is capped,
+// because this is reachable by anyone through a public Server Action.
+export async function createScoutRequest(
+  db: Db,
+  query: string,
+  clubId?: number,
+): Promise<"created" | "exists" | "invalid" | "busy"> {
+  if (/[\u0000-\u001f\u007f]/.test(query)) return "invalid";
+  const cleaned = query.replace(/\s+/g, " ").trim();
+  if (!cleaned || cleaned.length > MAX_QUERY || !/[\p{L}\p{N}]/u.test(cleaned)) return "invalid";
+  if (clubId !== undefined && (!Number.isInteger(clubId) || clubId <= 0)) return "invalid";
+
+  const [{ pending }] = await db
+    .select({ pending: count() })
+    .from(scoutRequests)
+    .where(eq(scoutRequests.status, "pending"));
+  if (pending >= MAX_PENDING) return "busy";
+
   const inserted = await db
     .insert(scoutRequests)
-    .values({ query: trimmed, normalized: trimmed.toLowerCase() })
+    .values({ query: cleaned, normalized: cleaned.toLowerCase(), clubId: clubId ?? null })
     .onConflictDoNothing()
     .returning({ id: scoutRequests.id });
   return inserted.length ? "created" : "exists";

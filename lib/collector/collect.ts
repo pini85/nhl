@@ -108,7 +108,7 @@ export async function collect(
     summary.status = summary.errors.length === 0 ? "ok" : summary.errors.length >= calls ? "error" : "partial";
 
     // Last and optional: opponent snapshots never affect the run's status.
-    if (opts.opponents ?? true) {
+    if ((opts.opponents ?? true) && summary.status !== "error") {
       try {
         const opp = await refreshOpponents({ db, ea, now });
         summary.opponentsRefreshed = opp.refreshed;

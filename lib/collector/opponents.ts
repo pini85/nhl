@@ -1,48 +1,94 @@
 import type { Db } from "@/db/client";
 import {
+  bumpScoutAttempt,
   insertOpponentSnapshot,
   knownClubName,
   markScoutRequest,
   pendingScoutRequests,
+  pruneOpponentSnapshots,
   staleRecentOpponents,
 } from "@/db/repo";
 import type { ClubSummary, EaApi } from "@/lib/ea/api";
 import { buildProfile } from "@/lib/opponents/profile";
 
 const SEASON_TYPE = "gameType5";
+const MAX_SCOUT_ATTEMPTS = 3;
+const MAX_CONSECUTIVE_FAILURES = 2;
+
+export type RefreshOptions = {
+  budget?: number; // clubs per run
+  maxScouts?: number; // scout requests per run, so recent opponents always get the rest
+  maxMs?: number; // time budget for the whole phase
+  clock?: () => number;
+};
 
 // Keeps opponent snapshots fresh (Vercel can't call EA, so the collector does it).
-// Scout requests go first, then recent opponents; at most `budget` clubs per run.
+// Bounded by club count, scout share, time and consecutive failures, so a slow or
+// failing EA can never push the collector past its GitHub job limit.
 export async function refreshOpponents(
   deps: { db: Db; ea: EaApi; now: () => Date },
-  budget = 6,
+  opts: RefreshOptions = {},
 ): Promise<{ refreshed: number; warnings: string[] }> {
-  const { db, ea, now } = deps;
+  const { db, ea } = deps;
+  const { budget = 6, maxScouts = 2, maxMs = 120_000, clock = Date.now } = opts;
   const warnings: string[] = [];
+  const start = clock();
   let refreshed = 0;
   let used = 0;
+  let failuresInARow = 0;
 
-  for (const req of await pendingScoutRequests(db, budget)) {
+  const canContinue = () => {
+    if (failuresInARow >= MAX_CONSECUTIVE_FAILURES) {
+      if (!warnings.includes("opponents-ea-failing")) warnings.push("opponents-ea-failing");
+      return false;
+    }
+    if (clock() - start > maxMs) {
+      if (!warnings.includes("opponents-time-budget")) warnings.push("opponents-time-budget");
+      return false;
+    }
+    return used < budget;
+  };
+  const track = (ok: boolean) => {
+    failuresInARow = ok ? 0 : failuresInARow + 1;
+    if (ok) refreshed++;
+  };
+
+  for (const req of await pendingScoutRequests(db, Math.min(maxScouts, budget))) {
+    if (!canContinue()) break;
     used++;
+    if (req.clubId) {
+      const ok = await refreshClub(deps, req.clubId, null, warnings);
+      track(ok);
+      if (ok) await markScoutRequest(db, req.id, "done", req.clubId);
+      else await failAttempt(db, req.id);
+      continue;
+    }
     const r = await ea.searchClubs(req.query);
     if (!r.ok) {
       warnings.push(`scout-failed:${req.id}`);
+      failuresInARow++;
+      await failAttempt(db, req.id);
       continue;
     }
-    const q = req.normalized;
-    const hit = r.data.find((c) => c.name.trim().toLowerCase() === q) ?? r.data[0];
+    const hit = r.data.find((c) => c.name.trim().toLowerCase() === req.normalized) ?? r.data[0];
     if (!hit) {
       await markScoutRequest(db, req.id, "not_found");
       continue;
     }
-    if (await refreshClub(deps, hit.clubId, hit, warnings)) refreshed++;
+    track(await refreshClub(deps, hit.clubId, hit, warnings));
     await markScoutRequest(db, req.id, "done", hit.clubId);
   }
 
-  for (const clubId of await staleRecentOpponents(db, now(), budget - used)) {
-    if (await refreshClub(deps, clubId, null, warnings)) refreshed++;
+  for (const clubId of await staleRecentOpponents(db, deps.now(), budget - used)) {
+    if (!canContinue()) break;
+    used++;
+    track(await refreshClub(deps, clubId, null, warnings));
   }
   return { refreshed, warnings };
+}
+
+async function failAttempt(db: Db, id: number) {
+  if ((await bumpScoutAttempt(db, id)) >= MAX_SCOUT_ATTEMPTS) await markScoutRequest(db, id, "error");
 }
 
 async function refreshClub(
@@ -52,26 +98,28 @@ async function refreshClub(
   warnings: string[],
 ): Promise<boolean> {
   const info = known ? { ok: true as const, data: known } : await ea.clubInfo(clubId);
-  const members = await ea.members(clubId);
-  const recent = await ea.clubMatches(clubId, SEASON_TYPE);
-  if (!info.ok && !members.ok && !recent.ok) {
+  if (!info.ok) {
+    // Without basic club info the other calls are likely to fail too; stop early.
     warnings.push(`opponent-failed:${clubId}`);
     return false;
   }
-  const summary = info.ok ? info.data : null;
+  const members = await ea.members(clubId);
+  const recent = await ea.clubMatches(clubId, SEASON_TYPE);
+  const summary = info.data;
   await insertOpponentSnapshot(db, {
     clubId,
     takenAt: now(),
-    name: summary?.name ?? (await knownClubName(db, clubId)) ?? `Club ${clubId}`,
-    crestAssetId: summary?.crestAssetId ?? null,
-    division: summary?.division ?? null,
-    wins: summary?.wins ?? 0,
-    losses: summary?.losses ?? 0,
-    otl: summary?.otl ?? 0,
-    seasonResults: summary?.seasonResults ?? [],
+    name: summary.name || (await knownClubName(db, clubId)) || `Club ${clubId}`,
+    crestAssetId: summary.crestAssetId,
+    division: summary.division,
+    wins: summary.wins,
+    losses: summary.losses,
+    otl: summary.otl,
+    seasonResults: summary.seasonResults,
     members: members.ok ? members.data : null,
     profile: recent.ok ? buildProfile(recent.data, clubId) : null,
-    raw: { info: summary?.raw ?? null },
+    raw: { info: summary.raw },
   });
+  await pruneOpponentSnapshots(db, clubId);
   return true;
 }

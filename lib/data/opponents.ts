@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db/client";
 import { CLUB_TAG } from "@/lib/config";
-import { allClubRows, latestOpponentSnapshot, opponentLines, scoutedClubs } from "@/lib/queries/opponents";
+import { allClubRows, latestOpponentSnapshot, opponentLines, recentScoutRequests, scoutedClubs } from "@/lib/queries/opponents";
 
 export async function getOpponentSnapshot(clubId: number) {
   "use cache";
@@ -29,4 +29,11 @@ export async function getOpponentLines(clubId: number) {
   cacheTag(CLUB_TAG);
   cacheLife("club");
   return opponentLines(getDb(), clubId);
+}
+
+export async function getRecentScoutRequests() {
+  "use cache";
+  cacheTag(CLUB_TAG);
+  cacheLife("club");
+  return recentScoutRequests(getDb(), 6);
 }

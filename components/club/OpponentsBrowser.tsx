@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { useState, useTransition } from "react";
 import { requestScout } from "@/app/opponents/actions";
 import { OpponentRow, type OpponentRowData } from "@/components/club/OpponentRow";
+import { scoutMessage } from "@/components/club/scoutMessages";
 import { cn } from "@/lib/utils";
 
 const SORTS = [
@@ -33,12 +34,8 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
 
   function scout() {
     start(async () => {
-      const r = await requestScout(q);
-      setStatus(
-        r.status === "invalid"
-          ? "Type a club name (up to 40 characters)."
-          : "Requested. Their info appears within ~10 minutes, after the next collector run.",
-      );
+      const r = await requestScout(q).catch(() => ({ status: "error" as const }));
+      setStatus(scoutMessage(r.status));
     });
   }
 
