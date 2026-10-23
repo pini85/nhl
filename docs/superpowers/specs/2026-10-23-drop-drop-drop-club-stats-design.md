@@ -82,7 +82,12 @@ EA API ──(every 10 min + on visit if stale)──▶ Collector ──▶ Pos
 
 ### Backfill
 
-On first run, import the 10 `recentOpponent`/`recentScore` entries from `seasonalStats` that have no full match as `source = 'summary'` games (opponent + score only). They count toward head-to-head and records but not player stats.
+On first run:
+1. Import our own last 5 matches per matchType.
+2. **Opponent recovery:** for every club in `seasonalStats.recentOpponent0-9`, fetch that club's recent matches (all matchTypes) and import any match that includes clubId 56507. A game is in both clubs' lists, so it can still be in the opponent's last 5 after it has left ours. Tested 2026-10-23: this recovered 4 of the 5 games older than our own last 5, with full box scores.
+3. Any `recentOpponent`/`recentScore` entry still without a full match is stored as a `source = 'summary'` game (opponent + score only). These count toward head-to-head and records but not player stats.
+
+Matches captured on 2026-10-23 (9 full + 1 summary-only vs club 1974, a 3-1 win) are saved in `tests/fixtures/ea/2026-10-23/` and are imported as seed data, since they will have aged out of EA by the time the collector is live.
 
 ## 4. Screens
 
@@ -128,7 +133,7 @@ Mobile-first, **Arena Night** style: dark, ice-blue neon glow, scoreboard-style 
 ## 6. Error handling
 
 - **EA down or blocked:** pages render from stored data with a "Last updated X ago" indicator; failures logged in `collector_runs`; the next run catches up.
-- **Possible missed games:** if every fetched match is new and the newest stored match is older than the oldest fetched one, log a missed-games warning.
+- **Possible missed games:** if every fetched match is new and the newest stored match is older than the oldest fetched one, run **opponent recovery** (see Backfill) for the clubs in the latest `recentOpponent` list, then log a warning only for games still missing.
 - **Schema drift:** Zod validation failures skip that match and log the error; `raw` payloads let us re-process stored matches after fixing parsers.
 - **Live opponent fetch fails:** scouting page shows head-to-head from our DB and an inline "EA unavailable, retry" for the live sections.
 - **Abuse:** `/api/collect` requires `CRON_SECRET`; visit-triggered collects are limited to one per 5 minutes; the site has no write endpoints.
