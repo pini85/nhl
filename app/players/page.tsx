@@ -7,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CLUB_ID } from "@/lib/config";
 import { getGames, getOurLines, getSnapshot } from "@/lib/data/club";
 import { filterGames, playerTotals } from "@/lib/stats/players";
+import { clubRecords, currentStreak, milestones } from "@/lib/stats/records";
+import { RecordsView } from "@/components/club/RecordsView";
+import { LinesView } from "@/components/club/LinesView";
+import { chemistry, withWithout } from "@/lib/stats/chemistry";
 import { heatMap } from "@/lib/stats/trends";
 
 export const metadata = { title: "Players" };
@@ -27,10 +31,14 @@ export default function PlayersPage() {
           </Suspense>
         </TabsContent>
         <TabsContent value="lines">
-          <EmptyState title="Line chemistry is coming soon" hint="Win % for every trio and D-pair." />
+          <Suspense fallback={<Skeleton className="mt-3 h-72 w-full rounded-2xl" />}>
+            <LinesData />
+          </Suspense>
         </TabsContent>
         <TabsContent value="records">
-          <EmptyState title="Club records are coming soon" hint="Most goals in a game, longest streaks, milestones." />
+          <Suspense fallback={<Skeleton className="mt-3 h-72 w-full rounded-2xl" />}>
+            <RecordsData />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </>
@@ -48,4 +56,16 @@ async function LeadersData() {
   };
   const heat = Object.fromEntries(heatMap(lines, games, CLUB_ID));
   return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} />;
+}
+
+async function RecordsData() {
+  const [games, lines] = await Promise.all([getGames(), getOurLines()]);
+  if (!games.length) return <EmptyState title="No records yet" />;
+  return <RecordsView records={clubRecords(lines, games, CLUB_ID)} streak={currentStreak(games)} milestones={milestones(lines, games, CLUB_ID)} />;
+}
+
+async function LinesData() {
+  const [games, lines] = await Promise.all([getGames(), getOurLines()]);
+  const { trios, pairs } = chemistry(lines, games, CLUB_ID);
+  return <LinesView trios={trios} pairs={pairs} withWithout={withWithout(lines, games, CLUB_ID)} />;
 }

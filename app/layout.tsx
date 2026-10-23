@@ -8,6 +8,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL ?? "https://drop-drop-drop.vercel.app"),
   title: { default: "Drop drop drop", template: "%s · Drop drop drop" },
   description: "Club-only stats, game nights and scouting for the Drop drop drop NHL 26 Pro Club.",
 };

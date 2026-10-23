@@ -25,11 +25,16 @@ export function groupGameNights(games: GameLite[], tz = "Europe/Amsterdam", gapH
   const keyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
   const labelFmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric" });
 
+  // Two sessions on one date get "-2", "-3"… so every night has its own address.
+  const seen = new Map<string, number>();
   return groups
     .map((night) => {
       const first = night[0].playedAt;
+      const day = keyFmt.format(first);
+      const n = (seen.get(day) ?? 0) + 1;
+      seen.set(day, n);
       return {
-        key: keyFmt.format(first),
+        key: n === 1 ? day : `${day}-${n}`,
         label: labelFmt.format(first).replace(",", ""),
         games: [...night].reverse(),
         wins: night.filter((g) => g.outcome === "W").length,
