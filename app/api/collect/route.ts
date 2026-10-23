@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const summary = await runCollect("cron");
-  if (summary.newMatches + summary.recoveredMatches + summary.summaryMatches > 0) {
+  if (summary.newMatches + summary.recoveredMatches + summary.summaryMatches + (summary.opponentsRefreshed ?? 0) > 0) {
     revalidateTag(CLUB_TAG, "max");
   }
   return Response.json(summary);

@@ -1,6 +1,6 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, max, notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { clubSnapshots, collectorRuns, matchClubs, matches, matchPlayers } from "@/db/schema";
+import { clubSnapshots, collectorRuns, matchClubs, matches, matchPlayers, opponentSnapshots, scoutRequests } from "@/db/schema";
 import type { MatchClubRow, MatchPlayerRow, MatchRow, NormalizedMatch } from "@/lib/ea/normalize";
 
 // Compile-time check: normalizer rows fit the tables.
@@ -108,4 +108,65 @@ export async function lastRunAt(db: Db, status?: "ok"): Promise<Date | null> {
     .orderBy(desc(collectorRuns.startedAt), desc(collectorRuns.id))
     .limit(1);
   return row?.startedAt ?? null;
+}
+
+// ---- Opponents ----
+
+export type ScoutRequest = typeof scoutRequests.$inferSelect;
+
+export async function pendingScoutRequests(db: Db, limit: number): Promise<ScoutRequest[]> {
+  return db.select().from(scoutRequests).where(eq(scoutRequests.status, "pending")).orderBy(asc(scoutRequests.requestedAt)).limit(limit);
+}
+
+export async function markScoutRequest(db: Db, id: number, status: "done" | "not_found" | "error", clubId?: number): Promise<void> {
+  await db.update(scoutRequests).set({ status, clubId: clubId ?? null, processedAt: new Date() }).where(eq(scoutRequests.id, id));
+}
+
+const DAY = 86_400_000;
+
+// Opponents we played in the last 14 days without a snapshot from the last 6 hours, most recent first.
+export async function staleRecentOpponents(db: Db, now: Date, limit: number): Promise<number[]> {
+  if (limit <= 0) return [];
+  const fresh = db
+    .selectDistinct({ clubId: opponentSnapshots.clubId })
+    .from(opponentSnapshots)
+    .where(gt(opponentSnapshots.takenAt, new Date(now.getTime() - 6 * 3_600_000)));
+  const rows = await db
+    .select({ clubId: matches.opponentClubId, last: max(matches.playedAt) })
+    .from(matches)
+    .where(and(gt(matches.playedAt, new Date(now.getTime() - 14 * DAY)), notInArray(matches.opponentClubId, fresh)))
+    .groupBy(matches.opponentClubId)
+    .orderBy(desc(max(matches.playedAt)))
+    .limit(limit);
+  return rows.map((r) => r.clubId);
+}
+
+export async function insertOpponentSnapshot(db: Db, row: typeof opponentSnapshots.$inferInsert): Promise<void> {
+  await db.insert(opponentSnapshots).values(row);
+}
+
+export async function knownClubName(db: Db, clubId: number): Promise<string | null> {
+  const [row] = await db.select({ name: matchClubs.name }).from(matchClubs).where(eq(matchClubs.clubId, clubId)).limit(1);
+  return row?.name ?? null;
+}
+
+// Counts a failed attempt; returns the new attempt count.
+export async function bumpScoutAttempt(db: Db, id: number): Promise<number> {
+  const [row] = await db
+    .update(scoutRequests)
+    .set({ attempts: sql`${scoutRequests.attempts} + 1` })
+    .where(eq(scoutRequests.id, id))
+    .returning({ attempts: scoutRequests.attempts });
+  return row?.attempts ?? 0;
+}
+
+// Keep only the newest `keep` snapshots per club so storage stays small.
+export async function pruneOpponentSnapshots(db: Db, clubId: number, keep = 3): Promise<void> {
+  const rows = await db
+    .select({ id: opponentSnapshots.id })
+    .from(opponentSnapshots)
+    .where(eq(opponentSnapshots.clubId, clubId))
+    .orderBy(desc(opponentSnapshots.takenAt), desc(opponentSnapshots.id));
+  const old = rows.slice(keep).map((r) => r.id);
+  if (old.length) await db.delete(opponentSnapshots).where(inArray(opponentSnapshots.id, old));
 }

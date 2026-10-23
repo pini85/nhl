@@ -64,7 +64,7 @@ describe("collect", () => {
   });
 
   it("returns error status when EA is fully down and still logs the run", async () => {
-    const ea: EaApi = { clubMatches: async () => down, seasonalStats: async () => down, members: async () => down };
+    const ea: EaApi = { clubMatches: async () => down, seasonalStats: async () => down, members: async () => down, searchClubs: async () => down, clubInfo: async () => down };
     const s = await collect({ db, ea }, "cron", { recover: false });
     expect(s.status).toBe("error");
     const [run] = await db.select().from(collectorRuns);

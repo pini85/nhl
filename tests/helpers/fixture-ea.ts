@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { CLUB_ID } from "@/lib/config";
-import type { EaApi } from "@/lib/ea/api";
+import { toClubSummary, type EaApi } from "@/lib/ea/api";
 import { toRosterMember } from "@/lib/ea/normalize";
 import { EaMatchListSchema, EaSeasonalStatsListSchema, type EaSeasonalStats } from "@/lib/ea/schemas";
 
@@ -28,6 +28,18 @@ export function createFixtureEa(dir: string): EaApi {
     },
     async members() {
       return { ok: true, data: structuredClone(members) };
+    },
+    async searchClubs(name) {
+      const hit = [...ours, ...recovered]
+        .flatMap((m) => Object.entries(m.clubs))
+        .find(([, c]) => String((c.details as { name?: string } | undefined)?.name ?? "").toLowerCase() === name.trim().toLowerCase());
+      if (!hit) return { ok: true, data: [] };
+      const [id, c] = hit;
+      return { ok: true, data: [toClubSummary(Number(id), seasonal, c.details as Record<string, unknown>)] };
+    },
+    async clubInfo(clubId) {
+      const c = [...ours, ...recovered].map((m) => m.clubs[String(clubId)]).find(Boolean);
+      return { ok: true, data: toClubSummary(clubId, seasonal, c?.details as Record<string, unknown> | undefined) };
     },
   };
 }

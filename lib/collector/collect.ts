@@ -7,6 +7,7 @@ import {
   startRun,
   type RunTrigger,
 } from "@/db/repo";
+import { refreshOpponents } from "@/lib/collector/opponents";
 import { recoverMissing } from "@/lib/collector/recover";
 import { CLUB_ID, MATCH_TYPES } from "@/lib/config";
 import type { EaApi } from "@/lib/ea/api";
@@ -19,6 +20,7 @@ export type CollectSummary = {
   newMatches: number;
   recoveredMatches: number;
   summaryMatches: number;
+  opponentsRefreshed: number;
   warnings: string[];
   errors: string[];
 };
@@ -30,7 +32,7 @@ const EA_PAGE_SIZE = 5; // EA only ever returns the last 5 games per type
 export async function collect(
   deps: CollectDeps,
   trigger: RunTrigger,
-  opts: { recover?: boolean } = {},
+  opts: { recover?: boolean; opponents?: boolean } = {},
 ): Promise<CollectSummary> {
   const { db, ea } = deps;
   const now = deps.now ?? (() => new Date());
@@ -41,6 +43,7 @@ export async function collect(
     newMatches: 0,
     recoveredMatches: 0,
     summaryMatches: 0,
+    opponentsRefreshed: 0,
     warnings: [],
     errors: [],
   };
@@ -103,6 +106,17 @@ export async function collect(
     }
 
     summary.status = summary.errors.length === 0 ? "ok" : summary.errors.length >= calls ? "error" : "partial";
+
+    // Last and optional: opponent snapshots never affect the run's status.
+    if ((opts.opponents ?? true) && summary.status !== "error") {
+      try {
+        const opp = await refreshOpponents({ db, ea, now });
+        summary.opponentsRefreshed = opp.refreshed;
+        summary.warnings.push(...opp.warnings);
+      } catch (e) {
+        summary.warnings.push(`opponents-error:${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
   } catch (e) {
     summary.status = "error";
     summary.errors.push(e instanceof Error ? e.message : String(e));

@@ -6,7 +6,7 @@ const summary = await runCollect(trigger);
 console.log(JSON.stringify(summary, null, 2));
 
 // Tell the website to refresh its cached pages when something new was stored.
-const changed = summary.newMatches + summary.recoveredMatches + summary.summaryMatches > 0;
+const changed = summary.newMatches + summary.recoveredMatches + summary.summaryMatches + summary.opponentsRefreshed > 0;
 const site = process.env.SITE_URL;
 if (changed && site && process.env.CRON_SECRET) {
   try {
