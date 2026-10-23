@@ -22,6 +22,6 @@ describe("POST /api/revalidate", () => {
   it("revalidates the club tag", async () => {
     const res = await POST(new Request(url, { method: "POST", headers: { authorization: "Bearer s3cret" } }));
     expect(res.status).toBe(200);
-    expect(revalidateTag).toHaveBeenCalledWith("club-56507", "max");
+    expect(revalidateTag).toHaveBeenCalledWith("club-56507", { expire: 0 });
   });
 });

@@ -7,6 +7,7 @@ export async function POST(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  revalidateTag(CLUB_TAG, "max");
+  // Expire immediately so the next visitor sees the new game, not a stale page.
+  revalidateTag(CLUB_TAG, { expire: 0 });
   return Response.json({ ok: true });
 }

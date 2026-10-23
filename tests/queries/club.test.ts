@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/db/client";
+import { clubSnapshots } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
 import { allGames, latestSnapshot, matchDetail, ourPlayerLines, playerDetail } from "@/lib/queries/club";
 import { createTestDb } from "../helpers/db";
@@ -59,6 +60,18 @@ describe("club queries after collecting the fixtures", () => {
     const m = await matchDetail(db, id);
     expect(m?.clubs).toEqual([]);
     expect(m?.lines).toEqual([]);
+  });
+
+  it("returns our lines oldest game first so the newest name wins", async () => {
+    const l = (await ourPlayerLines(db)).filter((x) => x.eaPlayerId === "828785353");
+    expect(l[0].matchId).toBe("2602324540070"); // Sun Oct 18
+    expect(l.at(-1)?.matchId).toBe("2782817800237"); // Thu Oct 22, last game
+  });
+
+  it("falls back to the last known roster when the newest snapshot has none", async () => {
+    const s = (await latestSnapshot(db))!;
+    await db.insert(clubSnapshots).values({ ...s, id: undefined, takenAt: new Date("2026-10-24T12:00:00Z"), members: null });
+    expect((await latestSnapshot(db))?.members).toHaveLength(4);
   });
 
   it("returns player detail", async () => {

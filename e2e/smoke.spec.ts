@@ -31,3 +31,20 @@ test("games filter hides other types", async ({ page }) => {
   await page.getByRole("button", { name: "Playoffs" }).click();
   await expect(page.getByText("No games of this type yet.")).toBeVisible();
 });
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+  test("home content is visible", async ({ page }) => {
+    await page.goto("/");
+    const text = page.getByText("1 win to promotion").first();
+    await expect(text).toBeVisible();
+    await page.waitForTimeout(1200); // let CSS entrance animations finish
+    // Playwright treats opacity:0 as "visible", so check the real rendered opacity up the tree.
+    const opacity = await text.evaluate((el) => {
+      let o = 1;
+      for (let n: Element | null = el; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
+      return o;
+    });
+    expect(opacity).toBeGreaterThan(0.9);
+  });
+});

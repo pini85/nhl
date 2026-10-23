@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { sortLeaders } from "@/lib/stats/sort";
 import { cn } from "@/lib/utils";
 import type { Badge, GoalieTotals, SkaterTotals } from "@/lib/stats/players";
 
@@ -70,9 +71,7 @@ export function Leaders({ data }: { data: Data }) {
   const [sort, setSort] = useState<string>("points");
 
   const cols = kind === "skaters" ? SKATER_COLS : GOALIE_COLS;
-  const rows = [...(data[range][kind] as Array<SkaterTotals | GoalieTotals>)].sort(
-    (a, b) => Number((b as Record<string, unknown>)[sort] ?? 0) - Number((a as Record<string, unknown>)[sort] ?? 0),
-  );
+  const rows = sortLeaders(data[range][kind] as Array<SkaterTotals | GoalieTotals>, sort);
 
   return (
     <>
