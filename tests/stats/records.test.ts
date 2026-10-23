@@ -23,6 +23,14 @@ describe("clubRecords", () => {
     ];
     expect(clubRecords(l, [g1, g2], base.clubId).find((r) => r.key === "goals-game")?.holder).toBe("Earlier");
   });
+  it("same-game ties break by name, not database order", () => {
+    const base = lines.find((l) => l.eaPlayerId === "828785353")!;
+    const g1: GameLite = { ...games[0], matchId: "t1", playedAt: new Date("2026-09-01T19:00:00Z") };
+    const make = (id: string, name: string): PlayerLine => ({ ...base, matchId: "t1", eaPlayerId: id, playerName: name, goals: 3 });
+    const one = clubRecords([make("2", "Zed"), make("1", "Amy")], [g1], base.clubId).find((r) => r.key === "goals-game")?.holder;
+    const two = clubRecords([make("1", "Amy"), make("2", "Zed")], [g1], base.clubId).find((r) => r.key === "goals-game")?.holder;
+    expect([one, two]).toEqual(["Amy", "Amy"]);
+  });
   it("no records without games", () => expect(clubRecords([], [], 56507)).toEqual([]));
 });
 

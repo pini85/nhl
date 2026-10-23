@@ -84,7 +84,7 @@ async function NightContent({ params }: { params: Promise<{ key: string }> }) {
         </Section>
       )}
 
-      {hasPlayerData && (
+      {hasPlayerData && (leaders.hits || leaders.shots || leaders.plusMinus || leaders.goalie) && (
         <Section title="Night leaders">
           <div className="grid grid-cols-2 gap-1.5">
             {leaders.hits && <StatTile label={`Hits · ${leaders.hits.name}`} value={leaders.hits.value} />}

@@ -41,6 +41,11 @@ describe("groupGameNights", () => {
   });
 
   it("handles no games", () => expect(groupGameNights([])).toEqual([]));
+
+  it("gives two sessions on the same date different keys", () => {
+    const n = groupGameNights([g("a", "2026-10-24T12:00:00Z"), g("b", "2026-10-24T18:30:00Z")]);
+    expect(n.map((x) => x.key)).toEqual(["2026-10-24-2", "2026-10-24"]); // newest first
+  });
 });
 
 describe("threeStars", () => {

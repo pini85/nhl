@@ -23,8 +23,11 @@ function best<T>(items: T[], value: (t: T) => number, at: (t: T) => number): T |
 export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: number): RecordItem[] {
   if (!games.length) return [];
   const byId = new Map(games.map((g) => [g.matchId, g]));
-  const ours = lines.filter((l) => l.clubId === ourClubId && byId.has(l.matchId));
   const at = (l: PlayerLine) => byId.get(l.matchId)!.playedAt.getTime();
+  // Ordered by time, then name, so ties never depend on database order.
+  const ours = lines
+    .filter((l) => l.clubId === ourClubId && byId.has(l.matchId))
+    .sort((a, b) => at(a) - at(b) || a.playerName.localeCompare(b.playerName));
   const records: RecordItem[] = [];
 
   const playerRecord = (key: string, label: string, v: (l: PlayerLine) => number) => {
