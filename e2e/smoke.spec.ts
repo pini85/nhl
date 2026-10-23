@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents"];
+const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808"];
 
 for (const path of pages) {
   test(`renders ${path} on a phone without errors or sideways scroll`, async ({ page }) => {
@@ -47,4 +47,15 @@ test.describe("without JavaScript", () => {
     });
     expect(opacity).toBeGreaterThan(0.9);
   });
+});
+
+test("opponent search finds a club", async ({ page }) => {
+  await page.goto("/opponents");
+  await page.getByLabel("Search a club").fill("INFER");
+  await expect(page.getByText("INFERNAL LEGION").first()).toBeVisible();
+});
+
+test("unknown club shows the not-found page", async ({ page }) => {
+  await page.goto("/clubs/999999999");
+  await expect(page.getByText("Nothing here")).toBeVisible();
 });
