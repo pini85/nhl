@@ -19,6 +19,8 @@ import { groupGameNights, nightMvp } from "@/lib/stats/nights";
 import { hotPlayers } from "@/lib/stats/players";
 import { seasonProgress } from "@/lib/stats/season";
 import { celebrationFor } from "@/lib/stats/celebrate";
+import { funFacts } from "@/lib/stats/funfacts";
+import { FunFacts } from "@/components/club/FunFacts";
 import { Celebrate } from "@/components/club/Celebrate";
 
 export default async function Home() {
@@ -65,6 +67,7 @@ export default async function Home() {
     latest && <LatestNight key="night" night={latest} mvp={mvp} />,
     nights.length > 0 && <NightTrendChart key="trend" data={nightSeries(nights)} />,
     <HotPlayers key="hot" players={hot} />,
+    <FunFacts key="facts" facts={funFacts(lines, games, CLUB_ID).map(({ key, text }) => ({ key, text }))} />,
     <Link key="search" href="/opponents" className="arena-card my-3 flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted-fg)]">
       <Search className="size-4" aria-hidden /> Scouting a club? Search opponents
     </Link>,
