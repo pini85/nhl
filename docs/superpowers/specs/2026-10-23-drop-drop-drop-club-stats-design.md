@@ -157,6 +157,10 @@ Mobile-first, **Arena Night** style: dark, ice-blue neon glow, scoreboard-style 
 4. **Charts and form:** GF/GA trend, player form charts, hot/cold, division history from snapshots.
 5. **Extras:** lines, records and milestones, share image, PWA.
 
+## 8b. Extras (phase 5): user direction, 2026-10-23
+
+The user said this is **an important part**. Research online (EASHL/Pro Clubs communities, sports apps like Apple Sports, FotMob, HockeyViz, Strava, Spotify Wrapped) and be very creative. Add as many nice-to-have extras for the teammates as are worth building, **without asking for approval**. Baseline (already in spec): line chemistry, records & milestones, share images, add to home screen. Plan 5 must start with a research step that writes the chosen list and the reasons into the plan before building.
+
 ## 9. Final deliverable: run report
 
 The user asked for a report when everything is finished. The record is kept in `docs/superpowers/run-log.md` and updated at each milestone and each resume. The report covers:
