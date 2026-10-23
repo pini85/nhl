@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Leaders } from "@/components/club/Leaders";
@@ -19,7 +20,12 @@ export const metadata = { title: "Players" };
 export default function PlayersPage() {
   return (
     <>
-      <h1 className="text-2xl font-black">Players</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black">Players</h1>
+        <Link href="/players/compare" className="rounded-full border border-[var(--card-border)] px-3 py-1 text-xs font-semibold text-[var(--accent-blue)]">
+          Compare ⚖️
+        </Link>
+      </div>
       <Tabs defaultValue="leaders" className="mt-2">
         <TabsList className="w-full">
           <TabsTrigger value="leaders">Leaders</TabsTrigger>
