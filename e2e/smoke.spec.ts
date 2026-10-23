@@ -87,3 +87,10 @@ test("home works when localStorage is blocked", async ({ page }) => {
   await expect(page.getByText("Division 8").first()).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("wrapped story advances on tap", async ({ page }) => {
+  await page.goto("/wrapped");
+  await expect(page.getByText("Games played")).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Goals scored")).toBeVisible();
+});

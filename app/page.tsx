@@ -67,6 +67,12 @@ export default async function Home() {
     latest && <LatestNight key="night" night={latest} mvp={mvp} />,
     nights.length > 0 && <NightTrendChart key="trend" data={nightSeries(nights)} />,
     <HotPlayers key="hot" players={hot} />,
+    games.length >= 3 && (
+      <Link key="wrapped" href="/wrapped" className="arena-card my-3 flex items-center justify-between px-3.5 py-3 text-sm font-semibold">
+        <span>🎁 Your season, wrapped</span>
+        <span className="text-[var(--accent-blue)]">Open →</span>
+      </Link>
+    ),
     <FunFacts key="facts" facts={funFacts(lines, games, CLUB_ID).map(({ key, text }) => ({ key, text }))} />,
     <Link key="search" href="/opponents" className="arena-card my-3 flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted-fg)]">
       <Search className="size-4" aria-hidden /> Scouting a club? Search opponents
