@@ -79,7 +79,7 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
 
       {game.source === "summary" ? (
         <Section>
-          <p className="text-sm text-[var(--muted-fg)]">Only the score was saved for this game. It was recovered from EA's recent results after the full box score had expired.</p>
+          <p className="text-sm text-[var(--muted-fg)]">Only the score was saved for this game. It was recovered from EA&apos;s recent results after the full box score had expired.</p>
         </Section>
       ) : (
         <>
