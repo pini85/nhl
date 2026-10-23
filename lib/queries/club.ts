@@ -81,3 +81,10 @@ export async function playerDetail(
     .orderBy(desc(matches.playedAt));
   return { lines, games };
 }
+
+export async function snapshotHistory(db: Db): Promise<{ takenAt: Date; division: number }[]> {
+  return db
+    .select({ takenAt: clubSnapshots.takenAt, division: clubSnapshots.division })
+    .from(clubSnapshots)
+    .orderBy(asc(clubSnapshots.takenAt));
+}

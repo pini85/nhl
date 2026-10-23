@@ -59,3 +59,13 @@ test("unknown club shows the not-found page", async ({ page }) => {
   await page.goto("/clubs/999999999");
   await expect(page.getByText("Nothing here")).toBeVisible();
 });
+
+test("home has the goals-per-night chart", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("region", { name: "Goals for and against per game night" })).toBeVisible();
+});
+
+test("player page has the form chart", async ({ page }) => {
+  await page.goto("/players/828785353");
+  await expect(page.getByRole("region", { name: "Points per game, last games" })).toBeVisible();
+});

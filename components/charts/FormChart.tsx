@@ -5,18 +5,21 @@ import { ChartFrame, ChartTooltip } from "@/components/charts/ChartFrame";
 import { AXIS, GRID, US } from "@/components/charts/palette";
 import type { FormPoint } from "@/lib/stats/trends";
 
-type Tick = { x?: number; y?: number; payload?: { index: number } };
+type Tick = { x?: number | string; y?: number | string; payload?: { index: number } };
+
+// W/L under each bar, in win/loss text colors.
+function renderOutcomeTick({ x = 0, y = 0, payload }: Tick, data: FormPoint[]) {
+  const [px, py] = [Number(x), Number(y)];
+  const d = data[payload?.index ?? 0];
+  return (
+    <text x={px} y={py + 10} textAnchor="middle" fontSize={10} fontWeight={700} fill={d?.outcome === "W" ? "#5dffa8" : "#ff7a8a"}>
+      {d?.outcome}
+    </text>
+  );
+}
 
 export function FormChart({ data }: { data: FormPoint[] }) {
   if (!data.length) return null;
-  const OutcomeTick = ({ x = 0, y = 0, payload }: Tick) => {
-    const d = data[payload?.index ?? 0];
-    return (
-      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={700} fill={d?.outcome === "W" ? "#5dffa8" : "#ff7a8a"}>
-        {d?.outcome}
-      </text>
-    );
-  };
   return (
     <ChartFrame
       title={`Form · last ${data.length} games`}
@@ -28,7 +31,7 @@ export function FormChart({ data }: { data: FormPoint[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data.map((d, index) => ({ ...d, index }))} barCategoryGap="25%" margin={{ top: 8, right: 4, bottom: 0, left: -28 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="index" tick={<OutcomeTick />} axisLine={false} tickLine={false} interval={0} />
+            <XAxis dataKey="index" tick={(p) => renderOutcomeTick(p as Tick, data)} axisLine={false} tickLine={false} interval={0} />
             <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip
               cursor={{ fill: "rgba(255,255,255,0.04)" }}

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { HeatBadge } from "@/components/club/HeatBadge";
 import { sortLeaders } from "@/lib/stats/sort";
+import type { Heat } from "@/lib/stats/trends";
 import { cn } from "@/lib/utils";
 import type { Badge, GoalieTotals, SkaterTotals } from "@/lib/stats/players";
 
@@ -65,7 +67,7 @@ function Chips<T extends string>({ items, value, onChange }: { items: { key: T; 
   );
 }
 
-export function Leaders({ data }: { data: Data }) {
+export function Leaders({ data, heat = {} }: { data: Data; heat?: Record<string, Heat> }) {
   const [range, setRange] = useState<Range>("all");
   const [kind, setKind] = useState<"skaters" | "goalies">("skaters");
   const [sort, setSort] = useState<string>("points");
@@ -116,6 +118,9 @@ export function Leaders({ data }: { data: Data }) {
                       <Link href={`/players/${r.eaPlayerId}`} className="truncate font-semibold">
                         {r.name}
                       </Link>
+                      <span className="ml-1 shrink-0">
+                        <HeatBadge heat={heat[r.eaPlayerId]} />
+                      </span>
                       <span className="shrink-0">
                         <BadgeChip badge={r.badge} />
                       </span>

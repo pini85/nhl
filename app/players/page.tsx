@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CLUB_ID } from "@/lib/config";
 import { getGames, getOurLines, getSnapshot } from "@/lib/data/club";
 import { filterGames, playerTotals } from "@/lib/stats/players";
+import { heatMap } from "@/lib/stats/trends";
 
 export const metadata = { title: "Players" };
 
@@ -45,5 +46,6 @@ async function LeadersData() {
     const ids = filterGames(games, range, now);
     return playerTotals(lines.filter((l) => ids.has(l.matchId)), games, snapshot?.members ?? null, CLUB_ID);
   };
-  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} />;
+  const heat = Object.fromEntries(heatMap(lines, games, CLUB_ID));
+  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} />;
 }
