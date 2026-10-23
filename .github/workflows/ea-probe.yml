@@ -1,0 +1,19 @@
+name: ea-probe
+on:
+  push:
+    branches: [feat/collector]
+    paths: [".github/workflows/ea-probe.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Call EA from a GitHub runner
+        run: |
+          cat > p.mjs <<'JS'
+          const h={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","Accept":"application/json, text/plain, */*","Accept-Language":"en-US,en;q=0.9","Origin":"https://www.ea.com","Referer":"https://www.ea.com/","Sec-Fetch-Dest":"empty","Sec-Fetch-Mode":"cors","Sec-Fetch-Site":"same-site","sec-ch-ua":'"Chromium";v="130", "Google Chrome";v="130"',"sec-ch-ua-mobile":"?0","sec-ch-ua-platform":'"macOS"'};
+          for (let i=0;i<3;i++){ const r=await fetch("https://proclubs.ea.com/api/nhl/clubs/info?platform=common-gen5&clubIds=56507",{headers:h}); console.log("attempt",i,r.status,(await r.text()).slice(0,60)); }
+          JS
+          node p.mjs
