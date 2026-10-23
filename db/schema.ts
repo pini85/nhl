@@ -9,8 +9,11 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { RecentResult, RosterMember } from "@/lib/ea/normalize";
+import type { OpponentProfile } from "@/lib/opponents/profile";
 
 export const matches = pgTable(
   "matches",
@@ -138,3 +141,37 @@ export const collectorRuns = pgTable("collector_runs", {
   warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
   error: text("error"),
 });
+
+export const opponentSnapshots = pgTable(
+  "opponent_snapshots",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id").notNull(),
+    takenAt: timestamp("taken_at", { withTimezone: true }).notNull(),
+    name: text("name").notNull(),
+    crestAssetId: text("crest_asset_id"),
+    division: integer("division"),
+    wins: integer("wins").notNull().default(0),
+    losses: integer("losses").notNull().default(0),
+    otl: integer("otl").notNull().default(0),
+    seasonResults: jsonb("season_results").$type<string[]>().notNull().default([]),
+    members: jsonb("members").$type<RosterMember[]>(),
+    profile: jsonb("profile").$type<OpponentProfile>(),
+    raw: jsonb("raw").notNull(),
+  },
+  (t) => [index("opponent_snapshots_club_idx").on(t.clubId, t.takenAt.desc())],
+);
+
+export const scoutRequests = pgTable(
+  "scout_requests",
+  {
+    id: serial("id").primaryKey(),
+    query: text("query").notNull(),
+    normalized: text("normalized").notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    status: text("status", { enum: ["pending", "done", "not_found", "error"] }).notNull().default("pending"),
+    clubId: integer("club_id"),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("scout_requests_pending_uq").on(t.normalized).where(sql`status = 'pending'`)],
+);

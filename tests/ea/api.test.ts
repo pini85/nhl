@@ -67,6 +67,18 @@ describe("createEaApi", () => {
     }
   });
 
+  it("searches clubs", async () => {
+    const r = await apiServing(read("clubs-search.json")).searchClubs("Drop drop drop");
+    expect(r.ok && r.data).toEqual([
+      expect.objectContaining({ clubId: 56507, name: "Drop drop drop", crestAssetId: "104", division: 8, wins: 11, losses: 9 }),
+    ]);
+  });
+
+  it("treats an empty search as no results", async () => {
+    expect(await apiServing("[]").searchClubs("zzz")).toEqual({ ok: true, data: [] });
+    expect(await apiServing("{}").searchClubs("zzz")).toEqual({ ok: true, data: [] });
+  });
+
   it("passes http errors through", async () => {
     const r = await apiServing("nope", 404).clubMatches(56507, "gameType5");
     expect(!r.ok && r.error).toMatchObject({ kind: "http", status: 404 });
