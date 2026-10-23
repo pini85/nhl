@@ -76,6 +76,8 @@ EA API ──(every 10 min + on visit if stale)──▶ Collector ──▶ Pos
 
 ### Triggers
 
+> **Decided 2026-10-23:** EA returns 403 to Vercel functions (tested iad1 and fra1) but 200 to GitHub Actions runners. The production collector is therefore the GitHub Actions workflow `.github/workflows/collect.yml` (every 10 min, `pnpm collect:ci`, `DATABASE_URL` from repo secrets). cron-job.org is not used. `/api/collect` stays for manual use. Because the collector writes to the database outside Vercel, Plan 2 must make pages pick up new games (short `cacheLife` or a revalidate call from the workflow).
+
 - **cron-job.org** calls `/api/collect` every 10 minutes (Vercel Hobby cron is limited to once per day).
 - **On visit:** if the last successful run was more than 5 minutes ago, the page triggers a background collect (`after()`), rate-limited through `collector_runs`.
 - **Fallback:** if EA blocks Vercel IPs, a scheduled GitHub Actions workflow runs the same collector code (`pnpm collect`) against the database directly.
