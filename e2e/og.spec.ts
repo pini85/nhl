@@ -15,3 +15,11 @@ for (const path of ["/", "/games/2782817800237", "/nights/2026-10-22", "/players
     expect(res.headers()["content-type"]).toContain("image/png");
   });
 }
+
+test("installable app manifest and icon", async ({ request }) => {
+  const m = await request.get("/manifest.webmanifest");
+  expect(m.status()).toBe(200);
+  expect((await m.json()).display).toBe("standalone");
+  const icon = await request.get("/icon");
+  expect(icon.headers()["content-type"]).toContain("image/png");
+});

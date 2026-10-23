@@ -2,6 +2,17 @@ import Link from "next/link";
 import { Section } from "@/components/club/Section";
 import { AWARD_INFO, type Award, type AwardKey } from "@/lib/stats/awards";
 
+// One entry per player, most awards first.
+function countByPlayer(list: Award[]) {
+  const m = new Map<string, { eaPlayerId: string; name: string; count: number }>();
+  for (const a of list) {
+    const e = m.get(a.eaPlayerId) ?? { eaPlayerId: a.eaPlayerId, name: a.name, count: 0 };
+    e.count++;
+    m.set(a.eaPlayerId, e);
+  }
+  return [...m.values()].sort((x, y) => y.count - x.count || x.name.localeCompare(y.name));
+}
+
 export function AwardChips({ awards, title = "Awards" }: { awards: Award[]; title?: string }) {
   if (!awards.length) return null;
   // Group by award so "🗡️ Giant slayer" lists the whole team once.
@@ -18,10 +29,11 @@ export function AwardChips({ awards, title = "Awards" }: { awards: Award[]; titl
             <span className="min-w-0">
               <b>{AWARD_INFO[key].label}</b>{" "}
               <span className="text-[var(--muted-fg)]">
-                {list.map((a, i) => (
-                  <span key={a.eaPlayerId + i}>
+                {countByPlayer(list).map((p, i) => (
+                  <span key={p.eaPlayerId}>
                     {i > 0 && ", "}
-                    <Link href={`/players/${a.eaPlayerId}`}>{a.name}</Link>
+                    <Link href={`/players/${p.eaPlayerId}`}>{p.name}</Link>
+                    {p.count > 1 && <b className="text-[var(--fg)]"> ×{p.count}</b>}
                   </span>
                 ))}
               </span>
