@@ -18,6 +18,8 @@ import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { groupGameNights, nightMvp } from "@/lib/stats/nights";
 import { hotPlayers } from "@/lib/stats/players";
 import { seasonProgress } from "@/lib/stats/season";
+import { celebrationFor } from "@/lib/stats/celebrate";
+import { Celebrate } from "@/components/club/Celebrate";
 
 export default async function Home() {
   const [snapshot, games, lines, clubRows, scouted, history] = await Promise.all([
@@ -52,7 +54,9 @@ export default async function Home() {
     ? `Division ${snapshot.division}${season?.division ? ` · ${season.division.conference}` : ""} · ${snapshot.wins}-${snapshot.losses}-${snapshot.otl} all-time`
     : "NHL 26 Pro Club";
 
+  const party = season && snapshot ? celebrationFor(season.state, snapshot.division, snapshot.seasons) : null;
   const blocks = [
+    party && <Celebrate key="party" message={party.message} storageKey={party.key} />,
     season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
     snapshot && (
       <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations} />

@@ -76,3 +76,14 @@ test("what-if simulator updates the outlook", async ({ page }) => {
   await page.getByRole("button", { name: "Remaining game 1: not played" }).click();
   await expect(page.getByText("Promotion secured · 1 win to title").last()).toBeVisible();
 });
+
+test("home works when localStorage is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get() { throw new Error("blocked"); } });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await expect(page.getByText("Division 8").first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
