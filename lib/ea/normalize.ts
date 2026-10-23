@@ -247,3 +247,27 @@ export function parseRecentResults(s: EaSeasonalStats): RecentResult[] {
   }
   return out;
 }
+
+export type RosterMember = {
+  name: string;
+  position: string;
+  gp: number;
+  goals: number;
+  assists: number;
+  points: number;
+  plusMinus: number;
+  raw: Record<string, unknown>;
+};
+
+export function toRosterMember(m: Record<string, unknown>): RosterMember {
+  return {
+    name: String(m.name ?? ""),
+    position: String(m.favoritePosition ?? ""),
+    gp: toInt(m.skgp),
+    goals: toInt(m.skgoals),
+    assists: toInt(m.skassists),
+    points: toInt(m.skpoints),
+    plusMinus: toInt(m.skplusmin),
+    raw: m,
+  };
+}

@@ -83,8 +83,12 @@ export async function collect(
 
     calls++;
     const seasonal = await ea.seasonalStats(CLUB_ID);
+    // Roster (member/former badges, career stats). Optional: a failure is only a warning.
+    const roster = await ea.members(CLUB_ID);
+    if (!roster.ok) summary.warnings.push("members-failed");
+
     if (seasonal.ok) {
-      await insertSnapshot(db, snapshotRow(seasonal.data, now()));
+      await insertSnapshot(db, { ...snapshotRow(seasonal.data, now()), members: roster.ok ? roster.data : null });
     } else {
       summary.errors.push(`seasonalStats: ${seasonal.error.message}`);
     }

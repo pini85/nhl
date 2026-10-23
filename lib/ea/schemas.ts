@@ -45,3 +45,7 @@ export type EaSeasonalStats = z.infer<typeof EaSeasonalStatsSchema> &
   Record<`recentOpponent${number}` | `recentScore${number}`, string>;
 
 export const EaSeasonalStatsListSchema = z.array(EaSeasonalStatsSchema).min(1);
+
+export const EaMembersSchema = z.looseObject({
+  members: z.array(z.looseObject({ name: z.string() })),
+});

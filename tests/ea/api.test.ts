@@ -58,6 +58,15 @@ describe("createEaApi", () => {
     expect(!r.ok && r.error.kind).toBe("invalid");
   });
 
+  it("parses the roster", async () => {
+    const r = await apiServing(read("members-stats.json")).members(56507);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data).toHaveLength(4);
+      expect(r.data.find((m) => m.name === "puck_control")).toMatchObject({ goals: 114, position: "leftWing" });
+    }
+  });
+
   it("passes http errors through", async () => {
     const r = await apiServing("nope", 404).clubMatches(56507, "gameType5");
     expect(!r.ok && r.error).toMatchObject({ kind: "http", status: 404 });

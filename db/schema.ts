@@ -10,7 +10,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
-import type { RecentResult } from "@/lib/ea/normalize";
+import type { RecentResult, RosterMember } from "@/lib/ea/normalize";
 
 export const matches = pgTable(
   "matches",
@@ -122,6 +122,7 @@ export const clubSnapshots = pgTable("club_snapshots", {
   relegations: integer("relegations").notNull(),
   rankingPoints: integer("ranking_points").notNull(),
   seasons: integer("seasons").notNull(),
+  members: jsonb("members").$type<RosterMember[]>(),
   raw: jsonb("raw").notNull(),
 });
 

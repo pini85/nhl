@@ -1,69 +1,68 @@
-import Image from "next/image";
+import { Crest } from "@/components/club/Crest";
+import { FadeIn } from "@/components/club/FadeIn";
+import { HotPlayers } from "@/components/club/HotPlayers";
+import { LatestNight } from "@/components/club/LatestNight";
+import { SeasonCard } from "@/components/club/SeasonCard";
+import { EmptyState } from "@/components/club/Section";
+import { TrophyCase } from "@/components/club/TrophyCase";
+import { CLUB_CREST_ASSET, CLUB_ID, CLUB_NAME } from "@/lib/config";
+import { getGames, getOurLines, getSnapshot } from "@/lib/data/club";
+import { groupGameNights, nightMvp } from "@/lib/stats/nights";
+import { hotPlayers } from "@/lib/stats/players";
+import { seasonProgress } from "@/lib/stats/season";
 
-export default function Home() {
+export default async function Home() {
+  const [snapshot, games, lines] = await Promise.all([getSnapshot(), getGames(), getOurLines()]);
+
+  if (!snapshot && !games.length) {
+    return (
+      <>
+        <Header subtitle="NHL 26 Pro Club" />
+        <EmptyState title="No games saved yet" hint="The collector checks EA every 10 minutes." />
+      </>
+    );
+  }
+
+  const season = snapshot ? seasonProgress(snapshot.seasonResults, snapshot.division) : null;
+  const nights = groupGameNights(games);
+  const latest = nights[0];
+  const latestIds = new Set(latest?.games.map((g) => g.matchId));
+  const mvp = latest ? nightMvp(lines.filter((l) => latestIds.has(l.matchId)), CLUB_ID) : null;
+  const hot = hotPlayers(lines, games, CLUB_ID);
+
+  const subtitle = snapshot
+    ? `Division ${snapshot.division}${season?.division ? ` · ${season.division.conference}` : ""} · ${snapshot.wins}-${snapshot.losses}-${snapshot.otl} all-time`
+    : "NHL 26 Pro Club";
+
+  const blocks = [
+    season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
+    snapshot && (
+      <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations} />
+    ),
+    latest && <LatestNight key="night" night={latest} mvp={mvp} />,
+    <HotPlayers key="hot" players={hot} />,
+  ].filter(Boolean);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <>
+      <Header subtitle={subtitle} />
+      {blocks.map((b, i) => (
+        <FadeIn key={i} index={i}>
+          {b}
+        </FadeIn>
+      ))}
+    </>
+  );
+}
+
+function Header({ subtitle }: { subtitle: string }) {
+  return (
+    <header className="flex items-center gap-3 py-2">
+      <Crest assetId={CLUB_CREST_ASSET} size={48} name={CLUB_NAME} />
+      <div>
+        <h1 className="text-lg leading-tight font-extrabold">{CLUB_NAME}</h1>
+        <p className="text-[11px] text-[var(--muted-fg)]">{subtitle}</p>
+      </div>
+    </header>
   );
 }

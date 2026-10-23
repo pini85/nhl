@@ -43,3 +43,8 @@ next-env.d.ts
 # brainstorming companion
 .superpowers/
 .env*.local
+
+# e2e artifacts
+e2e/screenshots/
+test-results/
+playwright-report/

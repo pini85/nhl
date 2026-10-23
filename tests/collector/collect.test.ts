@@ -28,6 +28,21 @@ describe("collect", () => {
     expect(snap.recentResults).toHaveLength(10);
   });
 
+  it("stores the roster on the snapshot", async () => {
+    await collect({ db, ea: fixtureEa }, "manual", { recover: false });
+    const [snap] = await db.select().from(clubSnapshots);
+    expect(snap.members?.map((m) => m.name).sort()).toEqual(["Popomasta-SMB", "ThePooker", "mike_v_75", "puck_control"]);
+  });
+
+  it("treats a roster failure as a warning", async () => {
+    const ea: EaApi = { ...fixtureEa, members: async () => down };
+    const s = await collect({ db, ea }, "manual", { recover: false });
+    expect(s.status).toBe("ok");
+    expect(s.warnings).toContain("members-failed");
+    const [snap] = await db.select().from(clubSnapshots);
+    expect(snap.members).toBeNull();
+  });
+
   it("is idempotent on a second run", async () => {
     await collect({ db, ea: fixtureEa }, "manual", { recover: false });
     const s = await collect({ db, ea: fixtureEa }, "manual", { recover: false });
@@ -37,6 +52,7 @@ describe("collect", () => {
 
   it("continues when one match type fails", async () => {
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: (id, type) => (type === "gameType10" ? Promise.resolve(down) : fixtureEa.clubMatches(id, type)),
       seasonalStats: fixtureEa.seasonalStats,
     };
@@ -48,7 +64,7 @@ describe("collect", () => {
   });
 
   it("returns error status when EA is fully down and still logs the run", async () => {
-    const ea: EaApi = { clubMatches: async () => down, seasonalStats: async () => down };
+    const ea: EaApi = { clubMatches: async () => down, seasonalStats: async () => down, members: async () => down };
     const s = await collect({ db, ea }, "cron", { recover: false });
     expect(s.status).toBe("error");
     const [run] = await db.select().from(collectorRuns);
@@ -58,6 +74,7 @@ describe("collect", () => {
 
   it("never throws on unexpected exceptions", async () => {
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: async () => {
         throw new Error("boom");
       },
@@ -71,6 +88,7 @@ describe("collect", () => {
 
   it("skips a match it cannot store and still collects the rest", async () => {
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: async (id, type) => {
         const r = await fixtureEa.clubMatches(id, type);
         if (!r.ok || type !== "gameType5") return r;
@@ -88,6 +106,7 @@ describe("collect", () => {
 
   it("passes through warnings about skipped malformed matches", async () => {
     const ea: EaApi = {
+      ...fixtureEa,
       clubMatches: async (id, type) => {
         const r = await fixtureEa.clubMatches(id, type);
         return r.ok && type === "gameType5" ? { ...r, warnings: ["invalid-match:x"] } : r;
@@ -121,6 +140,7 @@ describe("collect", () => {
   it("does not flag a gap when fewer than 5 games come back", async () => {
     await collect({ db, ea: fixtureEa }, "cron", { recover: false });
     const three: EaApi = {
+      ...fixtureEa,
       clubMatches: async (id, type) => {
         const r = await fixtureEa.clubMatches(id, type);
         if (!r.ok) return r;
