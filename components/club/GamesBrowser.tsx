@@ -64,6 +64,9 @@ export function GamesBrowser({ nights }: { nights: NightView[] }) {
                 </div>
               </div>
             </summary>
+            <Link href={`/nights/${night.key}`} className="block border-t border-[var(--card-border)] px-3.5 py-2 text-xs font-semibold text-[var(--accent-blue)]">
+              Night recap →
+            </Link>
             <ul className="border-t border-[var(--card-border)]">
               {night.games.map((g) => (
                 <li key={g.matchId}>

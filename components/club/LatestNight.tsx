@@ -40,6 +40,9 @@ export function LatestNight({
         </div>
       </Link>
 
+      <Link href={`/nights/${night.key}`} className="mt-2 inline-block text-xs font-semibold text-[var(--accent-blue)]">
+        Night recap →
+      </Link>
       {mvp && mvp.points > 0 && (
         <p className="mt-2 text-xs text-[var(--muted-fg)]">
           ⭐ Night MVP <b className="text-[var(--fg)]">{mvp.playerName}</b> · {mvp.goals}G {mvp.assists}A
