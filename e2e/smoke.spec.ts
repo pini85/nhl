@@ -69,3 +69,10 @@ test("player page has the form chart", async ({ page }) => {
   await page.goto("/players/828785353");
   await expect(page.getByRole("region", { name: "Points per game, last games" })).toBeVisible();
 });
+
+test("what-if simulator updates the outlook", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /What if\?/ }).click();
+  await page.getByRole("button", { name: "Remaining game 1: not played" }).click();
+  await expect(page.getByText("Promotion secured · 1 win to title").last()).toBeVisible();
+});
