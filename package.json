@@ -8,11 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "collect": "tsx --env-file=.env.local scripts/collect.ts",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "ea:smoke": "tsx scripts/ea-smoke.ts",
+    "collect": "node --env-file=.env.local --import tsx scripts/collect.mts",
+    "seed": "node --env-file=.env.local --import tsx scripts/seed.mts",
+    "ea:smoke": "tsx scripts/ea-smoke.mts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx --env-file=.env.local db/migrate.ts"
+    "db:migrate": "node --env-file=.env.local --import tsx db/migrate.mts",
+    "collect:ci": "node --import tsx scripts/collect.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
