@@ -90,7 +90,7 @@ test("home works when localStorage is blocked", async ({ page }) => {
 
 test("wrapped story advances on tap", async ({ page }) => {
   await page.goto("/wrapped");
-  await expect(page.getByText("Games played")).toBeVisible();
+  await expect(page.getByText("Games played", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByText("Goals scored")).toBeVisible();
+  await expect(page.getByText("Goals scored", { exact: true })).toBeVisible();
 });

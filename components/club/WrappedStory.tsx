@@ -31,6 +31,9 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
       <div className="relative flex flex-1 items-center justify-center">
         <button aria-label="Previous" onClick={() => go(-1)} className="absolute inset-y-0 left-0 w-1/3" />
         <button aria-label="Next" onClick={() => go(1)} className="absolute inset-y-0 right-0 w-2/3" />
+        <p className="sr-only" aria-live="polite">
+          {`${s.eyebrow}: ${s.big}${s.title ? `, ${s.title}` : ""}. ${s.line}`}
+        </p>
         <AnimatePresence mode="wait">
           <motion.div
             key={i}
@@ -39,7 +42,6 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
             exit={reduce ? undefined : { opacity: 0, y: -16 }}
             transition={{ duration: 0.35 }}
             className="pointer-events-none text-center"
-            aria-live="polite"
           >
             <div className="text-xs tracking-[0.3em] text-[var(--muted-fg)] uppercase">{s.eyebrow}</div>
             <div className="glow tabular mt-3 text-8xl font-black text-[var(--accent-blue)]">{s.big}</div>

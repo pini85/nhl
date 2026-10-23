@@ -16,6 +16,11 @@ describe("buildWrapped", () => {
     expect(w.slides.some((s) => s.kind === "nemesis")).toBe(false);
     expect(slide("most-played")).toBeTruthy();
   });
+  it("no nemesis slide for a club we never lost to", () => {
+    const extra = { ...games.find((g) => g.opponentClubId === 3592)!, matchId: "x2", playedAt: new Date("2026-10-01T19:00:00Z") };
+    const w2 = buildWrapped([...games, extra], lines, clubs, 56507); // 2-0 vs CSKA
+    expect(w2.slides.some((s) => s.kind === "nemesis")).toBe(false);
+  });
   it("ends with the outro", () => expect(w.slides.at(-1)?.kind).toBe("outro"));
   it("empty without games", () => expect(buildWrapped([], [], [], 56507).slides).toEqual([]));
 });

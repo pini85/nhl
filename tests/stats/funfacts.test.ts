@@ -14,6 +14,15 @@ describe("funFacts", () => {
     expect(new Set(text).size).toBe(text.length);
     for (let i = 1; i < facts.length; i++) expect(facts[i - 1].score).toBeGreaterThanOrEqual(facts[i].score);
   });
+  it("never uses a player with fewer than 3 games", () => {
+    const base = lines.find((l) => l.eaPlayerId === "828785353")!;
+    const rookie = ["2782817800237", "2780666310166"].map((matchId) => ({
+      ...base, matchId, eaPlayerId: "rookie", playerName: "Rookie", goals: 4, assists: 0, shots: 6, hits: 30,
+    }));
+    const t = funFacts([...lines, ...rookie], games, 56507).map((f) => f.text).join(" | ");
+    expect(t).not.toContain("Rookie");
+  });
+
   it("nothing on a tiny dataset", () => {
     const two = games.slice(0, 2);
     const ids = new Set(two.map((g) => g.matchId));

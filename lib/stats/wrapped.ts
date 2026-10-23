@@ -29,7 +29,8 @@ export function buildWrapped(games: GameLite[], lines: PlayerLine[], clubs: Matc
   if (best) slides.push({ kind: "night", eyebrow: "Best game night", big: `${best.wins}-${best.losses}`, title: best.label, line: `${best.goalsFor} goals for, ${best.goalsAgainst} against` });
 
   const h2h = headToHead(games);
-  const foe = nemesis(h2h, 1)[0];
+  // Only a real nemesis: a club we've lost to more than we've beaten.
+  const foe = nemesis(h2h, 1).find((h) => h.losses > h.wins);
   if (foe) {
     slides.push({ kind: "nemesis", eyebrow: "Nemesis", big: `${foe.wins}-${foe.losses}`, title: foe.name ?? `Club ${foe.clubId}`, line: "Revenge is on the schedule." });
   } else {

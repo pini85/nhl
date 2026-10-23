@@ -12,7 +12,9 @@ export function funFacts(lines: PlayerLine[], games: GameLite[], ourClubId: numb
   if (full.length < MIN_GAMES) return [];
   const facts: FunFact[] = [];
   const outcome = new Map(games.map((g) => [g.matchId, g.outcome]));
-  const { skaters, goalies } = playerTotals(lines, games, null, ourClubId);
+  const { skaters: allSkaters, goalies } = playerTotals(lines, games, null, ourClubId);
+  // Every player-based fact needs at least 3 games from that player.
+  const skaters = allSkaters.filter((s) => s.gp >= MIN_GAMES);
 
   // Team record when a player gets on the scoresheet (top 2 scorers with 3+ such games).
   for (const s of skaters.slice(0, 2)) {
@@ -45,7 +47,7 @@ export function funFacts(lines: PlayerLine[], games: GameLite[], ourClubId: numb
     opponents.set(g.opponentClubId, o);
   }
   const rival = [...opponents.values()].sort((a, b) => b.n - a.n)[0];
-  if (rival && rival.n >= 2 && rival.name) facts.push({ key: "rival", text: `Most played: ${rival.name}, ${rival.n} times`, score: 55 + rival.n * 3 });
+  if (rival && rival.n >= MIN_GAMES && rival.name) facts.push({ key: "rival", text: `Most played: ${rival.name}, ${rival.n} times`, score: 55 + rival.n * 3 });
 
   const late = full.filter((g) => Number(hourFmt.format(g.playedAt)) >= 23 || Number(hourFmt.format(g.playedAt)) < 4);
   if (late.length >= MIN_GAMES) {
