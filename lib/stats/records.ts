@@ -21,6 +21,22 @@ function best<T>(items: T[], value: (t: T) => number, at: (t: T) => number): T |
   return top;
 }
 
+// Single-game player records: key → label and the number that counts.
+export const PLAYER_RECORDS: Record<string, { label: string; value: (l: PlayerLine) => number }> = {
+  "goals-game": { label: "Most goals in a game", value: (l) => l.goals },
+  "assists-game": { label: "Most assists in a game", value: (l) => l.assists },
+  "points-game": { label: "Most points in a game", value: (l) => l.goals + l.assists },
+  "hits-game": { label: "Most hits in a game", value: (l) => l.hits },
+  "shots-game": { label: "Most shots in a game", value: (l) => l.shots },
+  "takeaways-game": { label: "Most takeaways in a game", value: (l) => l.takeaways },
+  "interceptions-game": { label: "Most interceptions in a game", value: (l) => l.interceptions },
+  "blocks-game": { label: "Most blocked shots in a game", value: (l) => l.blockedShots },
+  "pass-pct-game": {
+    label: "Best passing % in a game (20+ passes)",
+    value: (l) => (l.passAttempts >= 20 ? Math.round((l.passes / l.passAttempts) * 100) : 0),
+  },
+};
+
 export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: number): RecordItem[] {
   if (!games.length) return [];
   const byId = new Map(games.map((g) => [g.matchId, g]));
@@ -37,17 +53,7 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
       records.push({ key, label, value: v(top), holder: top.playerName, holderId: top.eaPlayerId, matchId: top.matchId, playedAt: byId.get(top.matchId)!.playedAt });
     }
   };
-  playerRecord("goals-game", "Most goals in a game", (l) => l.goals);
-  playerRecord("assists-game", "Most assists in a game", (l) => l.assists);
-  playerRecord("points-game", "Most points in a game", (l) => l.goals + l.assists);
-  playerRecord("hits-game", "Most hits in a game", (l) => l.hits);
-  playerRecord("shots-game", "Most shots in a game", (l) => l.shots);
-  playerRecord("takeaways-game", "Most takeaways in a game", (l) => l.takeaways);
-  playerRecord("interceptions-game", "Most interceptions in a game", (l) => l.interceptions);
-  playerRecord("blocks-game", "Most blocked shots in a game", (l) => l.blockedShots);
-  playerRecord("pass-pct-game", "Best passing % in a game (20+ passes)", (l) =>
-    l.passAttempts >= 20 ? Math.round((l.passes / l.passAttempts) * 100) : 0,
-  );
+  for (const [key, { label, value }] of Object.entries(PLAYER_RECORDS)) playerRecord(key, label, value);
 
   const t = (g: GameLite) => g.playedAt.getTime();
   const mostGoals = best(games, (g) => g.goalsFor, t)!;

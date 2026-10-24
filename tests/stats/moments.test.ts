@@ -1,60 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { activeMoments, isAboutMe, type Moment, type MomentInput, momentHref, moments, momentText } from "@/lib/stats/moments";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
+import { CLUB, game, line, SINCE } from "../helpers/builders";
 import { games as fixtureGames, lines as fixtureLines } from "../helpers/club-fixtures";
-
-const CLUB = 56507;
-const SINCE = new Date("2026-10-10T00:00:00Z");
-
-const game = (matchId: string, iso: string, extra: Partial<GameLite> = {}): GameLite => ({
-  matchId,
-  playedAt: new Date(iso),
-  opponentClubId: 1,
-  opponentName: "Opp",
-  goalsFor: 1,
-  goalsAgainst: 2,
-  outcome: "L",
-  overtime: false,
-  dnf: "",
-  source: "full",
-  matchType: "gameType5",
-  ...extra,
-});
-
-const ZERO: Omit<PlayerLine, "matchId" | "eaPlayerId" | "playerName"> = {
-  clubId: CLUB,
-  position: "center",
-  isGuest: false,
-  goals: 0,
-  assists: 0,
-  plusMinus: 0,
-  shots: 0,
-  hits: 0,
-  pim: 0,
-  takeaways: 0,
-  blockedShots: 0,
-  interceptions: 0,
-  passAttempts: 0,
-  passes: 0,
-  giveaways: 0,
-  ppg: 0,
-  shg: 0,
-  gwg: 0,
-  toiSeconds: 1200,
-  glSaves: 0,
-  glShots: 0,
-  glGa: 0,
-  ratingOffense: 0,
-  ratingDefense: 0,
-  ratingTeamplay: 0,
-};
-const line = (matchId: string, eaPlayerId: string, playerName: string, stats: Partial<PlayerLine> = {}): PlayerLine => ({
-  ...ZERO,
-  matchId,
-  eaPlayerId,
-  playerName,
-  ...stats,
-});
 
 const input = (games: GameLite[], lines: PlayerLine[], extra: Partial<MomentInput> = {}): MomentInput => ({
   games,
