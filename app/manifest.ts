@@ -10,8 +10,10 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#070b14",
     theme_color: "#070b14",
     icons: [
-      { src: "/icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/brand/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/brand/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      // Padded so Android's round/squircle mask doesn't crop the "DROP DROP" lettering.
+      { src: "/brand/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

@@ -7,7 +7,8 @@ import { ResultPill } from "@/components/club/ResultPill";
 import { Section } from "@/components/club/Section";
 import { ShareButton } from "@/components/club/ShareButton";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CLUB_CREST_ASSET, CLUB_ID, CLUB_NAME } from "@/lib/config";
+import { CLUB_ID, CLUB_NAME } from "@/lib/config";
+import { ClubLogo } from "@/components/club/ClubLogo";
 import { getMatch } from "@/lib/data/club";
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { threeStars } from "@/lib/stats/nights";
@@ -59,7 +60,7 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
       <section className="arena-card my-3 p-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
           <div className="flex flex-col items-center gap-1.5">
-            <Crest assetId={ours?.crestAssetId ?? CLUB_CREST_ASSET} size={52} name={CLUB_NAME} />
+            <ClubLogo size={52} />
             <span className="text-xs font-semibold">{CLUB_NAME}</span>
             {ours && ours.division > 0 && <span className="text-[10px] text-[var(--muted-fg)]">Div {seasonDivisionFromMatch(ours.division)}</span>}
           </div>

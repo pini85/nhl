@@ -1,5 +1,6 @@
 "use client";
 
+import { ClubLogo } from "@/components/club/ClubLogo";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useState } from "react";
@@ -44,7 +45,11 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
             className="pointer-events-none text-center"
           >
             <div className="text-xs tracking-[0.3em] text-[var(--muted-fg)] uppercase">{s.eyebrow}</div>
-            <div className="glow tabular mt-3 text-8xl font-black text-[var(--accent-blue)]">{s.big}</div>
+            {s.kind === "outro" ? (
+              <ClubLogo size={208} className="mx-auto mt-4 rounded-3xl shadow-[0_0_48px_rgba(92,200,255,0.35)]" />
+            ) : (
+              <div className="glow tabular mt-3 text-8xl font-black text-[var(--accent-blue)]">{s.big}</div>
+            )}
             {s.title && <div className="mt-3 text-2xl font-black">{s.title}</div>}
             <div className="mt-2 text-sm text-[var(--muted-fg)]">{s.line}</div>
           </motion.div>

@@ -1,4 +1,4 @@
-import { Crest } from "@/components/club/Crest";
+import { ClubLogo } from "@/components/club/ClubLogo";
 import { FadeIn } from "@/components/club/FadeIn";
 import { HotPlayers } from "@/components/club/HotPlayers";
 import { NemesisCards } from "@/components/club/NemesisCards";
@@ -8,7 +8,7 @@ import { LatestNight } from "@/components/club/LatestNight";
 import { SeasonCard } from "@/components/club/SeasonCard";
 import { EmptyState } from "@/components/club/Section";
 import { TrophyCase } from "@/components/club/TrophyCase";
-import { CLUB_CREST_ASSET, CLUB_ID, CLUB_NAME } from "@/lib/config";
+import { CLUB_ID, CLUB_NAME } from "@/lib/config";
 import { getGames, getOurLines, getSnapshot, getSnapshotHistory } from "@/lib/data/club";
 import { NightTrendChart } from "@/components/charts/NightTrendChart";
 import { divisionJourney, heatMap, nightSeries } from "@/lib/stats/trends";
@@ -95,7 +95,7 @@ export default async function Home() {
 function Header({ subtitle }: { subtitle: string }) {
   return (
     <header className="flex items-center gap-3 py-2">
-      <Crest assetId={CLUB_CREST_ASSET} size={48} name={CLUB_NAME} />
+      <ClubLogo size={64} className="rounded-2xl shadow-[0_0_24px_rgba(92,200,255,0.25)]" />
       <div>
         <h1 className="text-lg leading-tight font-extrabold">{CLUB_NAME}</h1>
         <p className="text-[11px] text-[var(--muted-fg)]">{subtitle}</p>
