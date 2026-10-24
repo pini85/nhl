@@ -47,8 +47,20 @@ describe("nemesis and punching bags", () => {
       extra(3, 5, 0, "2026-10-05T20:00:00Z"),
       extra(3, 5, 0, "2026-10-06T20:00:00Z"), // 2-0, GD +10
     ];
-    expect(nemesis(headToHead(g)).map((x) => x.clubId)).toEqual([1, 2, 3]);
-    expect(punchingBags(headToHead(g)).map((x) => x.clubId)).toEqual([3, 2, 1]);
+    expect(nemesis(headToHead(g)).map((x) => x.clubId)).toEqual([1, 2]);
+    expect(punchingBags(headToHead(g)).map((x) => x.clubId)).toEqual([3]);
+  });
+  it("a nemesis has a losing record against us, a punching bag a winning one", () => {
+    const g = [
+      extra(1, 3, 0, "2026-10-01T20:00:00Z"),
+      extra(1, 2, 1, "2026-10-02T20:00:00Z"), // 2-0
+      extra(2, 1, 0, "2026-10-03T20:00:00Z"),
+      extra(2, 0, 4, "2026-10-04T20:00:00Z"), // 1-1
+      extra(3, 0, 2, "2026-10-05T20:00:00Z"),
+      extra(3, 1, 2, "2026-10-06T20:00:00Z"), // 0-2
+    ];
+    expect(nemesis(headToHead(g)).map((x) => x.clubId)).toEqual([3]);
+    expect(punchingBags(headToHead(g)).map((x) => x.clubId)).toEqual([1]);
   });
 });
 

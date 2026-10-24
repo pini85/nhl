@@ -23,7 +23,7 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between text-xs text-[var(--muted-fg)]">
-        <span>Drop drop drop · Wrapped</span>
+        <span>Drop drop drop · All-time Wrapped</span>
         <Link href="/" aria-label="Close" className="px-2 py-1 text-base">
           ✕
         </Link>
@@ -58,7 +58,7 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
 
       {s.kind === "outro" ? (
         <div className="flex justify-center">
-          <ShareButton title="Drop drop drop · Wrapped" />
+          <ShareButton title="Drop drop drop · All-time Wrapped" />
         </div>
       ) : (
         <p className="text-center text-[11px] text-[var(--muted-fg)]">Tap to continue</p>

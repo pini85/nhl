@@ -5,7 +5,7 @@ import { getExtraStats, getGames, getOurLines } from "@/lib/data/club";
 import { getClubRows } from "@/lib/data/opponents";
 import { buildWrapped } from "@/lib/stats/wrapped";
 
-export const metadata = { title: "Wrapped" };
+export const metadata = { title: "All-time Wrapped" };
 
 export default async function WrappedPage() {
   const [games, lines, clubs, extras] = await Promise.all([getGames(), getOurLines(), getClubRows(), getExtraStats()]);

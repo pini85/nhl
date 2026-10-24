@@ -23,7 +23,7 @@ function Row({ h, crest, tone }: { h: H2H; crest: string | null; tone: "bad" | "
 
 export function NemesisCards({ nemesis, bags, crests }: { nemesis: H2H[]; bags: H2H[]; crests: Map<number, string | null> }) {
   if (!nemesis.length && !bags.length) {
-    return <p className="mt-3 text-center text-xs text-[var(--muted-fg)]">Nemesis and punching bags appear after you play a club twice.</p>;
+    return <p className="mt-3 text-center text-xs text-[var(--muted-fg)]">Nemesis (losing record) and punching bags (winning record) appear after you play a club twice.</p>;
   }
   return (
     <div className="grid grid-cols-1 gap-0">

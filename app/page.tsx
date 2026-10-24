@@ -69,7 +69,7 @@ export default async function Home() {
     <HotPlayers key="hot" players={hot} />,
     games.length >= 3 && (
       <Link key="wrapped" href="/wrapped" className="arena-card my-3 flex items-center justify-between px-3.5 py-3 text-sm font-semibold">
-        <span>🎁 Your season, wrapped</span>
+        <span>🎁 All-time Wrapped</span>
         <span className="text-[var(--accent-blue)]">Open →</span>
       </Link>
     ),

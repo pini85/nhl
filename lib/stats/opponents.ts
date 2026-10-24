@@ -45,16 +45,18 @@ export function headToHead(games: GameLite[]): H2H[] {
 
 const MIN_GAMES = 2;
 
+// Clubs we have a losing record against, worst first.
 export function nemesis(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.gp >= MIN_GAMES)
+    .filter((h) => h.gp >= MIN_GAMES && h.losses > h.wins)
     .sort((a, b) => a.winPct - b.winPct || a.goalDiff - b.goalDiff || b.gp - a.gp)
     .slice(0, n);
 }
 
+// Clubs we have a winning record against, best first.
 export function punchingBags(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.gp >= MIN_GAMES)
+    .filter((h) => h.gp >= MIN_GAMES && h.wins > h.losses)
     .sort((a, b) => b.winPct - a.winPct || b.goalDiff - a.goalDiff || b.gp - a.gp)
     .slice(0, n);
 }
