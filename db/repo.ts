@@ -118,8 +118,27 @@ export async function pendingScoutRequests(db: Db, limit: number): Promise<Scout
   return db.select().from(scoutRequests).where(eq(scoutRequests.status, "pending")).orderBy(asc(scoutRequests.requestedAt)).limit(limit);
 }
 
-export async function markScoutRequest(db: Db, id: number, status: "done" | "not_found" | "error", clubId?: number): Promise<void> {
-  await db.update(scoutRequests).set({ status, clubId: clubId ?? null, processedAt: new Date() }).where(eq(scoutRequests.id, id));
+export async function markScoutRequest(
+  db: Db,
+  id: number,
+  status: "done" | "not_found" | "error",
+  clubId?: number,
+  results?: number,
+): Promise<void> {
+  await db
+    .update(scoutRequests)
+    .set({ status, clubId: clubId ?? null, results: results ?? null, processedAt: new Date() })
+    .where(eq(scoutRequests.id, id));
+}
+
+// Which of these clubs already have a scouting snapshot.
+export async function clubsWithSnapshots(db: Db, clubIds: number[]): Promise<Set<number>> {
+  if (!clubIds.length) return new Set();
+  const rows = await db
+    .selectDistinct({ clubId: opponentSnapshots.clubId })
+    .from(opponentSnapshots)
+    .where(inArray(opponentSnapshots.clubId, clubIds));
+  return new Set(rows.map((r) => r.clubId));
 }
 
 const DAY = 86_400_000;

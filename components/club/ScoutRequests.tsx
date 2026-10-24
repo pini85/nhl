@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { RemoveScoutButton } from "@/components/club/RemoveScoutButton";
 import { Section } from "@/components/club/Section";
 
-type Req = { id: number; query: string; status: "pending" | "done" | "not_found" | "error"; clubId: number | null };
+type Req = { id: number; query: string; status: "pending" | "done" | "not_found" | "error"; clubId: number | null; results: number | null };
 
 const LABEL: Record<Req["status"], string> = {
   pending: "⏳ waiting for the next collector run",
@@ -24,7 +25,10 @@ export function ScoutRequests({ requests }: { requests: Req[] }) {
             ) : (
               <span className="truncate">{r.query}</span>
             )}
-            <span className="shrink-0 text-[11px] text-[var(--muted-fg)]">{LABEL[r.status]}</span>
+            <span className="ml-auto shrink-0 text-[11px] text-[var(--muted-fg)]">
+              {r.status === "done" && (r.results ?? 0) > 1 ? `✓ ${r.results} found · search to see all` : LABEL[r.status]}
+            </span>
+            <RemoveScoutButton id={r.id} query={r.query} />
           </li>
         ))}
       </ul>

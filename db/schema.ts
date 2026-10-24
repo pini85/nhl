@@ -195,6 +195,8 @@ export const scoutRequests = pgTable(
     requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
     status: text("status", { enum: ["pending", "done", "not_found", "error"] }).notNull().default("pending"),
     clubId: integer("club_id"),
+    // How many clubs EA's search returned; the others are saved too, so a local search finds them.
+    results: integer("results"),
     attempts: integer("attempts").notNull().default(0),
     processedAt: timestamp("processed_at", { withTimezone: true }),
   },

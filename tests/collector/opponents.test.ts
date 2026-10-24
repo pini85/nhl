@@ -3,7 +3,7 @@ import type { Db } from "@/db/client";
 import { opponentSnapshots, scoutRequests } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
 import { refreshOpponents } from "@/lib/collector/opponents";
-import type { EaApi } from "@/lib/ea/api";
+import type { ClubSummary, EaApi } from "@/lib/ea/api";
 import type { EaResult } from "@/lib/ea/http";
 import { createTestDb } from "../helpers/db";
 import { createFixtureEa } from "../helpers/fixture-ea";
@@ -69,5 +69,39 @@ describe("collect with opponents", () => {
     expect(s.status).toBe("ok");
     expect(s.opponentsRefreshed).toBe(0);
     expect(s.warnings.some((w) => w.startsWith("opponent-failed:"))).toBe(true);
+  });
+});
+
+describe("scouting a name that matches several clubs", () => {
+  const club = (clubId: number, name: string, wins: number): ClubSummary => ({
+    clubId, name, crestAssetId: null, division: 5, wins, losses: 1, otl: 0, seasonResults: [], raw: {},
+  });
+  const results = [club(901, "Hello Buddy", 53), club(902, "Hello Ji HC", 360), club(903, "Hello 1999", 2)];
+  const ea: EaApi = { ...fixtureEa, searchClubs: async () => ({ ok: true, data: results }) };
+
+  it("fully scouts the best match and saves the others so a search finds them", async () => {
+    await db.insert(scoutRequests).values({ query: "Hello", normalized: "hello" });
+    await refreshOpponents({ db, ea, now });
+    expect((await db.select().from(scoutRequests))[0]).toMatchObject({ status: "done", clubId: 901, results: 3 });
+    const snaps = await db.select().from(opponentSnapshots);
+    expect(snaps.filter((s) => [901, 902, 903].includes(s.clubId))).toHaveLength(3);
+    expect(snaps.find((s) => s.clubId === 902)).toMatchObject({ name: "Hello Ji HC", wins: 360, division: 5, members: null, profile: null });
+  });
+
+  it("an exact name match wins over the first result", async () => {
+    await db.insert(scoutRequests).values({ query: "hello 1999", normalized: "hello 1999" });
+    await refreshOpponents({ db, ea, now });
+    expect((await db.select().from(scoutRequests))[0]).toMatchObject({ clubId: 903, results: 3 });
+  });
+
+  it("doesn't replace a fuller snapshot of a club we already know", async () => {
+    await db.insert(opponentSnapshots).values({
+      clubId: 902, takenAt: new Date("2026-10-22T12:00:00Z"), name: "Hello Ji HC", wins: 1, members: [], raw: {},
+    });
+    await db.insert(scoutRequests).values({ query: "Hello", normalized: "hello" });
+    await refreshOpponents({ db, ea, now });
+    const snaps902 = (await db.select().from(opponentSnapshots)).filter((s) => s.clubId === 902);
+    expect(snaps902).toHaveLength(1);
+    expect(snaps902[0].wins).toBe(1);
   });
 });

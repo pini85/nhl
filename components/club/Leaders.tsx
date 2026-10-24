@@ -153,6 +153,9 @@ export function Leaders({
         )}
       </section>
       <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop. Tap a column to sort.</p>
+      <p className="mt-1 text-[10px] text-[var(--muted-fg)]">
+        OVR: average of EA&apos;s per-game offense, defense and teamplay ratings, from box-score games (needs 3+).
+      </p>
       {kind === "skaters" && withExtras[range] && (
         <p className="mt-1 text-[10px] text-[var(--muted-fg)]">Includes older games without a box score, from the in-game club stats.</p>
       )}

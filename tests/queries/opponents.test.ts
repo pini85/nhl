@@ -5,6 +5,7 @@ import { collect } from "@/lib/collector/collect";
 import {
   allClubRows,
   createScoutRequest,
+  deleteScoutRequest,
   latestOpponentSnapshot,
   opponentLines,
   recentScoutRequests,
@@ -58,5 +59,18 @@ describe("club rows and opponent lines", () => {
   it("returns match club rows and a club's player lines", async () => {
     expect((await allClubRows(db)).length).toBe(18); // 9 full games × 2 clubs
     expect(await opponentLines(db, 1808)).toHaveLength(6);
+  });
+});
+
+describe("deleteScoutRequest", () => {
+  it("removes one request and leaves the others", async () => {
+    const db = await createTestDb();
+    await createScoutRequest(db, "Hello");
+    await createScoutRequest(db, "Hk");
+    const [first] = await recentScoutRequests(db);
+    expect(await deleteScoutRequest(db, first.id)).toBe(true);
+    expect((await recentScoutRequests(db)).map((r) => r.id)).not.toContain(first.id);
+    expect(await recentScoutRequests(db)).toHaveLength(1);
+    expect(await deleteScoutRequest(db, first.id)).toBe(false);
   });
 });

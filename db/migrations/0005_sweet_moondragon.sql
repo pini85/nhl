@@ -1,0 +1,1 @@
+ALTER TABLE "scout_requests" ADD COLUMN "results" integer;

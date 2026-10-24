@@ -1,6 +1,7 @@
 import type { Db } from "@/db/client";
 import {
   bumpScoutAttempt,
+  clubsWithSnapshots,
   insertOpponentSnapshot,
   knownClubName,
   markScoutRequest,
@@ -14,6 +15,7 @@ import { buildProfile } from "@/lib/opponents/profile";
 const SEASON_TYPE = "gameType5";
 const MAX_SCOUT_ATTEMPTS = 3;
 const MAX_CONSECUTIVE_FAILURES = 2;
+const MAX_EXTRA_RESULTS = 10; // other clubs from one search saved for local search
 
 export type RefreshOptions = {
   budget?: number; // clubs per run
@@ -76,7 +78,8 @@ export async function refreshOpponents(
       continue;
     }
     track(await refreshClub(deps, hit.clubId, hit, warnings));
-    await markScoutRequest(db, req.id, "done", hit.clubId);
+    await saveOtherResults(deps, r.data.filter((c) => c.clubId !== hit.clubId));
+    await markScoutRequest(db, req.id, "done", hit.clubId, r.data.length);
   }
 
   for (const clubId of await staleRecentOpponents(db, deps.now(), budget - used)) {
@@ -85,6 +88,30 @@ export async function refreshOpponents(
     track(await refreshClub(deps, clubId, null, warnings));
   }
   return { refreshed, warnings };
+}
+
+// The search already returned name, crest, division and record for every club, so saving
+// the rest costs no EA calls. Clubs we already know keep their fuller snapshot.
+async function saveOtherResults({ db, now }: { db: Db; now: () => Date }, clubs: ClubSummary[]) {
+  const list = clubs.slice(0, MAX_EXTRA_RESULTS);
+  const known = await clubsWithSnapshots(db, list.map((c) => c.clubId));
+  for (const c of list) {
+    if (known.has(c.clubId)) continue;
+    await insertOpponentSnapshot(db, {
+      clubId: c.clubId,
+      takenAt: now(),
+      name: c.name,
+      crestAssetId: c.crestAssetId,
+      division: c.division,
+      wins: c.wins,
+      losses: c.losses,
+      otl: c.otl,
+      seasonResults: c.seasonResults,
+      members: null,
+      profile: null,
+      raw: { info: c.raw },
+    });
+  }
 }
 
 async function failAttempt(db: Db, id: number) {

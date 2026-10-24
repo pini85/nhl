@@ -1,7 +1,9 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { getDb } from "@/db/client";
-import { createScoutRequest } from "@/lib/queries/opponents";
+import { CLUB_TAG } from "@/lib/config";
+import { createScoutRequest, deleteScoutRequest } from "@/lib/queries/opponents";
 
 export type ScoutStatus = "created" | "exists" | "invalid" | "busy" | "error";
 
@@ -11,5 +13,17 @@ export async function requestScout(query: string, clubId?: number): Promise<{ st
     return { status: await createScoutRequest(getDb(), String(query ?? ""), clubId) };
   } catch {
     return { status: "error" };
+  }
+}
+
+// Removes a request from "Recent scout requests" (cancels it if still waiting).
+export async function removeScoutRequest(id: number): Promise<{ ok: boolean }> {
+  if (!Number.isInteger(id) || id <= 0) return { ok: false };
+  try {
+    const ok = await deleteScoutRequest(getDb(), id);
+    updateTag(CLUB_TAG);
+    return { ok };
+  } catch {
+    return { ok: false };
   }
 }

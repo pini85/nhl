@@ -22,7 +22,8 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
   const query = q.trim().toLowerCase();
   const matches = query ? clubs.filter((c) => c.name.toLowerCase().includes(query)) : [];
 
-  const sorted = [...clubs].sort((a, b) => {
+  // The list is clubs we've played; scouted-only clubs show up in search.
+  const sorted = clubs.filter((c) => c.gp > 0).sort((a, b) => {
     if (sort === "played") return b.gp - a.gp || (b.lastPlayedIso ?? "").localeCompare(a.lastPlayedIso ?? "");
     if (sort === "worst") {
       const pa = a.gp ? a.wins / a.gp : 2;

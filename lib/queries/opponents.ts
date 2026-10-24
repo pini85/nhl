@@ -77,3 +77,9 @@ export async function createScoutRequest(
 export async function recentScoutRequests(db: Db, limit = 20) {
   return db.select().from(scoutRequests).orderBy(desc(scoutRequests.requestedAt), desc(scoutRequests.id)).limit(limit);
 }
+
+// Removes a request from the list (and cancels it if it's still waiting).
+export async function deleteScoutRequest(db: Db, id: number): Promise<boolean> {
+  const rows = await db.delete(scoutRequests).where(eq(scoutRequests.id, id)).returning({ id: scoutRequests.id });
+  return rows.length > 0;
+}
