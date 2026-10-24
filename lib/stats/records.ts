@@ -5,6 +5,7 @@ export type RecordItem = {
   label: string;
   value: number;
   holder: string | null;
+  holderId: string | null;
   matchId: string | null;
   playedAt: Date;
 };
@@ -33,7 +34,7 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
   const playerRecord = (key: string, label: string, v: (l: PlayerLine) => number) => {
     const top = best(ours, v, at);
     if (top && v(top) > 0) {
-      records.push({ key, label, value: v(top), holder: top.playerName, matchId: top.matchId, playedAt: byId.get(top.matchId)!.playedAt });
+      records.push({ key, label, value: v(top), holder: top.playerName, holderId: top.eaPlayerId, matchId: top.matchId, playedAt: byId.get(top.matchId)!.playedAt });
     }
   };
   playerRecord("goals-game", "Most goals in a game", (l) => l.goals);
@@ -50,12 +51,12 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
 
   const t = (g: GameLite) => g.playedAt.getTime();
   const mostGoals = best(games, (g) => g.goalsFor, t)!;
-  records.push({ key: "team-goals-game", label: "Most team goals in a game", value: mostGoals.goalsFor, holder: null, matchId: mostGoals.matchId, playedAt: mostGoals.playedAt });
+  records.push({ key: "team-goals-game", label: "Most team goals in a game", value: mostGoals.goalsFor, holder: null, holderId: null, matchId: mostGoals.matchId, playedAt: mostGoals.playedAt });
 
   const wins = games.filter((g) => g.outcome === "W");
   const bigWin = best(wins, (g) => g.goalsFor - g.goalsAgainst, t);
   if (bigWin) {
-    records.push({ key: "biggest-win", label: "Biggest win", value: bigWin.goalsFor - bigWin.goalsAgainst, holder: null, matchId: bigWin.matchId, playedAt: bigWin.playedAt });
+    records.push({ key: "biggest-win", label: "Biggest win", value: bigWin.goalsFor - bigWin.goalsAgainst, holder: null, holderId: null, matchId: bigWin.matchId, playedAt: bigWin.playedAt });
   }
 
   let run = 0;
@@ -68,7 +69,7 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
       bestEnd = g;
     }
   }
-  if (bestEnd) records.push({ key: "win-streak", label: "Longest win streak", value: bestRun, holder: null, matchId: bestEnd.matchId, playedAt: bestEnd.playedAt });
+  if (bestEnd) records.push({ key: "win-streak", label: "Longest win streak", value: bestRun, holder: null, holderId: null, matchId: bestEnd.matchId, playedAt: bestEnd.playedAt });
 
   // Streaks need every game in a row, so only box-score games count.
   const ps = pointStreaks(ours.filter((l) => byId.get(l.matchId)!.source === "full"), byId);
@@ -80,7 +81,7 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
 function pointStreaks(lines: PlayerLine[], byId: Map<string, GameLite>) {
   const perPlayer = new Map<string, PlayerLine[]>();
   for (const l of lines) if (l.position !== "goalie") perPlayer.set(l.eaPlayerId, [...(perPlayer.get(l.eaPlayerId) ?? []), l]);
-  let top: { value: number; holder: string; matchId: string; playedAt: Date } | null = null;
+  let top: { value: number; holder: string; holderId: string; matchId: string; playedAt: Date } | null = null;
   for (const list of perPlayer.values()) {
     const sorted = list.sort((a, b) => byId.get(a.matchId)!.playedAt.getTime() - byId.get(b.matchId)!.playedAt.getTime());
     let run = 0;
@@ -88,7 +89,7 @@ function pointStreaks(lines: PlayerLine[], byId: Map<string, GameLite>) {
       run = l.goals + l.assists > 0 ? run + 1 : 0;
       const playedAt = byId.get(l.matchId)!.playedAt;
       if (run > 0 && (!top || run > top.value || (run === top.value && playedAt < top.playedAt))) {
-        top = { value: run, holder: sorted.at(-1)!.playerName, matchId: l.matchId, playedAt };
+        top = { value: run, holder: sorted.at(-1)!.playerName, holderId: l.eaPlayerId, matchId: l.matchId, playedAt };
       }
     }
   }
@@ -107,6 +108,8 @@ export function currentStreak(games: GameLite[]): { kind: "W" | "L"; length: num
   return { kind, length };
 }
 
+export type Milestone = { label: string; reachedAt: Date; matchId: string; holder: string | null; holderId: string | null };
+
 const POINT_STEPS = [10, 25, 50, 100, 200, 500];
 const GOAL_STEPS = [10, 25, 50, 100, 250];
 
@@ -114,8 +117,8 @@ export function milestones(
   lines: PlayerLine[],
   games: GameLite[],
   ourClubId: number,
-): { label: string; reachedAt: Date; matchId: string; holder: string | null }[] {
-  const out: { label: string; reachedAt: Date; matchId: string; holder: string | null }[] = [];
+): Milestone[] {
+  const out: Milestone[] = [];
   let goals = 0;
   let points = 0;
   let hatTrickSeen = false;
@@ -124,12 +127,12 @@ export function milestones(
     const before = { goals, points };
     goals += ours.reduce((s, l) => s + l.goals, 0);
     points += ours.reduce((s, l) => s + l.goals + l.assists, 0);
-    for (const step of GOAL_STEPS) if (before.goals < step && goals >= step) out.push({ label: `Club goals: ${step}`, reachedAt: g.playedAt, matchId: g.matchId, holder: null });
-    for (const step of POINT_STEPS) if (before.points < step && points >= step) out.push({ label: `Club points: ${step}`, reachedAt: g.playedAt, matchId: g.matchId, holder: null });
+    for (const step of GOAL_STEPS) if (before.goals < step && goals >= step) out.push({ label: `Club goals: ${step}`, reachedAt: g.playedAt, matchId: g.matchId, holder: null, holderId: null });
+    for (const step of POINT_STEPS) if (before.points < step && points >= step) out.push({ label: `Club points: ${step}`, reachedAt: g.playedAt, matchId: g.matchId, holder: null, holderId: null });
     const hat = ours.find((l) => l.goals >= 3);
     if (hat && !hatTrickSeen) {
       hatTrickSeen = true;
-      out.push({ label: "First hat trick", reachedAt: g.playedAt, matchId: g.matchId, holder: hat.playerName });
+      out.push({ label: "First hat trick", reachedAt: g.playedAt, matchId: g.matchId, holder: hat.playerName, holderId: hat.eaPlayerId });
     }
   }
   return out;

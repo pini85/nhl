@@ -40,6 +40,11 @@ describe("clubRecords", () => {
     const top = Math.max(...lines.filter((l) => l.clubId === 56507 && l.passAttempts >= 20).map((l) => Math.round((l.passes / l.passAttempts) * 100)));
     expect(rec("pass-pct-game").value).toBe(top);
   });
+  it("records carry the holder's player id", () => {
+    expect(rec("point-streak")).toMatchObject({ holder: "puck_control", holderId: "1273735466" });
+    expect(rec("goals-game").holderId).toBe(lines.find((l) => l.playerName === "ThePooker")!.eaPlayerId);
+    expect(rec("team-goals-game").holderId).toBeNull();
+  });
   it("no records without games", () => expect(clubRecords([], [], 56507)).toEqual([]));
 });
 
@@ -53,4 +58,8 @@ describe("milestones", () => {
   it("club goals 10", () => expect(m.find((x) => x.label === "Club goals: 10")).toMatchObject({ matchId: "2782122360291", holder: null }));
   it("club points 10", () => expect(m.find((x) => x.label === "Club points: 10")?.matchId).toBe("2696722690436"));
   it("first hat trick", () => expect(m.find((x) => x.label === "First hat trick")).toMatchObject({ matchId: "2696722690436", holder: "ThePooker" }));
+  it("milestones carry the holder's id", () => {
+    expect(m.find((x) => x.label === "First hat trick")!.holderId).toBe(lines.find((l) => l.playerName === "ThePooker")!.eaPlayerId);
+    expect(m.find((x) => x.label === "Club goals: 10")!.holderId).toBeNull();
+  });
 });

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Section } from "@/components/club/Section";
-import type { RecordItem } from "@/lib/stats/records";
+import type { Milestone, RecordItem } from "@/lib/stats/records";
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", month: "short", day: "numeric" });
 
@@ -27,7 +27,7 @@ export function RecordsView({
 }: {
   records: RecordItem[];
   streak: { kind: "W" | "L"; length: number } | null;
-  milestones: { label: string; reachedAt: Date; matchId: string; holder: string | null }[];
+  milestones: Milestone[];
 }) {
   return (
     <>
@@ -51,7 +51,9 @@ export function RecordsView({
                 {r.value}
                 {r.key === "pass-pct-game" ? "%" : ""}
               </div>
-              <div className="mt-0.5 truncate text-xs">{r.holder ?? "Drop drop drop"}</div>
+              <div className="mt-0.5 truncate text-xs" data-player-id={r.holderId ?? undefined}>
+                {r.holder ?? "Drop drop drop"}
+              </div>
               <div className="text-[10px] text-[var(--muted-fg)]">{dayFmt.format(r.playedAt)}</div>
             </>
           );
@@ -77,7 +79,16 @@ export function RecordsView({
                   {m.label}
                 </Link>
                 <div className="text-[11px] text-[var(--muted-fg)]">
-                  {m.holder ? `${m.holder} · ` : ""}
+                  {m.holder && m.holderId ? (
+                    <>
+                      <Link href={`/players/${m.holderId}`}>{m.holder}</Link>
+                      {" · "}
+                    </>
+                  ) : m.holder ? (
+                    `${m.holder} · `
+                  ) : (
+                    ""
+                  )}
                   {dayFmt.format(m.reachedAt)}
                 </div>
               </li>
