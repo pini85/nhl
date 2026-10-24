@@ -96,7 +96,8 @@ export async function extraStats(db: Db): Promise<ExtraStats[]> {
     .select({
       eaPlayerId: t.eaPlayerId, playerName: t.playerName, coversFrom: t.coversFrom, gp: t.gp, goals: t.goals,
       assists: t.assists, plusMinus: t.plusMinus, shots: t.shots, hits: t.hits, pim: t.pim, ppg: t.ppg, shg: t.shg,
-      takeaways: t.takeaways, giveaways: t.giveaways,
+      takeaways: t.takeaways, giveaways: t.giveaways, blockedShots: t.blockedShots, interceptions: t.interceptions,
+      passAttempts: t.passAttempts, passes: t.passes,
     })
     .from(t);
 }

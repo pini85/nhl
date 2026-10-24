@@ -21,7 +21,7 @@ const SPLASH = (
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "https://drop-drop-drop.vercel.app"),
   title: { default: "Drop drop drop", template: "%s · Drop drop drop" },
-  description: "Club-only stats, game nights and scouting for the Drop drop drop NHL 26 Pro Club.",
+  description: "Club-only stats, game nights and scouting for the Drop drop drop NHL 27 Pro Club.",
   appleWebApp: { capable: true, title: "Drop drop drop", startupImage: SPLASH },
 };
 

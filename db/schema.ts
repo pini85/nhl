@@ -129,6 +129,10 @@ export const extraPlayerStats = pgTable("extra_player_stats", {
   shg: stat("shg"),
   takeaways: stat("takeaways"),
   giveaways: stat("giveaways"),
+  blockedShots: integer("blocked_shots").notNull().default(0),
+  interceptions: integer("interceptions").notNull().default(0),
+  passAttempts: integer("pass_attempts").notNull().default(0),
+  passes: integer("passes").notNull().default(0),
   note: text("note"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

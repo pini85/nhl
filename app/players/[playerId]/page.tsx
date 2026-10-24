@@ -83,6 +83,14 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
             <StatTile label="+/-" value={sk.plusMinus > 0 ? `+${sk.plusMinus}` : sk.plusMinus} />
             <StatTile label="Shots" value={sk.shots} />
             <StatTile label="SH%" value={`${sk.shotPct.toFixed(0)}%`} />
+            <StatTile label="Pass%" value={`${sk.passPct.toFixed(0)}%`} />
+            <StatTile label="Hits" value={sk.hits} />
+            <StatTile label="PIM" value={sk.pim} />
+            <StatTile label="PPG" value={sk.ppg} />
+            <StatTile label="Takeaways" value={sk.takeaways} />
+            <StatTile label="Giveaways" value={sk.giveaways} />
+            <StatTile label="INT" value={sk.interceptions} />
+            <StatTile label="Blocks" value={sk.blockedShots} />
           </div>
           {mine.length > 0 && (
             <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Includes older games without a box score, from the in-game club stats.</p>
@@ -146,7 +154,7 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
       </Section>
 
       {career && (
-        <Section title="NHL 26 career">
+        <Section title="NHL 27 career">
           <div className="grid grid-cols-4 gap-1.5">
             <StatTile label="GP" value={career.gp} />
             <StatTile label="Goals" value={career.goals} />

@@ -33,6 +33,15 @@ describe("playerTotals", () => {
   });
 });
 
+describe("playerTotals passing and defense", () => {
+  it("totals blocks, interceptions and pass % from box scores", () => {
+    const { skaters } = playerTotals(lines, games, roster, 56507);
+    const p = skaters.find((s) => s.name === "Popomasta-SMB")!;
+    expect(p).toMatchObject({ blockedShots: 4, interceptions: 6, passAttempts: 72, passes: 60 });
+    expect(p.passPct).toBeCloseTo((60 / 72) * 100, 5);
+  });
+});
+
 describe("playerBadge", () => {
   it("former when not on roster but played as non-guest", () => {
     expect(playerBadge("1", "someone", roster, true)).toBe("former");
@@ -64,7 +73,8 @@ describe("filterGames", () => {
 describe("playerTotals with extra stats from games without a box score", () => {
   const extra = (o: Partial<ExtraStats>): ExtraStats => ({
     eaPlayerId: "802564056", playerName: "Popomasta-SMB", coversFrom: new Date("2026-10-15T19:42:49Z"),
-    gp: 0, goals: 0, assists: 0, plusMinus: 0, shots: 0, hits: 0, pim: 0, ppg: 0, shg: 0, takeaways: 0, giveaways: 0, ...o,
+    gp: 0, goals: 0, assists: 0, plusMinus: 0, shots: 0, hits: 0, pim: 0, ppg: 0, shg: 0, takeaways: 0, giveaways: 0,
+    blockedShots: 0, interceptions: 0, passAttempts: 0, passes: 0, ...o,
   });
 
   it("adds them to the player's box-score totals", () => {
@@ -79,6 +89,13 @@ describe("playerTotals with extra stats from games without a box score", () => {
     expect(skaters[0].name).toBe("Popomasta-SMB");
     expect(skaters[0].shotPct).toBeCloseTo((20 / 21) * 100, 5);
     expect(skaters[0].pointsPerGame).toBeCloseTo(21 / 14, 5);
+  });
+
+  it("adds blocks, interceptions and passing", () => {
+    const { skaters } = playerTotals(lines, games, roster, 56507, [extra({ gp: 11, blockedShots: 5, interceptions: 6, passAttempts: 264, passes: 221 })]);
+    // box scores: 4 blocks, 6 interceptions, 60/72 passes
+    expect(skaters.find((s) => s.name === "Popomasta-SMB")).toMatchObject({ blockedShots: 9, interceptions: 12, passAttempts: 336, passes: 281 });
+    expect(skaters.find((s) => s.name === "Popomasta-SMB")!.passPct).toBeCloseTo((281 / 336) * 100, 5);
   });
 
   it("lists a player who only has extra stats", () => {

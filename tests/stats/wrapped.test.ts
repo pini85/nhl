@@ -27,6 +27,7 @@ describe("buildWrapped with extra stats", () => {
     const extra = {
       eaPlayerId: "1273735466", playerName: "puck_control", coversFrom: new Date("2026-10-15T19:42:49Z"),
       gp: 11, goals: 14, assists: 13, plusMinus: 4, shots: 33, hits: 0, pim: 8, ppg: 2, shg: 1, takeaways: 25, giveaways: 73,
+      blockedShots: 1, interceptions: 3, passAttempts: 0, passes: 0,
     };
     const w = buildWrapped(games, lines, clubs, 56507, [extra]);
     expect(w.slides.find((s) => s.kind === "scorer")).toMatchObject({ big: "47", title: "puck_control" });

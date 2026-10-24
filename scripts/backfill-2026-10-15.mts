@@ -30,13 +30,15 @@ const OLD_BOYS = { matchId: "summary-1974-1792756800-6", at: "2026-10-20T20:29:5
 // In-game club totals per player after the Oct 22 night (20 games).
 const SEASON_THROUGH = new Date("2026-10-23T00:00:00Z");
 const COVERS_FROM = new Date(GAMES[0].at);
-type Totals = { gp: number; goals: number; assists: number; plusMinus: number; shots: number; hits: number; pim: number; ppg: number; shg: number; takeaways: number; giveaways: number };
+type Totals = { gp: number; goals: number; assists: number; plusMinus: number; shots: number; hits: number; pim: number; ppg: number; shg: number; takeaways: number; giveaways: number; blockedShots: number; interceptions: number };
 const SEASON: Record<string, { name: string } & Totals> = {
-  "802564056": { name: "Popomasta-SMB", gp: 14, goals: 2, assists: 4, plusMinus: -1, shots: 15, hits: 11, pim: 4, ppg: 0, shg: 0, takeaways: 45, giveaways: 35 },
-  "197708949": { name: "mike_v_75", gp: 19, goals: 8, assists: 15, plusMinus: 8, shots: 42, hits: 67, pim: 14, ppg: 0, shg: 0, takeaways: 50, giveaways: 65 },
-  "828785353": { name: "ThePooker", gp: 20, goals: 16, assists: 21, plusMinus: 5, shots: 60, hits: 28, pim: 4, ppg: 1, shg: 1, takeaways: 49, giveaways: 83 },
-  "1273735466": { name: "puck_control", gp: 20, goals: 23, assists: 24, plusMinus: 5, shots: 63, hits: 1, pim: 14, ppg: 5, shg: 1, takeaways: 49, giveaways: 135 },
+  "802564056": { name: "Popomasta-SMB", gp: 14, goals: 2, assists: 4, plusMinus: -1, shots: 15, hits: 11, pim: 4, ppg: 0, shg: 0, takeaways: 45, giveaways: 35, blockedShots: 9, interceptions: 12 },
+  "197708949": { name: "mike_v_75", gp: 19, goals: 8, assists: 15, plusMinus: 8, shots: 42, hits: 67, pim: 14, ppg: 0, shg: 0, takeaways: 50, giveaways: 65, blockedShots: 12, interceptions: 9 },
+  "828785353": { name: "ThePooker", gp: 20, goals: 16, assists: 21, plusMinus: 5, shots: 60, hits: 28, pim: 4, ppg: 1, shg: 1, takeaways: 49, giveaways: 83, blockedShots: 3, interceptions: 6 },
+  "1273735466": { name: "puck_control", gp: 20, goals: 23, assists: 24, plusMinus: 5, shots: 63, hits: 1, pim: 14, ppg: 5, shg: 1, takeaways: 49, giveaways: 135, blockedShots: 1, interceptions: 14 },
 };
+// In-game pass % (the game shows no attempt counts).
+const PASS_PCT: Record<string, number> = { "802564056": 83.7, "197708949": 77.3, "828785353": 81.0, "1273735466": 70.1 };
 
 let inserted = 0;
 for (const g of GAMES) {
@@ -87,6 +89,10 @@ const stored = await db
     shg: sql<number>`sum(${matchPlayers.shg})::int`,
     takeaways: sql<number>`sum(${matchPlayers.takeaways})::int`,
     giveaways: sql<number>`sum(${matchPlayers.giveaways})::int`,
+    blockedShots: sql<number>`sum(${matchPlayers.blockedShots})::int`,
+    interceptions: sql<number>`sum(${matchPlayers.interceptions})::int`,
+    passAttempts: sql<number>`sum(${matchPlayers.passAttempts})::int`,
+    passes: sql<number>`sum(${matchPlayers.passes})::int`,
   })
   .from(matchPlayers)
   .innerJoin(matches, eq(matches.matchId, matchPlayers.matchId))
@@ -102,7 +108,13 @@ for (const [id, { name, ...season }] of Object.entries(SEASON)) {
   for (const [k, v] of Object.entries(extra)) {
     if (v < 0 && k !== "plusMinus") throw new Error(`${name}: stored ${k} exceeds the season total`);
   }
-  const row = { playerName: name, coversFrom: COVERS_FROM, ...extra, note: "in-game club totals through 2026-10-22", updatedAt: new Date() };
+  // Attempts in the untracked games are estimated from the box-score rate; passes then make the
+  // combined pass % equal the in-game figure.
+  const perGame = have && have.gp ? have.passAttempts / have.gp : 0;
+  const passAttempts = Math.round(perGame * extra.gp);
+  const totalAttempts = (have?.passAttempts ?? 0) + passAttempts;
+  const passes = Math.max(0, Math.round((PASS_PCT[id] / 100) * totalAttempts) - (have?.passes ?? 0));
+  const row = { playerName: name, coversFrom: COVERS_FROM, ...extra, passAttempts, passes, note: "in-game club totals through 2026-10-22", updatedAt: new Date() };
   await db.insert(extraPlayerStats).values({ eaPlayerId: id, ...row }).onConflictDoUpdate({ target: extraPlayerStats.eaPlayerId, set: row });
-  console.log(name, extra);
+  console.log(name, { ...extra, passAttempts, passes, combinedPassPct: (((have?.passes ?? 0) + passes) / totalAttempts) * 100 });
 }

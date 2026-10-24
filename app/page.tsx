@@ -36,7 +36,7 @@ export default async function Home() {
   if (!snapshot && !games.length) {
     return (
       <>
-        <Header subtitle="NHL 26 Pro Club" />
+        <Header subtitle="NHL 27 Pro Club" />
         <EmptyState title="No games saved yet" hint="The collector checks EA every 10 minutes." />
       </>
     );
@@ -54,7 +54,7 @@ export default async function Home() {
 
   const subtitle = snapshot
     ? `Division ${snapshot.division}${season?.division ? ` · ${season.division.conference}` : ""} · ${snapshot.wins}-${snapshot.losses}-${snapshot.otl} all-time`
-    : "NHL 26 Pro Club";
+    : "NHL 27 Pro Club";
 
   const party = season && snapshot ? celebrationFor(season.state, snapshot.division, snapshot.seasons) : null;
   const blocks = [

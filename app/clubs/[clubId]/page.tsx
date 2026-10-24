@@ -195,7 +195,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
       )}
 
       {snapshot?.members && snapshot.members.length > 0 && (
-        <Section title="Roster · NHL 26 career (all clubs)">
+        <Section title="Roster · NHL 27 career (all clubs)">
           <table className="tabular w-full text-xs">
             <thead className="text-[10px] text-[var(--muted-fg)]">
               <tr>

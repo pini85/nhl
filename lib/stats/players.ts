@@ -20,6 +20,11 @@ export type SkaterTotals = {
   ppg: number;
   shg: number;
   gwg: number;
+  blockedShots: number;
+  interceptions: number;
+  passAttempts: number;
+  passes: number;
+  passPct: number;
   shotPct: number;
   pointsPerGame: number;
   positions: Record<string, number>;
@@ -82,6 +87,7 @@ export function playerTotals(
   const emptySkater = (eaPlayerId: string): SkaterTotals => ({
     eaPlayerId, name: "", badge: "guest", gp: 0, goals: 0, assists: 0, points: 0,
     plusMinus: 0, shots: 0, hits: 0, pim: 0, takeaways: 0, giveaways: 0, ppg: 0, shg: 0, gwg: 0,
+    blockedShots: 0, interceptions: 0, passAttempts: 0, passes: 0, passPct: 0,
     shotPct: 0, pointsPerGame: 0, positions: {},
   });
 
@@ -113,6 +119,10 @@ export function playerTotals(
       s.ppg += l.ppg;
       s.shg += l.shg;
       s.gwg += l.gwg;
+      s.blockedShots += l.blockedShots;
+      s.interceptions += l.interceptions;
+      s.passAttempts += l.passAttempts;
+      s.passes += l.passes;
       s.positions[l.position] = (s.positions[l.position] ?? 0) + 1;
       skaters.set(l.eaPlayerId, s);
     }
@@ -131,6 +141,10 @@ export function playerTotals(
     s.giveaways += e.giveaways;
     s.ppg += e.ppg;
     s.shg += e.shg;
+    s.blockedShots += e.blockedShots;
+    s.interceptions += e.interceptions;
+    s.passAttempts += e.passAttempts;
+    s.passes += e.passes;
     skaters.set(e.eaPlayerId, s);
   }
 
@@ -140,6 +154,7 @@ export function playerTotals(
     badge: badgeOf(s.eaPlayerId),
     points: s.goals + s.assists,
     shotPct: s.shots ? (s.goals / s.shots) * 100 : 0,
+    passPct: s.passAttempts ? (s.passes / s.passAttempts) * 100 : 0,
     pointsPerGame: s.gp ? (s.goals + s.assists) / s.gp : 0,
   }));
   skaterList.sort((a, b) => b.points - a.points || b.goals - a.goals);

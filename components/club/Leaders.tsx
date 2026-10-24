@@ -26,6 +26,14 @@ const SKATER_COLS: { key: keyof SkaterTotals; label: string; fmt?: (v: number) =
   { key: "shots", label: "S" },
   { key: "hits", label: "H" },
   { key: "shotPct", label: "SH%", fmt: (v) => v.toFixed(0) },
+  { key: "passPct", label: "PASS%", fmt: (v) => v.toFixed(0) },
+  { key: "pim", label: "PIM" },
+  { key: "ppg", label: "PPG" },
+  { key: "shg", label: "SHG" },
+  { key: "takeaways", label: "TK" },
+  { key: "giveaways", label: "GV" },
+  { key: "interceptions", label: "INT" },
+  { key: "blockedShots", label: "BS" },
 ];
 
 const GOALIE_COLS: { key: keyof GoalieTotals; label: string; fmt?: (v: number) => string }[] = [
@@ -152,7 +160,7 @@ export function Leaders({
           </table>
         )}
       </section>
-      <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop. Tap a column to sort.</p>
+      <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop. Swipe the table for more stats, tap a column to sort.</p>
       <p className="mt-1 text-[10px] text-[var(--muted-fg)]">
         OVR: average of EA&apos;s per-game offense, defense and teamplay ratings, from box-score games (needs 3+).
       </p>

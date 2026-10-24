@@ -26,6 +26,8 @@ export type PlayerLine = {
   hits: number;
   pim: number;
   takeaways: number;
+  blockedShots: number;
+  interceptions: number;
   passAttempts: number;
   passes: number;
   giveaways: number;
@@ -57,4 +59,9 @@ export type ExtraStats = {
   shg: number;
   takeaways: number;
   giveaways: number;
+  blockedShots: number;
+  interceptions: number;
+  // Not in the in-game totals: estimated from the box-score attempt rate so the combined pass % matches the game.
+  passAttempts: number;
+  passes: number;
 };

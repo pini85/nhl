@@ -8,7 +8,7 @@ export const contentType = "image/png";
 
 export default async function Image() {
   const snap = await getSnapshot().catch(() => null);
-  if (!snap) return ogCard({ eyebrow: "NHL 26 Pro Club", big: "DDD", title: "Drop drop drop", subtitle: "Club-only stats, game nights and scouting" });
+  if (!snap) return ogCard({ eyebrow: "NHL 27 Pro Club", big: "DDD", title: "Drop drop drop", subtitle: "Club-only stats, game nights and scouting" });
   const s = seasonProgress(snap.seasonResults, snap.division);
   return ogCard({
     eyebrow: `Division ${snap.division} · ${snap.wins}-${snap.losses}-${snap.otl} all-time`,
