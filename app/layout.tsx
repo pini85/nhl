@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { BottomNav, BottomNavView } from "@/components/club/BottomNav";
 import { InstallPrompt } from "@/components/club/InstallPrompt";
+import { YouHighlight } from "@/components/club/YouHighlight";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <InstallPrompt />
         </Suspense>
+        <YouHighlight />
         <Suspense fallback={<BottomNavView path={null} />}>
           <BottomNav />
         </Suspense>

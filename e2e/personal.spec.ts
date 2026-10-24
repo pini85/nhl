@@ -168,3 +168,24 @@ test.describe("Home", () => {
     await expect(page.locator(`[data-moment="${id}"]`)).toHaveCount(0);
   });
 });
+
+test.describe("You highlight", () => {
+  const youTag = (page: Page) =>
+    page.locator(`a[href="/players/${PUCK}"]`).first().evaluate((el) => getComputedStyle(el, "::after").content);
+
+  test("tags your name in a box score", async ({ page }) => {
+    await setPlayer(page, PUCK);
+    await page.goto("/games/2782817800237");
+    await expect(page.locator(`a[href="/players/${PUCK}"]`).first()).toBeVisible();
+    await expect.poll(() => youTag(page)).toBe('"You"');
+    await page.locator(`tr:has(a[href="/players/${PUCK}"])`).first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "e2e/screenshots/you-highlight.png" });
+  });
+
+  test("tags nothing without a pick", async ({ page }) => {
+    await setPlayer(page, "skipped");
+    await page.goto("/games/2782817800237");
+    await expect(page.locator(`a[href="/players/${PUCK}"]`).first()).toBeVisible();
+    expect(await youTag(page)).toBe("none");
+  });
+});
