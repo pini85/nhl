@@ -7,6 +7,7 @@ import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 const DAY = 86_400_000;
 const RECENT_DAYS = 60;
 const NEAR_MISS = 0.85;
+const REGULAR_GUEST_GAMES = 3;
 
 export type Choice = { eaPlayerId: string; name: string; position: string; gp: number; lastPlayed: Date };
 
@@ -45,14 +46,16 @@ export function rosterChoices(
     choice: { ...c, position: Object.entries(positions).sort((a, b) => b[1] - a[1])[0][0] },
     everNonGuest,
   }));
-  const recent = (c: Choice) => now.getTime() - c.lastPlayed.getTime() <= RECENT_DAYS * DAY;
+  // EA marks non-members as guests, but a guest who keeps playing is a teammate to this group.
+  const regular = (x: (typeof list)[number]) =>
+    now.getTime() - x.choice.lastPlayed.getTime() <= RECENT_DAYS * DAY && (x.everNonGuest || x.choice.gp >= REGULAR_GUEST_GAMES);
   return {
     main: list
-      .filter((x) => x.everNonGuest && recent(x.choice))
+      .filter(regular)
       .map((x) => x.choice)
       .sort((a, b) => b.lastPlayed.getTime() - a.lastPlayed.getTime()),
     rest: list
-      .filter((x) => !(x.everNonGuest && recent(x.choice)))
+      .filter((x) => !regular(x))
       .map((x) => x.choice)
       .sort((a, b) => b.gp - a.gp),
   };

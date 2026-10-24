@@ -63,6 +63,18 @@ function subscribeVisits(l: () => void) {
 }
 
 const snooze = () => writeVisits((v) => ({ ...v, dismissedAt: Date.now() }));
+/** Keeps the install banner away for 2 weeks (closing it, or "Not now" in onboarding). */
+export const snoozeInstallBanner = snooze;
+
+// The banner waits until onboarding is finished or skipped (ddd-player has any value).
+const PROFILE_EVENTS = ["ddd:me-changed"];
+function hasProfileCookie() {
+  return document.cookie.split("; ").some((c) => c.startsWith("ddd-player=") && c.length > "ddd-player=".length);
+}
+function subscribeProfile(l: () => void) {
+  PROFILE_EVENTS.forEach((e) => window.addEventListener(e, l));
+  return () => PROFILE_EVENTS.forEach((e) => window.removeEventListener(e, l));
+}
 
 function currentMode(): InstallMode {
   const standalone =
@@ -113,6 +125,7 @@ export function InstallPrompt() {
   const mode = useInstallMode();
   const path = usePathname();
   const seen = useSyncExternalStore(subscribeVisits, readVisits, () => null);
+  const hasProfile = useSyncExternalStore(subscribeProfile, hasProfileCookie, () => false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -152,6 +165,7 @@ export function InstallPrompt() {
     mode !== "none" &&
     seen !== null &&
     path !== "/wrapped" &&
+    hasProfile &&
     !open &&
     shouldShowBanner(seen.visits, seen.at);
 
@@ -221,7 +235,7 @@ export function InstallPrompt() {
                 <X className="size-4" />
               </Dialog.Close>
             </div>
-            <div className="mt-5">{mode && <Steps mode={mode} onInstalled={() => setOpen(false)} />}</div>
+            <div className="mt-5">{mode && <InstallSteps mode={mode} onInstalled={() => setOpen(false)} />}</div>
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
@@ -245,7 +259,8 @@ export function InstallCard() {
   );
 }
 
-function Steps({ mode, onInstalled }: { mode: InstallMode; onInstalled: () => void }) {
+/** How to add the app on this device; the sheet and onboarding both show it. */
+export function InstallSteps({ mode, onInstalled }: { mode: InstallMode; onInstalled: () => void }) {
   if (mode === "installed") {
     return <Note>✓ You already have it. Open Drop drop drop from your home screen.</Note>;
   }
@@ -403,7 +418,8 @@ function CopyLink() {
   );
 }
 
-function AppIcon({ size }: { size: number }) {
+/** The real home-screen icon. */
+export function AppIcon({ size }: { size: number }) {
   return (
     // The real home-screen icon, so people recognise it after adding.
     // eslint-disable-next-line @next/next/no-img-element

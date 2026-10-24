@@ -43,6 +43,14 @@ describe("rosterChoices", () => {
     expect(rest.map((c) => c.name).sort()).toEqual(["GuestGuy", "Xavier"]);
   });
 
+  it("treats regular guests (3+ recent games) as teammates", () => {
+    const g = ["1", "2", "3"].map((d) => game(`g${d}`, `2026-10-2${d}T19:00:00Z`));
+    const l = [...g.map((x) => line(x.matchId, "p", "PePezki_", { isGuest: true })), line("g1", "o", "OneTimer", { isGuest: true })];
+    const { main, rest } = rosterChoices(l, g, CLUB, NOW);
+    expect(main.map((c) => c.name)).toEqual(["PePezki_"]);
+    expect(rest.map((c) => c.name)).toEqual(["OneTimer"]);
+  });
+
   it("counts games without a box score in games played", () => {
     const g = [game("new", "2026-10-22T19:00:00Z")];
     const { main } = rosterChoices([line("new", "b", "Bob")], g, CLUB, NOW, [extra("b", { gp: 9 })]);

@@ -5,6 +5,11 @@ const IPHONE =
 const INSTAGRAM =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 389.0.0.49.87";
 
+// The banner waits until onboarding is done or skipped; these tests start as someone who skipped it.
+test.beforeEach(async ({ page }) => {
+  await page.context().addCookies([{ name: "ddd-player", value: "skipped", url: "http://localhost:3400" }]);
+});
+
 const banner = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Get the app" });
 const sheet = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Add Drop drop drop to your home screen" });
 
@@ -82,5 +87,14 @@ test.describe("in Instagram's browser", () => {
     await expect(sheet(page).getByText("You're in Instagram's browser", { exact: false })).toBeVisible();
     await expect(sheet(page).getByRole("button", { name: "Copy link" })).toBeVisible();
     await page.screenshot({ path: "e2e/screenshots/install-sheet-in-app.png" });
+  });
+});
+
+test.describe("before onboarding", () => {
+  test("the banner stays hidden until onboarding is finished or skipped", async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto("/clubs/1808");
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await expect(banner(page)).toHaveCount(0);
   });
 });

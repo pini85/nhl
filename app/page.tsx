@@ -3,6 +3,7 @@ import { FadeIn } from "@/components/club/FadeIn";
 import { HotPlayers } from "@/components/club/HotPlayers";
 import { NemesisCards } from "@/components/club/NemesisCards";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { LatestNight } from "@/components/club/LatestNight";
 import { SeasonCard } from "@/components/club/SeasonCard";
@@ -21,6 +22,7 @@ import { seasonProgress } from "@/lib/stats/season";
 import { celebrationFor } from "@/lib/stats/celebrate";
 import { funFacts } from "@/lib/stats/funfacts";
 import { InstallCard } from "@/components/club/InstallPrompt";
+import { OnboardingHole } from "@/components/club/OnboardingHole";
 import { FunFacts } from "@/components/club/FunFacts";
 import { Celebrate } from "@/components/club/Celebrate";
 
@@ -84,6 +86,9 @@ export default async function Home() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <OnboardingHole />
+      </Suspense>
       <Header subtitle={subtitle} />
       {blocks.map((b, i) => (
         <FadeIn key={i} index={i}>

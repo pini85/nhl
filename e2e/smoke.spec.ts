@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+// Onboarding has its own tests (personal.spec.ts); here visitors have skipped it.
+test.beforeEach(async ({ page }) => {
+  await page.context().addCookies([{ name: "ddd-player", value: "skipped", url: "http://localhost:3400" }]);
+});
+
 const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare", "/me"];
 
 for (const path of pages) {
