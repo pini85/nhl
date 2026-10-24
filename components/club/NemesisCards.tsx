@@ -7,7 +7,13 @@ function Row({ h, crest, tone }: { h: H2H; crest: string | null; tone: "bad" | "
   return (
     <Link href={`/clubs/${h.clubId}`} className="flex items-center gap-2.5 py-1.5">
       <Crest assetId={crest} size={28} name={h.name ?? undefined} />
-      <span className="min-w-0 flex-1 truncate text-sm">{h.name ?? `Club ${h.clubId}`}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm">{h.name ?? `Club ${h.clubId}`}</span>
+        <span className="tabular block text-[10px] text-[var(--muted-fg)]">
+          GF {h.goalsFor} · GA {h.goalsAgainst} · {h.goalDiff > 0 ? "+" : h.goalDiff < 0 ? "−" : ""}
+          {Math.abs(h.goalDiff)}
+        </span>
+      </span>
       <span
         className="tabular rounded-md px-1.5 py-0.5 text-xs font-extrabold"
         style={{
@@ -23,7 +29,7 @@ function Row({ h, crest, tone }: { h: H2H; crest: string | null; tone: "bad" | "
 
 export function NemesisCards({ nemesis, bags, crests }: { nemesis: H2H[]; bags: H2H[]; crests: Map<number, string | null> }) {
   if (!nemesis.length && !bags.length) {
-    return <p className="mt-3 text-center text-xs text-[var(--muted-fg)]">Nemesis (losing record) and punching bags (winning record) appear after you play a club twice.</p>;
+    return <p className="mt-3 text-center text-xs text-[var(--muted-fg)]">Nemesis and punching bags appear after your first game.</p>;
   }
   return (
     <div className="grid grid-cols-1 gap-0">

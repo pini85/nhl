@@ -34,33 +34,42 @@ describe("headToHead", () => {
 });
 
 describe("nemesis and punching bags", () => {
-  it("need at least 2 games", () => {
-    expect(nemesis(headToHead(games))).toEqual([]);
-    expect(punchingBags(headToHead(games))).toEqual([]);
-  });
-  it("rank by win %, then goal difference, then games", () => {
-    const g = [
-      extra(1, 0, 3, "2026-10-01T20:00:00Z"),
-      extra(1, 0, 3, "2026-10-02T20:00:00Z"), // 0-2, GD -6
-      extra(2, 0, 1, "2026-10-03T20:00:00Z"),
-      extra(2, 0, 1, "2026-10-04T20:00:00Z"), // 0-2, GD -2
-      extra(3, 5, 0, "2026-10-05T20:00:00Z"),
-      extra(3, 5, 0, "2026-10-06T20:00:00Z"), // 2-0, GD +10
-    ];
-    expect(nemesis(headToHead(g)).map((x) => x.clubId)).toEqual([1, 2]);
-    expect(punchingBags(headToHead(g)).map((x) => x.clubId)).toEqual([3]);
+  const d = (n: number) => `2026-10-${String(n).padStart(2, "0")}T20:00:00Z`;
+  const ids = (h: { clubId: number }[]) => h.map((x) => x.clubId);
+
+  it("with only single games, the biggest losses and wins", () => {
+    // fixtures: 7 wins, 3 losses, every club once
+    expect(ids(nemesis(headToHead(games)))).toEqual([7823, 1616, 1808]); // 0-5, 2-5, 2-4
+    expect(nemesis(headToHead(games))[0]).toMatchObject({ goalDiff: -5 });
+    expect(punchingBags(headToHead(games))[0]).toMatchObject({ clubId: 3592, goalDiff: 6 }); // 7-1
   });
   it("a nemesis has a losing record against us, a punching bag a winning one", () => {
+    const g = [extra(1, 3, 0, d(1)), extra(1, 2, 1, d(2)), extra(2, 1, 0, d(3)), extra(2, 0, 4, d(4)), extra(3, 0, 2, d(5)), extra(3, 1, 2, d(6))];
+    expect(ids(nemesis(headToHead(g)))).toEqual([3]); // 2 is 1-1: neither
+    expect(ids(punchingBags(headToHead(g)))).toEqual([1]);
+  });
+  it("record first, then goal difference", () => {
     const g = [
-      extra(1, 3, 0, "2026-10-01T20:00:00Z"),
-      extra(1, 2, 1, "2026-10-02T20:00:00Z"), // 2-0
-      extra(2, 1, 0, "2026-10-03T20:00:00Z"),
-      extra(2, 0, 4, "2026-10-04T20:00:00Z"), // 1-1
-      extra(3, 0, 2, "2026-10-05T20:00:00Z"),
-      extra(3, 1, 2, "2026-10-06T20:00:00Z"), // 0-2
+      extra(1, 0, 1, d(1)), extra(1, 0, 1, d(2)), extra(1, 0, 1, d(3)), // 0-3, -3
+      extra(2, 1, 0, d(4)), extra(2, 0, 5, d(5)), extra(2, 0, 4, d(6)), // 1-2, -8
+      extra(3, 0, 2, d(7)), extra(3, 0, 6, d(8)), extra(3, 0, 1, d(9)), // 0-3, -9
     ];
-    expect(nemesis(headToHead(g)).map((x) => x.clubId)).toEqual([3]);
-    expect(punchingBags(headToHead(g)).map((x) => x.clubId)).toEqual([1]);
+    expect(ids(nemesis(headToHead(g)))).toEqual([3, 1, 2]);
+    const flipped = g.map((x) => ({ ...x, goalsFor: x.goalsAgainst, goalsAgainst: x.goalsFor, outcome: x.outcome === "W" ? ("L" as const) : ("W" as const) }));
+    expect(ids(punchingBags(headToHead(flipped)))).toEqual([3, 1, 2]);
+  });
+  it("clubs played twice or more come before single games", () => {
+    const g = [extra(1, 0, 1, d(1)), extra(1, 0, 1, d(2)), extra(2, 0, 8, d(3)), extra(3, 0, 2, d(4))];
+    expect(ids(nemesis(headToHead(g)))).toEqual([1, 2, 3]);
+  });
+  it("ties go to goals scored, then the most recent game", () => {
+    expect(ids(punchingBags(headToHead([extra(1, 2, 1, d(1)), extra(2, 4, 3, d(2))])))).toEqual([2, 1]);
+    expect(ids(nemesis(headToHead([extra(1, 1, 2, d(1)), extra(2, 0, 1, d(2))])))).toEqual([2, 1]); // fewer scored is worse
+    expect(ids(nemesis(headToHead([extra(1, 0, 5, d(1)), extra(2, 0, 5, d(2))])))).toEqual([2, 1]);
+  });
+  it("keeps the top 3", () => {
+    const g = [1, 2, 3, 4].map((c) => extra(c, 0, c, d(c)));
+    expect(ids(nemesis(headToHead(g)))).toEqual([4, 3, 2]);
   });
 });
 

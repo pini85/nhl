@@ -43,21 +43,38 @@ export function headToHead(games: GameLite[]): H2H[] {
     .sort((a, b) => b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime());
 }
 
-const MIN_GAMES = 2;
+// Clubs played this often rank above single games: a bigger sample says more.
+const SOLID_SAMPLE = 2;
+const sampleGroup = (h: H2H) => (h.gp >= SOLID_SAMPLE ? 0 : 1);
+const newestFirst = (a: H2H, b: H2H) => b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime();
 
-// Clubs we have a losing record against, worst first.
+// Clubs we have a losing record against: worst record, then worst goal difference, then fewest goals scored.
 export function nemesis(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.gp >= MIN_GAMES && h.losses > h.wins)
-    .sort((a, b) => a.winPct - b.winPct || a.goalDiff - b.goalDiff || b.gp - a.gp)
+    .filter((h) => h.losses > h.wins)
+    .sort(
+      (a, b) =>
+        sampleGroup(a) - sampleGroup(b) ||
+        a.winPct - b.winPct ||
+        a.goalDiff - b.goalDiff ||
+        a.goalsFor - b.goalsFor ||
+        newestFirst(a, b),
+    )
     .slice(0, n);
 }
 
-// Clubs we have a winning record against, best first.
+// Clubs we have a winning record against: best record, then best goal difference, then most goals scored.
 export function punchingBags(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.gp >= MIN_GAMES && h.wins > h.losses)
-    .sort((a, b) => b.winPct - a.winPct || b.goalDiff - a.goalDiff || b.gp - a.gp)
+    .filter((h) => h.wins > h.losses)
+    .sort(
+      (a, b) =>
+        sampleGroup(a) - sampleGroup(b) ||
+        b.winPct - a.winPct ||
+        b.goalDiff - a.goalDiff ||
+        b.goalsFor - a.goalsFor ||
+        newestFirst(a, b),
+    )
     .slice(0, n);
 }
 

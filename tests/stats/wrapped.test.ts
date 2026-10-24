@@ -12,14 +12,11 @@ describe("buildWrapped", () => {
   it("top scorer", () => expect(slide("scorer")).toMatchObject({ big: "21", title: "ThePooker" }));
   it("hit machine", () => expect(slide("hits")).toMatchObject({ big: "47", title: "PePezki_" }));
   it("best night", () => expect(slide("night").title).toBe("Thu Oct 22"));
-  it("falls back to most played when there is no nemesis", () => {
-    expect(w.slides.some((s) => s.kind === "nemesis")).toBe(false);
-    expect(slide("most-played")).toBeTruthy();
-  });
-  it("no nemesis slide for a club we never lost to", () => {
-    const extra = { ...games.find((g) => g.opponentClubId === 3592)!, matchId: "x2", playedAt: new Date("2026-10-01T19:00:00Z") };
-    const w2 = buildWrapped([...games, extra], lines, clubs, 56507); // 2-0 vs CSKA
+  it("nemesis is our worst loss", () => expect(slide("nemesis")).toMatchObject({ big: "0-1", title: "Hockeyholics" }));
+  it("falls back to most played when we never lost", () => {
+    const w2 = buildWrapped(games.filter((g) => g.outcome === "W"), lines, clubs, 56507);
     expect(w2.slides.some((s) => s.kind === "nemesis")).toBe(false);
+    expect(w2.slides.find((s) => s.kind === "most-played")).toBeTruthy();
   });
   it("ends with the outro", () => expect(w.slides.at(-1)?.kind).toBe("outro"));
   it("empty without games", () => expect(buildWrapped([], [], [], 56507).slides).toEqual([]));
