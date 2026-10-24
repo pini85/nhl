@@ -16,7 +16,13 @@ const timeOf = (games: GameLite[]) => {
 };
 
 /** Roster for "Who are you?": recent regulars first, everyone else behind "Show everyone". */
-export function rosterChoices(lines: PlayerLine[], games: GameLite[], ourClubId: number, now: Date): { main: Choice[]; rest: Choice[] } {
+export function rosterChoices(
+  lines: PlayerLine[],
+  games: GameLite[],
+  ourClubId: number,
+  now: Date,
+  extras: ExtraStats[] = [],
+): { main: Choice[]; rest: Choice[] } {
   const { byId, at } = timeOf(games);
   const players = new Map<string, Choice & { everNonGuest: boolean; positions: Record<string, number> }>();
   for (const l of lines) {
@@ -30,6 +36,10 @@ export function rosterChoices(lines: PlayerLine[], games: GameLite[], ourClubId:
       p.name = l.playerName;
     }
     players.set(l.eaPlayerId, p);
+  }
+  for (const e of extras) {
+    const p = players.get(e.eaPlayerId);
+    if (p) p.gp += e.gp;
   }
   const list = [...players.values()].map(({ everNonGuest, positions, ...c }) => ({
     choice: { ...c, position: Object.entries(positions).sort((a, b) => b[1] - a[1])[0][0] },

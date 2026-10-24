@@ -42,6 +42,12 @@ describe("rosterChoices", () => {
     expect(main[1]).toMatchObject({ eaPlayerId: "a", position: "defenseMen", gp: 1 });
     expect(rest.map((c) => c.name).sort()).toEqual(["GuestGuy", "Xavier"]);
   });
+
+  it("counts games without a box score in games played", () => {
+    const g = [game("new", "2026-10-22T19:00:00Z")];
+    const { main } = rosterChoices([line("new", "b", "Bob")], g, CLUB, NOW, [extra("b", { gp: 9 })]);
+    expect(main[0].gp).toBe(10);
+  });
 });
 
 describe("lastNight", () => {

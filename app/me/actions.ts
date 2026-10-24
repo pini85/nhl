@@ -42,8 +42,3 @@ export async function markSeen(ids: string[]): Promise<void> {
   const { ids: active } = await activeIds();
   jar.set(SEEN_COOKIE, addSeen(parseSeen(jar.get(SEEN_COOKIE)?.value), ids.map(String).slice(0, 60), active).join(","), COOKIE_OPTIONS);
 }
-
-/** "Not you? Switch player". */
-export async function clearPlayer(): Promise<void> {
-  (await cookies()).delete(PLAYER_COOKIE);
-}

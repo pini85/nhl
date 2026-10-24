@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare"];
+const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare", "/me"];
 
 for (const path of pages) {
   test(`renders ${path} on a phone without errors or sideways scroll`, async ({ page }) => {
