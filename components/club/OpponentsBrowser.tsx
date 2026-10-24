@@ -142,7 +142,7 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
             <ul className="divide-y divide-white/[0.05]">
               {sorted.map((c) => (
                 <li key={c.clubId}>
-                  <OpponentRow o={c} />
+                  <OpponentRow o={c} mode={sort === "recent" ? "recent" : "record"} />
                 </li>
               ))}
             </ul>

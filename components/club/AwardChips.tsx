@@ -27,13 +27,14 @@ export function AwardChips({ awards, title = "Awards" }: { awards: Award[]; titl
               {AWARD_INFO[key].emoji}
             </span>
             <span className="min-w-0">
-              <b>{AWARD_INFO[key].label}</b>{" "}
-              <span className="text-[var(--muted-fg)]">
+              <b>{AWARD_INFO[key].label}</b>
+              <span className="text-[11px] text-[var(--muted-fg)]"> · {AWARD_INFO[key].hint}</span>
+              <span className="block text-[var(--muted-fg)]">
                 {countByPlayer(list).map((p, i) => (
                   <span key={p.eaPlayerId}>
                     {i > 0 && ", "}
                     <Link href={`/players/${p.eaPlayerId}`}>{p.name}</Link>
-                    {p.count > 1 && <b className="text-[var(--fg)]"> ×{p.count}</b>}
+                    {p.count > 1 && <span className="text-[var(--fg)]"> ({p.count} games)</span>}
                   </span>
                 ))}
               </span>
@@ -51,12 +52,13 @@ export function BadgeCabinet({ badges }: { badges: { key: AwardKey; emoji: strin
       {badges.length ? (
         <div className="grid grid-cols-3 gap-1.5">
           {badges.map((b) => (
-            <div key={b.key} className="rounded-xl bg-white/[0.04] px-1 py-2 text-center" title={AWARD_INFO[b.key].hint}>
+            <div key={b.key} className="rounded-xl bg-white/[0.04] px-1 py-2 text-center">
               <div className="text-xl" aria-hidden>
                 {b.emoji}
               </div>
-              <div className="tabular text-sm font-bold">×{b.count}</div>
-              <div className="text-[9px] text-[var(--muted-fg)]">{b.label}</div>
+              <div className="text-[11px] font-semibold">{b.label}</div>
+              <div className="tabular text-sm font-bold text-[var(--accent-blue)]">{b.count === 1 ? "1 game" : `${b.count} games`}</div>
+              <div className="mt-0.5 text-[9px] leading-tight text-[var(--muted-fg)]">{AWARD_INFO[b.key].hint}</div>
             </div>
           ))}
         </div>

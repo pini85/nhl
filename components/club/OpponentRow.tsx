@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Crest } from "@/components/club/Crest";
 import { LocalTime } from "@/components/club/LocalTime";
+import { ResultPill } from "@/components/club/ResultPill";
 
 export type OpponentRowData = {
   clubId: number;
@@ -12,33 +13,55 @@ export type OpponentRowData = {
   goalsFor: number;
   goalsAgainst: number;
   lastPlayedIso: string | null;
+  last: { outcome: "W" | "L"; goalsFor: number; goalsAgainst: number; overtime: boolean; dnf: string } | null;
 };
 
-export function OpponentRow({ o }: { o: OpponentRowData }) {
+// "2W 0L": a record, written so it can't be mistaken for a score.
+function Record({ wins, losses }: { wins: number; losses: number }) {
+  return (
+    <>
+      <span className="text-[var(--win-fg)]">{wins}W</span> <span className="text-[var(--loss-fg)]">{losses}L</span>
+    </>
+  );
+}
+
+// mode "recent": the last game's result and score on the right, the overall record underneath.
+// mode "record": the overall record on the right (for Most played / Worst record).
+export function OpponentRow({ o, mode = "recent" }: { o: OpponentRowData; mode?: "recent" | "record" }) {
+  const date = o.lastPlayedIso ? <LocalTime iso={o.lastPlayedIso} format="date" /> : null;
   return (
     <Link href={`/clubs/${o.clubId}`} className="flex items-center gap-3 px-3.5 py-2.5 active:bg-white/[0.05]">
       <Crest assetId={o.crestAssetId} size={32} name={o.name} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold">{o.name}</div>
-        <div className="text-[11px] text-[var(--muted-fg)]">
-          {o.gp ? (
+        <div className="truncate text-[11px] text-[var(--muted-fg)]">
+          {!o.gp || !o.last ? (
+            "Scouted · not played yet"
+          ) : mode === "recent" ? (
             <>
-              GF {o.goalsFor} · GA {o.goalsAgainst}
-              {o.lastPlayedIso && (
-                <>
-                  {" · "}
-                  <LocalTime iso={o.lastPlayedIso} format="date" />
-                </>
-              )}
+              {date} · <Record wins={o.wins} losses={o.losses} /> overall · GF {o.goalsFor} GA {o.goalsAgainst}
             </>
           ) : (
-            "Scouted · not played yet"
+            <>
+              GF {o.goalsFor} · GA {o.goalsAgainst} · last {date}
+            </>
           )}
         </div>
       </div>
-      {o.gp > 0 && (
-        <span className="tabular text-base font-black">
-          <span className="text-[var(--win-fg)]">{o.wins}</span>-<span className="text-[var(--loss-fg)]">{o.losses}</span>
+      {o.gp > 0 && o.last && (
+        <span className="flex shrink-0 items-center gap-1.5">
+          {mode === "recent" ? (
+            <>
+              <ResultPill outcome={o.last.outcome} overtime={o.last.overtime} dnf={o.last.dnf} />
+              <span className="tabular text-base font-black">
+                {o.last.goalsFor}-{o.last.goalsAgainst}
+              </span>
+            </>
+          ) : (
+            <span className="tabular text-base font-black">
+              <Record wins={o.wins} losses={o.losses} />
+            </span>
+          )}
         </span>
       )}
     </Link>

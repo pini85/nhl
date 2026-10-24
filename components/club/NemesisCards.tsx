@@ -21,7 +21,7 @@ function Row({ h, crest, tone }: { h: H2H; crest: string | null; tone: "bad" | "
           color: tone === "bad" ? "var(--loss-fg)" : "var(--win-fg)",
         }}
       >
-        {h.wins}-{h.losses}
+        {h.wins}W {h.losses}L
       </span>
     </Link>
   );
