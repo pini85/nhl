@@ -29,6 +29,13 @@
       "when": 1792765302684,
       "tag": "0003_jittery_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792863685829,
+      "tag": "0004_panoramic_gauntlet",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { CLUB_ID } from "@/lib/config";
-import { getPlayer } from "@/lib/data/club";
+import { getExtraStats, getPlayer } from "@/lib/data/club";
 import { ogCard, OG_SIZE } from "@/lib/og/card";
 import { playerTotals } from "@/lib/stats/players";
 import { playerCard } from "@/lib/stats/cards";
@@ -10,9 +10,10 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
-  const detail = await getPlayer(playerId).catch(() => null);
+  const [detail, extras] = await Promise.all([getPlayer(playerId).catch(() => null), getExtraStats().catch(() => [])]);
   if (!detail) return ogCard({ eyebrow: "Player", big: "DDD", title: "Drop drop drop" });
-  const { skaters, goalies } = playerTotals(detail.lines, detail.games, null, CLUB_ID);
+  const mine = extras.filter((e) => e.eaPlayerId === playerId);
+  const { skaters, goalies } = playerTotals(detail.lines, detail.games, null, CLUB_ID, mine);
   const sk = skaters[0];
   const gl = goalies[0];
   const card = playerCard(detail.lines, detail.games, playerId);

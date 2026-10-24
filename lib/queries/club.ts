@@ -1,9 +1,9 @@
-import { and, asc, desc, eq, getTableColumns, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { clubSnapshots, matchClubs, matches, matchPlayers } from "@/db/schema";
+import { clubSnapshots, extraPlayerStats, matchClubs, matches, matchPlayers } from "@/db/schema";
 import { CLUB_ID } from "@/lib/config";
 import type { MatchClubRow } from "@/lib/ea/normalize";
-import type { GameLite, PlayerLine } from "@/lib/stats/types";
+import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 
 export type Snapshot = typeof clubSnapshots.$inferSelect;
 
@@ -24,7 +24,8 @@ const gameColumns = {
   matchId: matches.matchId,
   playedAt: matches.playedAt,
   opponentClubId: matches.opponentClubId,
-  opponentName: matchClubs.name,
+  // Games without a box score have no match_clubs row; fall back to the name stored on the match.
+  opponentName: sql<string | null>`coalesce(${matchClubs.name}, ${matches.opponentName})`,
   goalsFor: matches.goalsFor,
   goalsAgainst: matches.goalsAgainst,
   outcome: matches.outcome,
@@ -87,4 +88,15 @@ export async function snapshotHistory(db: Db): Promise<{ takenAt: Date; division
     .select({ takenAt: clubSnapshots.takenAt, division: clubSnapshots.division })
     .from(clubSnapshots)
     .orderBy(asc(clubSnapshots.takenAt));
+}
+
+export async function extraStats(db: Db): Promise<ExtraStats[]> {
+  const t = extraPlayerStats;
+  return db
+    .select({
+      eaPlayerId: t.eaPlayerId, playerName: t.playerName, coversFrom: t.coversFrom, gp: t.gp, goals: t.goals,
+      assists: t.assists, plusMinus: t.plusMinus, shots: t.shots, hits: t.hits, pim: t.pim, ppg: t.ppg, shg: t.shg,
+      takeaways: t.takeaways, giveaways: t.giveaways,
+    })
+    .from(t);
 }

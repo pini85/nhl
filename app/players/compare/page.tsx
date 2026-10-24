@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { CompareView } from "@/components/club/CompareView";
 import { CLUB_ID } from "@/lib/config";
-import { getGames, getOurLines, getSnapshot } from "@/lib/data/club";
+import { getExtraStats, getGames, getOurLines, getSnapshot } from "@/lib/data/club";
 import { playerTotals } from "@/lib/stats/players";
 
 export const metadata = { title: "Compare" };
 
 export default async function ComparePage() {
-  const [games, lines, snapshot] = await Promise.all([getGames(), getOurLines(), getSnapshot()]);
-  const { skaters } = playerTotals(lines, games, snapshot?.members ?? null, CLUB_ID);
+  const [games, lines, snapshot, extras] = await Promise.all([getGames(), getOurLines(), getSnapshot(), getExtraStats()]);
+  const { skaters } = playerTotals(lines, games, snapshot?.members ?? null, CLUB_ID, extras);
   return (
     <>
       <Link href="/players" className="text-xs text-[var(--muted-fg)]">

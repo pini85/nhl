@@ -67,7 +67,17 @@ function Chips<T extends string>({ items, value, onChange }: { items: { key: T; 
   );
 }
 
-export function Leaders({ data, heat = {}, ovr = {} }: { data: Data; heat?: Record<string, Heat>; ovr?: Record<string, number | null> }) {
+export function Leaders({
+  data,
+  heat = {},
+  ovr = {},
+  withExtras = {},
+}: {
+  data: Data;
+  heat?: Record<string, Heat>;
+  ovr?: Record<string, number | null>;
+  withExtras?: Partial<Record<Range, boolean>>; // range includes stats from games without a box score
+}) {
   const [range, setRange] = useState<Range>("all");
   const [kind, setKind] = useState<"skaters" | "goalies">("skaters");
   const [sort, setSort] = useState<string>("points");
@@ -143,6 +153,9 @@ export function Leaders({ data, heat = {}, ovr = {} }: { data: Data; heat?: Reco
         )}
       </section>
       <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop. Tap a column to sort.</p>
+      {kind === "skaters" && withExtras[range] && (
+        <p className="mt-1 text-[10px] text-[var(--muted-fg)]">Includes older games without a box score, from the in-game club stats.</p>
+      )}
     </>
   );
 }

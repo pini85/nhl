@@ -1,5 +1,5 @@
 import type { RosterMember } from "@/lib/ea/normalize";
-import type { GameLite, PlayerLine } from "@/lib/stats/types";
+import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 
 export type Badge = "member" | "former" | "guest";
 
@@ -57,6 +57,7 @@ export function playerTotals(
   games: GameLite[],
   roster: RosterMember[] | null,
   ourClubId: number,
+  extras: ExtraStats[] = [],
 ): { skaters: SkaterTotals[]; goalies: GoalieTotals[] } {
   const outcomeById = new Map(games.map((g) => [g.matchId, g.outcome]));
   const ours = lines.filter((l) => l.clubId === ourClubId);
@@ -69,6 +70,8 @@ export function playerTotals(
     m.everNonGuest ||= !l.isGuest;
     meta.set(l.eaPlayerId, m);
   }
+  // Extra stats come from the club's own totals, so their players are club members.
+  for (const e of extras) if (!meta.has(e.eaPlayerId)) meta.set(e.eaPlayerId, { name: e.playerName, everNonGuest: true });
   const badgeOf = (id: string) => {
     const m = meta.get(id)!;
     return playerBadge(id, m.name, roster, m.everNonGuest);
@@ -76,6 +79,11 @@ export function playerTotals(
 
   const skaters = new Map<string, SkaterTotals>();
   const goalies = new Map<string, GoalieTotals>();
+  const emptySkater = (eaPlayerId: string): SkaterTotals => ({
+    eaPlayerId, name: "", badge: "guest", gp: 0, goals: 0, assists: 0, points: 0,
+    plusMinus: 0, shots: 0, hits: 0, pim: 0, takeaways: 0, giveaways: 0, ppg: 0, shg: 0, gwg: 0,
+    shotPct: 0, pointsPerGame: 0, positions: {},
+  });
 
   for (const l of ours) {
     if (isGoalie(l)) {
@@ -92,11 +100,7 @@ export function playerTotals(
       if (outcome === "L") g.losses++;
       goalies.set(l.eaPlayerId, g);
     } else {
-      const s = skaters.get(l.eaPlayerId) ?? {
-        eaPlayerId: l.eaPlayerId, name: "", badge: "guest" as Badge, gp: 0, goals: 0, assists: 0, points: 0,
-        plusMinus: 0, shots: 0, hits: 0, pim: 0, takeaways: 0, giveaways: 0, ppg: 0, shg: 0, gwg: 0,
-        shotPct: 0, pointsPerGame: 0, positions: {},
-      };
+      const s = skaters.get(l.eaPlayerId) ?? emptySkater(l.eaPlayerId);
       s.gp++;
       s.goals += l.goals;
       s.assists += l.assists;
@@ -112,6 +116,22 @@ export function playerTotals(
       s.positions[l.position] = (s.positions[l.position] ?? 0) + 1;
       skaters.set(l.eaPlayerId, s);
     }
+  }
+
+  for (const e of extras) {
+    const s = skaters.get(e.eaPlayerId) ?? emptySkater(e.eaPlayerId);
+    s.gp += e.gp;
+    s.goals += e.goals;
+    s.assists += e.assists;
+    s.plusMinus += e.plusMinus;
+    s.shots += e.shots;
+    s.hits += e.hits;
+    s.pim += e.pim;
+    s.takeaways += e.takeaways;
+    s.giveaways += e.giveaways;
+    s.ppg += e.ppg;
+    s.shg += e.shg;
+    skaters.set(e.eaPlayerId, s);
   }
 
   const skaterList = [...skaters.values()].map((s) => ({
@@ -137,6 +157,13 @@ export function playerTotals(
 }
 
 const DAY = 86_400_000;
+
+// Extra stats are one lump per player, so a date range counts them only if it reaches their oldest game.
+export function extrasInRange(extras: ExtraStats[], range: "all" | "30d" | "last10", now: Date): ExtraStats[] {
+  if (range === "all") return extras;
+  if (range === "30d") return extras.filter((e) => now.getTime() - e.coversFrom.getTime() <= 30 * DAY);
+  return [];
+}
 
 export function filterGames(games: GameLite[], filter: "all" | "30d" | "last10", now: Date): Set<string> {
   if (filter === "30d") {

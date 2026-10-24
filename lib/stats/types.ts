@@ -40,3 +40,21 @@ export type PlayerLine = {
   ratingDefense: number;
   ratingTeamplay: number;
 };
+
+// Stats from games without a box score (from the in-game club totals), added on top of box-score totals.
+export type ExtraStats = {
+  eaPlayerId: string;
+  playerName: string;
+  coversFrom: Date;
+  gp: number;
+  goals: number;
+  assists: number;
+  plusMinus: number;
+  shots: number;
+  hits: number;
+  pim: number;
+  ppg: number;
+  shg: number;
+  takeaways: number;
+  giveaways: number;
+};
