@@ -44,9 +44,25 @@ export const MILESTONE_STEPS = {
   assists: [10, 25, 50, 100, 250],
   points: [10, 25, 50, 100, 200, 500],
   hits: [100, 250, 500, 1000],
+  saves: [100, 250, 500, 1000, 2500],
+  shutouts: [1, 5, 10, 25],
 } as const;
 export type MilestoneStat = keyof typeof MILESTONE_STEPS;
-const SINGULAR: Record<MilestoneStat, string> = { games: "game", goals: "goal", assists: "assist", points: "point", hits: "hit" };
+const SINGULAR: Record<MilestoneStat, string> = {
+  games: "game",
+  goals: "goal",
+  assists: "assist",
+  points: "point",
+  hits: "hit",
+  saves: "save",
+  shutouts: "shutout",
+};
+const NIGHT_OVER_MS = 3 * 3_600_000; // same gap that splits game nights
+
+/** Zeroed counters for every milestone stat. */
+export const emptyTotals = (): Record<MilestoneStat, number> => ({ games: 0, goals: 0, assists: 0, points: 0, hits: 0, saves: 0, shutouts: 0 });
+/** A goalie game counts as a shutout by the same rule as the award. */
+export const isShutout = (l: PlayerLine) => l.position === "goalie" && l.glGa === 0 && l.glShots >= 5;
 
 // How each record reads: short noun (for "took your … record") and the full phrase for a value.
 const RECORD_WORDS: Record<string, { short: string; full: (v: number) => string }> = {
@@ -139,7 +155,7 @@ function recordMoments(input: MomentInput, since: Date): Moment[] {
   return [...latest.values()];
 }
 
-function awardMoments(input: MomentInput, since: Date): Moment[] {
+function awardMoments(input: MomentInput, since: Date, now?: Date): Moment[] {
   const { lines, games, clubs, ourClubId } = input;
   const byMatch = new Map(games.map((g) => [g.matchId, g]));
   const nights = groupGameNights(games);
@@ -151,6 +167,8 @@ function awardMoments(input: MomentInput, since: Date): Moment[] {
     if (!RARE_AWARDS.has(a.key)) continue;
     const at = a.matchId ? byMatch.get(a.matchId)?.playedAt : a.nightKey ? nightEnd.get(a.nightKey) : undefined;
     if (!at || at < since) continue;
+    // Tonight's MVP can still change while games are being played.
+    if (a.key === "nightmvp" && now && now.getTime() - at.getTime() < NIGHT_OVER_MS) continue;
     out.push(
       make({
         kind: "award",
@@ -182,7 +200,7 @@ function milestoneMoments(input: MomentInput, since: Date): Moment[] {
   // Games without a box score come first in time, so their totals are the starting point.
   const totals = new Map<string, Record<MilestoneStat, number>>();
   for (const e of extras) {
-    const t = totals.get(e.eaPlayerId) ?? { games: 0, goals: 0, assists: 0, points: 0, hits: 0 };
+    const t = totals.get(e.eaPlayerId) ?? emptyTotals();
     t.games += e.gp;
     t.goals += e.goals;
     t.assists += e.assists;
@@ -194,13 +212,15 @@ function milestoneMoments(input: MomentInput, since: Date): Moment[] {
   const vs = versus(games);
   const out: Moment[] = [];
   for (const l of ours) {
-    const t = totals.get(l.eaPlayerId) ?? { games: 0, goals: 0, assists: 0, points: 0, hits: 0 };
+    const t = totals.get(l.eaPlayerId) ?? emptyTotals();
     const before = { ...t };
     t.games += 1;
     t.goals += l.goals;
     t.assists += l.assists;
     t.points += l.goals + l.assists;
     t.hits += l.hits;
+    t.saves += l.glSaves;
+    if (isShutout(l)) t.shutouts += 1;
     totals.set(l.eaPlayerId, t);
     const at = byMatch.get(l.matchId)!.playedAt;
     if (at < since) continue;
@@ -243,7 +263,7 @@ function teamMoments(input: MomentInput, since: Date): Moment[] {
         at: m.reachedAt,
         emoji: "🎉",
         key: "club-milestone",
-        value: null,
+        value: Number(m.label.split(": ")[1]),
         label: m.label,
         playerId: null,
         playerName: null,
@@ -280,16 +300,16 @@ function teamMoments(input: MomentInput, since: Date): Moment[] {
   return out;
 }
 
-/** All moments at or after `since`, newest first. */
-export function moments(input: MomentInput, since: Date): Moment[] {
-  return [...recordMoments(input, since), ...awardMoments(input, since), ...milestoneMoments(input, since), ...teamMoments(input, since)].sort(
+/** All moments at or after `since`, newest first. With `now`, a Night MVP shows only once that night is over. */
+export function moments(input: MomentInput, since: Date, now?: Date): Moment[] {
+  return [...recordMoments(input, since), ...awardMoments(input, since, now), ...milestoneMoments(input, since), ...teamMoments(input, since)].sort(
     (a, b) => b.at.getTime() - a.at.getTime() || a.id.localeCompare(b.id),
   );
 }
 
 /** Moments recent enough to show as cards (last 14 days). */
 export function activeMoments(input: MomentInput, now: Date): Moment[] {
-  return moments(input, new Date(now.getTime() - MOMENT_WINDOW_DAYS * DAY));
+  return moments(input, new Date(now.getTime() - MOMENT_WINDOW_DAYS * DAY), now);
 }
 
 export function isAboutMe(m: Moment, meId: string): boolean {

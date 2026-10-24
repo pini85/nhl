@@ -93,6 +93,35 @@ describe("milestone moments", () => {
   });
 });
 
+describe("review fixes", () => {
+  it("two club milestones in the same game get different ids", () => {
+    const g = [game("t1", "2026-10-01T19:00:00Z"), game("t2", "2026-10-12T19:00:00Z")];
+    const l = [line("t1", "a", "Amy", { goals: 50, assists: 50 }), line("t2", "a", "Amy", { goals: 50, assists: 50 })];
+    const team = moments(input(g, l), SINCE).filter((m) => m.key === "club-milestone");
+    expect(team.map((m) => m.label).sort()).toEqual(["Club goals: 100", "Club points: 200"]);
+    expect(new Set(team.map((m) => m.id)).size).toBe(2);
+  });
+
+  it("Night MVP waits until the night is over", () => {
+    const g = [game("t2", "2026-10-12T19:00:00Z"), game("t3", "2026-10-12T19:40:00Z")];
+    const l = [line("t2", "b", "Bob", { goals: 1 })];
+    const mvp = (now: string) => moments(input(g, l), SINCE, new Date(now)).filter((m) => m.key === "nightmvp");
+    expect(mvp("2026-10-12T20:30:00Z")).toEqual([]);
+    expect(mvp("2026-10-12T23:00:00Z")).toHaveLength(1);
+  });
+
+  it("goalies reach save and shutout milestones", () => {
+    const g = [game("t1", "2026-10-01T19:00:00Z"), game("t2", "2026-10-12T19:00:00Z")];
+    const l = [
+      line("t1", "k", "Keeper", { position: "goalie", glSaves: 90, glShots: 93, glGa: 3 }),
+      line("t2", "k", "Keeper", { position: "goalie", glSaves: 20, glShots: 20, glGa: 0 }),
+    ];
+    const labels = moments(input(g, l), SINCE).filter((m) => m.kind === "milestone").map((m) => m.label);
+    expect(labels).toContain("100th save");
+    expect(labels).toContain("1st shutout");
+  });
+});
+
 describe("team moments", () => {
   it("promotion becomes a team moment", () => {
     const history = [

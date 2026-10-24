@@ -14,7 +14,7 @@ export async function HomePersonal() {
   const [lines, games, extras] = await Promise.all([getOurLines(), getGames(), getExtraStats()]);
   const id = me.playerId;
   const name = lines.findLast((l) => l.eaPlayerId === id)?.playerName ?? "you";
-  const parts = homeCardParts(lastNight(lines, games, id, CLUB_ID), activeStreaks(lines, games, id), nextMilestones(lines, extras, id), now);
+  const parts = homeCardParts(lastNight(lines, games, id, CLUB_ID), activeStreaks(lines, games, id, now), nextMilestones(lines, extras, id), now);
   return (
     <Link href="/me" className="arena-card my-3 block px-3.5 py-3 active:bg-white/[0.06]">
       <p className="font-bold">Hey {name} 👋</p>

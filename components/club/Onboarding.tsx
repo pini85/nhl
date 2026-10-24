@@ -63,11 +63,14 @@ export function Onboarding({ needed, main, rest }: { needed: boolean; main: Choi
         </div>
         {step !== "done" && (
           <button
-            onClick={async () => {
-              if (step === "who") {
-                await skipOnboarding();
-                router.refresh();
-              } else snoozeInstallBanner();
+            onClick={() => {
+              // Close first: a lost connection must never trap someone in the overlay.
+              if (step === "who")
+                skipOnboarding().then(
+                  () => router.refresh(),
+                  () => {},
+                );
+              else snoozeInstallBanner();
               close();
             }}
             className="px-2 py-1 text-sm text-[var(--muted-fg)]"

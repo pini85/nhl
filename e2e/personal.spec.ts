@@ -189,3 +189,32 @@ test.describe("You highlight", () => {
     expect(await youTag(page)).toBe("none");
   });
 });
+
+test.describe("on a flaky connection", () => {
+  // Server actions are POSTs with a Next-Action header; drop them to simulate losing signal.
+  const dropActions = (page: Page) =>
+    page.route("**/*", (route) => (route.request().method() === "POST" && route.request().headers()["next-action"] ? route.abort() : route.continue()));
+
+  test("Skip still closes onboarding", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/");
+    await expect(onboarding(page)).toBeVisible();
+    await dropActions(page);
+    await onboarding(page).getByRole("button", { name: "Skip" }).click();
+    await expect(onboarding(page)).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test("a failed pick says so instead of breaking the page", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/");
+    await expect(onboarding(page)).toBeVisible();
+    await dropActions(page);
+    await onboarding(page).getByRole("button", { name: /^puck_control/ }).click();
+    await expect(onboarding(page).getByText("Couldn't save that. Check your connection and try again.")).toBeVisible();
+    await expect(onboarding(page).getByRole("heading", { name: "Who are you?" })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});

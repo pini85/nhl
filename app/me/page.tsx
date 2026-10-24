@@ -23,7 +23,8 @@ export default function MePage() {
 async function MeContent() {
   const { me } = await getMe();
   const [lines, games, extras] = await Promise.all([getOurLines(), getGames(), getExtraStats()]);
-  const { main, rest } = rosterChoices(lines, games, CLUB_ID, await requestTime(), extras);
+  const now = await requestTime();
+  const { main, rest } = rosterChoices(lines, games, CLUB_ID, now, extras);
   // First in every branch, so it keeps its step when the page re-renders after a pick.
   const onboarding = <Onboarding needed={me.kind === "unset"} main={main} rest={rest} />;
 
@@ -37,7 +38,7 @@ async function MeContent() {
           top={
             <>
               <MomentCards onlyMine title="Your moments" />
-              <MyNight night={lastNight(lines, games, me.playerId, CLUB_ID)} streaks={activeStreaks(lines, games, me.playerId)} />
+              <MyNight night={lastNight(lines, games, me.playerId, CLUB_ID)} streaks={activeStreaks(lines, games, me.playerId, now)} />
             </>
           }
         />

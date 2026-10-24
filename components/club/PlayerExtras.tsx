@@ -11,7 +11,15 @@ type Props = {
   teammates: { eaPlayerId: string; name: string; gp: number; winPct: number }[];
 };
 
-const STAT_WORD: Record<NextMilestone["stat"], string> = { games: "games", goals: "goals", assists: "assists", points: "points", hits: "hits" };
+const STAT_WORD: Record<NextMilestone["stat"], string> = {
+  games: "games",
+  goals: "goals",
+  assists: "assists",
+  points: "points",
+  hits: "hits",
+  saves: "saves",
+  shutouts: "shutouts",
+};
 
 /** Milestones, records, vs-team and best teammates. Worded for "you" on the Me tab. */
 export function PlayerExtras({ you, milestones, standing, vs, teammates }: Props) {

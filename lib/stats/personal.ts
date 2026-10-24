@@ -1,5 +1,5 @@
 // Personal stats for the Me tab, the Home card and the extras on every player page.
-import { MILESTONE_STEPS, type MilestoneStat } from "@/lib/stats/moments";
+import { emptyTotals, isShutout, MILESTONE_STEPS, type MilestoneStat } from "@/lib/stats/moments";
 import { groupGameNights } from "@/lib/stats/nights";
 import { PLAYER_RECORDS, type RecordItem } from "@/lib/stats/records";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
@@ -8,6 +8,7 @@ const DAY = 86_400_000;
 const RECENT_DAYS = 60;
 const NEAR_MISS = 0.85;
 const REGULAR_GUEST_GAMES = 3;
+const HOME_RECENT_DAYS = 14;
 
 export type Choice = { eaPlayerId: string; name: string; position: string; gp: number; lastPlayed: Date };
 
@@ -106,8 +107,13 @@ export function lastNight(lines: PlayerLine[], games: GameLite[], playerId: stri
 
 export type Streak = { key: "points" | "goals" | "games"; length: number };
 
-/** Streaks still going (2+), counted over box-score games only. */
-export function activeStreaks(lines: PlayerLine[], games: GameLite[], playerId: string): Streak[] {
+/** Streaks still going (2+), counted over box-score games only. None after 14+ days without a game. */
+export function activeStreaks(lines: PlayerLine[], games: GameLite[], playerId: string, now?: Date): Streak[] {
+  if (now) {
+    const ids = new Set(lines.filter((l) => l.eaPlayerId === playerId).map((l) => l.matchId));
+    const last = Math.max(0, ...games.filter((g) => ids.has(g.matchId)).map((g) => g.playedAt.getTime()));
+    if (now.getTime() - last > HOME_RECENT_DAYS * DAY) return [];
+  }
   const full = [...games].filter((g) => g.source === "full").sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
   const mine = new Map(lines.filter((l) => l.eaPlayerId === playerId).map((l) => [l.matchId, l]));
   const run = (ok: (l: PlayerLine | undefined) => boolean, list: GameLite[]) => {
@@ -131,7 +137,7 @@ export type NextMilestone = { stat: MilestoneStat; target: number; remaining: nu
 
 /** The closest round numbers ahead (relative to the target), including games without a box score. */
 export function nextMilestones(lines: PlayerLine[], extras: ExtraStats[], playerId: string, max = 3): NextMilestone[] {
-  const t: Record<MilestoneStat, number> = { games: 0, goals: 0, assists: 0, points: 0, hits: 0 };
+  const t = emptyTotals();
   for (const l of lines) {
     if (l.eaPlayerId !== playerId) continue;
     t.games += 1;
@@ -139,6 +145,8 @@ export function nextMilestones(lines: PlayerLine[], extras: ExtraStats[], player
     t.assists += l.assists;
     t.points += l.goals + l.assists;
     t.hits += l.hits;
+    t.saves += l.glSaves;
+    if (isShutout(l)) t.shutouts += 1;
   }
   for (const e of extras) {
     if (e.eaPlayerId !== playerId) continue;
@@ -206,6 +214,7 @@ export function vsTeam(lines: PlayerLine[], games: GameLite[], playerId: string,
       ? [
           { stat: "Save %", mine: savePct(myGl), team: savePct(gl), better: "higher" },
           { stat: "Goals against", mine: per(myGl, (l) => l.glGa), team: per(gl, (l) => l.glGa), better: "lower" },
+          { stat: "Shutout %", mine: Math.round(per(myGl, (l) => (isShutout(l) ? 100 : 0))), team: Math.round(per(gl, (l) => (isShutout(l) ? 100 : 0))), better: "higher" },
         ]
       : null,
   };
@@ -238,9 +247,8 @@ export function bestTeammates(
     .slice(0, 2);
 }
 
-const HOME_RECENT_DAYS = 14;
 const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", month: "short", day: "numeric" });
-const STREAK_WORD: Record<Streak["key"], string> = { points: "point", goals: "goal", games: "games-played" };
+const STREAK_WORD: Record<Exclude<Streak["key"], "games">, string> = { points: "point", goals: "goal" };
 
 /** The bits after "Hey {name} 👋" on the Home card. */
 export function homeCardParts(night: LastNight | null, streaks: Streak[], milestones: NextMilestone[], now: Date): string[] {
@@ -250,7 +258,7 @@ export function homeCardParts(night: LastNight | null, streaks: Streak[], milest
     const line = night.goalie && night.goals + night.assists === 0 ? `${night.goalie.saves} saves` : `${night.goals}G ${night.assists}A`;
     parts.push(`Last night: ${line}, ${night.wins}–${night.losses}`);
     const s = streaks.find((x) => x.key !== "games") ?? streaks[0];
-    if (s) parts.push(`🔥 ${s.length}-game ${STREAK_WORD[s.key]} streak`);
+    if (s) parts.push(s.key === "games" ? `🔥 ${s.length} games in a row` : `🔥 ${s.length}-game ${STREAK_WORD[s.key]} streak`);
   }
   const m = milestones[0];
   if (m) parts.push(`${m.remaining} ${m.remaining === 1 ? m.stat.slice(0, -1) : m.stat} to ${m.target}`);

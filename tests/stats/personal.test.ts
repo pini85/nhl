@@ -115,6 +115,15 @@ describe("activeStreaks", () => {
   });
 });
 
+describe("activeStreaks after a long break", () => {
+  it("shows no streaks when your last game is more than 14 days old", () => {
+    const g = ["1", "2", "3"].map((d) => game(`g${d}`, `2026-08-0${d}T19:00:00Z`));
+    const l = g.map((x) => line(x.matchId, "b", "Bob", { goals: 1 }));
+    expect(activeStreaks(l, g, "b", NOW)).toEqual([]);
+    expect(activeStreaks(l, g, "b", new Date("2026-08-05T12:00:00Z")).length).toBeGreaterThan(0);
+  });
+});
+
 describe("nextMilestones", () => {
   it("counts games without a box score and picks the closest", () => {
     const l = [line("g1", "b", "Bob", { goals: 2, hits: 10 })];
@@ -122,6 +131,12 @@ describe("nextMilestones", () => {
     expect(next[0]).toEqual({ stat: "goals", target: 50, remaining: 3 });
     expect(next).toContainEqual({ stat: "games", target: 25, remaining: 4 });
     expect(next.length).toBeLessThanOrEqual(3);
+  });
+  it("gives goalies save and shutout milestones", () => {
+    const l = [line("g1", "k", "Keeper", { position: "goalie", glSaves: 95, glShots: 100, glGa: 5 }), line("g2", "k", "Keeper", { position: "goalie", glSaves: 10, glShots: 10, glGa: 0 })];
+    const next = nextMilestones(l, [], "k");
+    expect(next).toContainEqual({ stat: "saves", target: 250, remaining: 145 });
+    expect(next).toContainEqual({ stat: "shutouts", target: 5, remaining: 4 });
   });
   it("skips stats a player has none of yet", () => {
     const next = nextMilestones([line("g1", "k", "Keeper", { position: "goalie" })], [], "k");
@@ -160,6 +175,7 @@ describe("vsTeam", () => {
     const v = vsTeam(l, g, "k", CLUB);
     expect(v.skater).toBeNull();
     expect(v.goalie).toContainEqual({ stat: "Save %", mine: 90, team: 90, better: "higher" });
+    expect(v.goalie).toContainEqual({ stat: "Shutout %", mine: 0, team: 0, better: "higher" });
     for (const r of v.goalie!) expect(Number.isFinite(r.mine) && Number.isFinite(r.team)).toBe(true);
   });
 });
@@ -210,6 +226,8 @@ describe("homeCardParts", () => {
     expect(homeCardParts(g, [], [], NOW)[0]).toBe("Last night: 30 saves, 3–1");
   });
   it("is empty when there's nothing to say", () => expect(homeCardParts(null, [], [], NOW)).toEqual([]));
+  it("words a games-played streak plainly", () =>
+    expect(homeCardParts(night, [{ key: "games", length: 5 }], [], NOW)).toEqual(["Last night: 2G 1A, 3–1", "🔥 5 games in a row"]));
   it("says '1 assist', not '1 assists'", () =>
     expect(homeCardParts(null, [], [{ stat: "assists", target: 25, remaining: 1 }], NOW)).toEqual(["1 assist to 25"]));
 });

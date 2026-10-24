@@ -26,10 +26,19 @@ export function RosterPicker({
   const [pending, start] = useTransition();
   const [picked, setPicked] = useState<string | null>(null);
 
+  const [failed, setFailed] = useState(false);
+
   function pick(choice: Choice | null) {
     setPicked(choice?.eaPlayerId ?? "guest");
+    setFailed(false);
     start(async () => {
-      await choosePlayer(choice?.eaPlayerId ?? "guest");
+      try {
+        await choosePlayer(choice?.eaPlayerId ?? "guest");
+      } catch {
+        setFailed(true);
+        setPicked(null);
+        return;
+      }
       window.dispatchEvent(new Event(ME_CHANGED));
       onPicked?.(choice);
       router.refresh();
@@ -39,6 +48,11 @@ export function RosterPicker({
   const list = everyone ? [...main, ...rest] : main;
   return (
     <div>
+      {failed && (
+        <p role="alert" className="mb-3 rounded-xl bg-[var(--loss-bg)] px-3 py-2 text-xs text-[var(--fg)]">
+          Couldn&apos;t save that. Check your connection and try again.
+        </p>
+      )}
       <ul className="grid grid-cols-2 gap-2">
         {list.map((c) => (
           <li key={c.eaPlayerId}>

@@ -23,6 +23,7 @@ Each line is one active stretch of work. A new line is added whenever work resum
   - Added the 10 games from Oct 15–18 that EA no longer serves (score-only), moved the Old Boys win to Oct 20, and stored each member's stats from the 11 games without a box score (in-game season totals minus stored box scores). Site now shows 20 games, 11-9, matching the game.
 - Session 4: 2026-10-24 21:45: install prompt (Add to Home Screen)
   - Banner after a 3rd page / 2nd day / scout result or game night (snoozed 14 days when closed), how-to sheet per phone (Chrome one-tap, iPhone Share steps, Instagram/Facebook/WebView → open in Safari/Chrome), Get the app card on home, `/?install=1` link for the group chat. 15 unit + 7 phone e2e tests.
+  - Personal layer phase 1 (spec `docs/superpowers/specs/2026-10-24-personal-layer-design.md`, plan `docs/superpowers/plans/2026-10-24-personal-layer.md`), built inline on branch `personal-layer` 22:15–22:50: identity cookies, moments engine, personal stats, Me tab, onboarding, Home card + moment cards, "You" highlights. 323 unit tests, 52/53 phone e2e (the 1 failure, og.spec icon check, is pre-existing on main). Whole-branch review by a Fable agent.
 
 ## Token use
 Exact totals come from Claude Code's `/cost` or `/usage`. Estimates are added here at each milestone.
