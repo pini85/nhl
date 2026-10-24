@@ -23,6 +23,15 @@ describe("buildWrapped", () => {
     expect(slide("passer").big).toMatch(/^\d+%$/);
   });
   it("takeaway king", () => expect(slide("thief").title).toBeTruthy());
+  it("labels each big number with its unit", () => {
+    expect(slide("scorer").unit).toBe("points");
+    expect(slide("hits").unit).toBe("hits");
+    expect(slide("thief").unit).toBe("takeaways");
+    expect(slide("passer").unit).toBe("pass completion");
+    expect(slide("night").unit).toBe("wins – losses");
+    expect(slide("nemesis").unit).toBe("wins – losses vs them");
+    expect(w.slides.filter((s) => s.kind !== "outro").every((s) => s.unit)).toBe(true);
+  });
   it("ends with the outro", () => expect(w.slides.at(-1)?.kind).toBe("outro"));
   it("empty without games", () => expect(buildWrapped([], [], [], 56507).slides).toEqual([]));
 });

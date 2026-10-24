@@ -33,7 +33,7 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
         <button aria-label="Previous" onClick={() => go(-1)} className="absolute inset-y-0 left-0 w-1/3" />
         <button aria-label="Next" onClick={() => go(1)} className="absolute inset-y-0 right-0 w-2/3" />
         <p className="sr-only" aria-live="polite">
-          {`${s.eyebrow}: ${s.big}${s.title ? `, ${s.title}` : ""}. ${s.line}`}
+          {`${s.eyebrow}: ${s.big}${s.unit ? ` ${s.unit}` : ""}${s.title ? `, ${s.title}` : ""}. ${s.line}`}
         </p>
         <AnimatePresence mode="wait">
           <motion.div
@@ -50,6 +50,7 @@ export function WrappedStory({ slides }: { slides: Slide[] }) {
             ) : (
               <div className="glow tabular mt-3 text-8xl font-black text-[var(--accent-blue)]">{s.big}</div>
             )}
+            {s.unit && <div className="mt-1 text-sm font-semibold tracking-[0.2em] text-[var(--accent-blue)]/80 uppercase">{s.unit}</div>}
             {s.title && <div className="mt-3 text-2xl font-black">{s.title}</div>}
             <div className="mt-2 text-sm text-[var(--muted-fg)]">{s.line}</div>
           </motion.div>
