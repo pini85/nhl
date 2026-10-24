@@ -1,8 +1,9 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useState, useTransition } from "react";
-import { requestScout } from "@/app/opponents/actions";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { checkScout, requestScout } from "@/app/opponents/actions";
 import { OpponentRow, type OpponentRowData } from "@/components/club/OpponentRow";
 import { scoutMessage } from "@/components/club/scoutMessages";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,37 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
   const [sort, setSort] = useState<(typeof SORTS)[number]["key"]>("recent");
   const [status, setStatus] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [waitingFor, setWaitingFor] = useState<string | null>(null);
+  const router = useRouter();
+
+  // While EA is being searched, check every few seconds; when it's answered, reload the data
+  // so the new clubs show up in the results below.
+  useEffect(() => {
+    if (!waitingFor) return;
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      const row = await checkScout(waitingFor).catch(() => null);
+      if (row && row.status !== "pending") {
+        clearInterval(timer);
+        setWaitingFor(null);
+        setStatus(
+          row.status === "done"
+            ? (row.results ?? 1) > 1
+              ? `Found ${row.results} clubs on EA.`
+              : "Found on EA."
+            : row.status === "not_found"
+              ? `EA has no club called “${waitingFor}”.`
+              : "EA didn't answer. Try again in a minute.",
+        );
+        router.refresh();
+      } else if (Date.now() - started > 150_000) {
+        clearInterval(timer);
+        setWaitingFor(null);
+        setStatus("Still waiting on EA. Reopen this page in a minute to see the results.");
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [waitingFor, router]);
 
   const query = q.trim().toLowerCase();
   const matches = query ? clubs.filter((c) => c.name.toLowerCase().includes(query)) : [];
@@ -37,6 +69,7 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
     start(async () => {
       const r = await requestScout(q).catch(() => ({ status: "error" as const }));
       setStatus(scoutMessage(r.status));
+      if (r.status === "created" || r.status === "exists") setWaitingFor(q.trim());
     });
   }
 
@@ -53,6 +86,7 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
           onChange={(e) => {
             setQ(e.target.value);
             setStatus(null);
+            setWaitingFor(null);
           }}
           className="w-full bg-transparent text-base outline-none placeholder:text-[var(--muted-fg)]"
           aria-label="Search a club"
@@ -76,10 +110,10 @@ export function OpponentsBrowser({ clubs, children }: { clubs: OpponentRowData[]
             <div className="border-t border-[var(--card-border)] p-3.5">
               <button
                 onClick={scout}
-                disabled={pending}
+                disabled={pending || !!waitingFor}
                 className="w-full rounded-xl bg-[rgba(92,200,255,0.15)] px-3 py-2 text-sm font-semibold text-[var(--accent-blue)] disabled:opacity-50"
               >
-                {pending ? "Requesting…" : `Scout “${q.trim()}” from EA`}
+                {pending ? "Requesting…" : waitingFor ? "Searching EA…" : `Scout “${q.trim()}” from EA`}
               </button>
               {status && <p className="mt-2 text-xs text-[var(--muted-fg)]">{status}</p>}
             </div>

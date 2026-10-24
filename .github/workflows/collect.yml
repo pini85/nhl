@@ -31,9 +31,15 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SITE_URL: ${{ secrets.SITE_URL }}
           COLLECT_TRIGGER: cron
-      - name: Wait before the next run
+      # Instead of sleeping until the next run, answer scout requests as they come in.
+      - name: Watch for scout requests until the next run
         if: always()
-        run: sleep 480
+        run: pnpm scout:watch || sleep 60
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+          SCOUT_WATCH_SECONDS: "480"
       - name: Start the next run
         if: always()
         run: gh workflow run collect.yml --repo "${{ github.repository }}" --ref main

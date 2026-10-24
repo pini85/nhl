@@ -4,7 +4,7 @@ export function scoutMessage(status: ScoutStatus): string {
   switch (status) {
     case "created":
     case "exists":
-      return "Requested. Their info appears within ~10 minutes, after the next collector run.";
+      return "Searching EA… usually takes a few seconds, at most ~2 minutes.";
     case "invalid":
       return "Type a club name (letters or numbers, up to 40 characters).";
     case "busy":

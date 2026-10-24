@@ -14,6 +14,10 @@ const ICON: Record<string, string> = {
   "biggest-win": "📈",
   "win-streak": "🔥",
   "point-streak": "📊",
+  "takeaways-game": "🕵️",
+  "interceptions-game": "🦅",
+  "blocks-game": "🛡️",
+  "pass-pct-game": "📬",
 };
 
 export function RecordsView({
