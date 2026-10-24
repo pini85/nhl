@@ -41,6 +41,12 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
   playerRecord("points-game", "Most points in a game", (l) => l.goals + l.assists);
   playerRecord("hits-game", "Most hits in a game", (l) => l.hits);
   playerRecord("shots-game", "Most shots in a game", (l) => l.shots);
+  playerRecord("takeaways-game", "Most takeaways in a game", (l) => l.takeaways);
+  playerRecord("interceptions-game", "Most interceptions in a game", (l) => l.interceptions);
+  playerRecord("blocks-game", "Most blocked shots in a game", (l) => l.blockedShots);
+  playerRecord("pass-pct-game", "Best passing % in a game (20+ passes)", (l) =>
+    l.passAttempts >= 20 ? Math.round((l.passes / l.passAttempts) * 100) : 0,
+  );
 
   const t = (g: GameLite) => g.playedAt.getTime();
   const mostGoals = best(games, (g) => g.goalsFor, t)!;

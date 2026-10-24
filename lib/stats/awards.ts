@@ -12,6 +12,12 @@ export type AwardKey =
   | "plus"
   | "pickpocket"
   | "giantslayer"
+  | "ballhawk"
+  | "shotblocker"
+  | "tapetotape"
+  | "powerplay"
+  | "shorthanded"
+  | "sinbin"
   | "nightmvp";
 
 export type Award = { key: AwardKey; emoji: string; label: string; eaPlayerId: string; name: string; matchId: string | null; nightKey: string | null };
@@ -26,6 +32,12 @@ export const AWARD_INFO: Record<AwardKey, { emoji: string; label: string; hint: 
   plus: { emoji: "➕", label: "Mr. Plus", hint: "+4 or better in a game" },
   pickpocket: { emoji: "🕵️", label: "Pickpocket", hint: "4+ takeaways in a game" },
   giantslayer: { emoji: "🗡️", label: "Giant slayer", hint: "Beat a club from a higher division" },
+  ballhawk: { emoji: "🦅", label: "Ball hawk", hint: "3+ interceptions in a game" },
+  shotblocker: { emoji: "🛡️", label: "Shot blocker", hint: "2+ blocked shots in a game" },
+  tapetotape: { emoji: "📬", label: "Tape to tape", hint: "85%+ passing on 20+ attempts" },
+  powerplay: { emoji: "⚡", label: "Power play", hint: "Scored a power-play goal" },
+  shorthanded: { emoji: "🥷", label: "Shorthanded", hint: "Scored a shorthanded goal" },
+  sinbin: { emoji: "🚨", label: "Sin bin", hint: "6+ penalty minutes in a game" },
   nightmvp: { emoji: "⭐", label: "Night MVP", hint: "Most points on a game night" },
 };
 
@@ -65,6 +77,12 @@ export function gameAwards(lines: PlayerLine[], game: GameLite, clubs: MatchClub
     if (l.hits >= 6) awards.push(make("bruiser", l, game.matchId, null));
     if (l.plusMinus >= 4) awards.push(make("plus", l, game.matchId, null));
     if (l.takeaways >= 4) awards.push(make("pickpocket", l, game.matchId, null));
+    if (l.interceptions >= 3) awards.push(make("ballhawk", l, game.matchId, null));
+    if (l.blockedShots >= 2) awards.push(make("shotblocker", l, game.matchId, null));
+    if (l.passAttempts >= 20 && l.passes / l.passAttempts >= 0.85) awards.push(make("tapetotape", l, game.matchId, null));
+    if (l.ppg > 0) awards.push(make("powerplay", l, game.matchId, null));
+    if (l.shg > 0) awards.push(make("shorthanded", l, game.matchId, null));
+    if (l.pim >= 6) awards.push(make("sinbin", l, game.matchId, null));
     if (giant) awards.push(make("giantslayer", l, game.matchId, null));
   }
   return awards;

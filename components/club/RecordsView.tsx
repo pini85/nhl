@@ -43,7 +43,10 @@ export function RecordsView({
               <div className="text-[10px] tracking-wide text-[var(--muted-fg)] uppercase">
                 {ICON[r.key]} {r.label}
               </div>
-              <div className="glow tabular mt-1 text-3xl font-black text-[var(--accent-blue)]">{r.value}</div>
+              <div className="glow tabular mt-1 text-3xl font-black text-[var(--accent-blue)]">
+                {r.value}
+                {r.key === "pass-pct-game" ? "%" : ""}
+              </div>
               <div className="mt-0.5 truncate text-xs">{r.holder ?? "Drop drop drop"}</div>
               <div className="text-[10px] text-[var(--muted-fg)]">{dayFmt.format(r.playedAt)}</div>
             </>

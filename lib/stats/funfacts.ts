@@ -27,6 +27,9 @@ export function funFacts(lines: PlayerLine[], games: GameLite[], ourClubId: numb
   const shooter = skaters.filter((s) => s.shots >= 10).sort((a, b) => b.shotPct - a.shotPct)[0];
   if (shooter) facts.push({ key: "shooter", text: `${shooter.name} scores on ${Math.round(shooter.shotPct)}% of shots`, score: 50 + shooter.shotPct });
 
+  const passer = skaters.filter((s) => s.passAttempts >= 100).sort((a, b) => b.passPct - a.passPct)[0];
+  if (passer) facts.push({ key: "passer", text: `${passer.name} completes ${Math.round(passer.passPct)}% of passes`, score: 48 + passer.passPct / 5 });
+
   const hitter = [...skaters].sort((a, b) => b.hits - a.hits)[0];
   if (hitter && hitter.hits >= 10) facts.push({ key: "hits", text: `${hitter.name} has thrown ${hitter.hits} hits`, score: 55 + Math.min(30, hitter.hits / 2) });
 

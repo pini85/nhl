@@ -8,6 +8,7 @@ describe("funFacts", () => {
   it("record when a player scores", () => expect(text).toContain("Team record when ThePooker gets a point: 5-1"));
   it("best shooter (10+ shots)", () => expect(text).toContain("Kai_Fretwell18 scores on 36% of shots"));
   it("hit machine", () => expect(text).toContain("PePezki_ has thrown 47 hits"));
+  it("best passer (100+ attempts)", () => expect(text.some((t) => /completes \d+% of passes/.test(t))).toBe(true));
   it("top guest", () => expect(text).toContain("Guest of honor: Kai_Fretwell18 with 15 points"));
   it("blowouts", () => expect(text).toContain("2 wins by 4 goals or more"));
   it("sorted by interest, each fact unique", () => {

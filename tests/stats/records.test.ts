@@ -31,6 +31,15 @@ describe("clubRecords", () => {
     const two = clubRecords([make("1", "Amy"), make("2", "Zed")], [g1], base.clubId).find((r) => r.key === "goals-game")?.holder;
     expect([one, two]).toEqual(["Amy", "Amy"]);
   });
+  it("defense and passing records", () => {
+    expect(rec("takeaways-game").value).toBeGreaterThan(0);
+    expect(rec("interceptions-game").value).toBeGreaterThan(0);
+    expect(rec("blocks-game").value).toBeGreaterThan(0);
+  });
+  it("best passing game needs 20+ attempts", () => {
+    const top = Math.max(...lines.filter((l) => l.clubId === 56507 && l.passAttempts >= 20).map((l) => Math.round((l.passes / l.passAttempts) * 100)));
+    expect(rec("pass-pct-game").value).toBe(top);
+  });
   it("no records without games", () => expect(clubRecords([], [], 56507)).toEqual([]));
 });
 

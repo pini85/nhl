@@ -18,6 +18,11 @@ describe("buildWrapped", () => {
     expect(w2.slides.some((s) => s.kind === "nemesis")).toBe(false);
     expect(w2.slides.find((s) => s.kind === "most-played")).toBeTruthy();
   });
+  it("best passer among skaters with 100+ pass attempts", () => {
+    expect(slide("passer").title).toBeTruthy();
+    expect(slide("passer").big).toMatch(/^\d+%$/);
+  });
+  it("takeaway king", () => expect(slide("thief").title).toBeTruthy());
   it("ends with the outro", () => expect(w.slides.at(-1)?.kind).toBe("outro"));
   it("empty without games", () => expect(buildWrapped([], [], [], 56507).slides).toEqual([]));
 });

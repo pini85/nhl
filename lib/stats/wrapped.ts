@@ -5,6 +5,8 @@ import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { playerTotals } from "@/lib/stats/players";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 
+const MIN_PASSES = 100; // pass attempts before a pass % counts
+
 export type Slide = { kind: string; eyebrow: string; big: string; title?: string; line: string };
 
 // Story slides for /wrapped, built from the archive (all time).
@@ -30,6 +32,12 @@ export function buildWrapped(
 
   const hitter = [...skaters].sort((a, b) => b.hits - a.hits)[0];
   if (hitter && hitter.hits > 0) slides.push({ kind: "hits", eyebrow: "Hit machine", big: String(hitter.hits), title: hitter.name, line: "hits thrown. Nobody skated through." });
+
+  const passer = skaters.filter((s) => s.passAttempts >= MIN_PASSES).sort((a, b) => b.passPct - a.passPct)[0];
+  if (passer) slides.push({ kind: "passer", eyebrow: "Tape to tape", big: `${Math.round(passer.passPct)}%`, title: passer.name, line: "of passes found a stick." });
+
+  const thief = [...skaters].sort((a, b) => b.takeaways - a.takeaways)[0];
+  if (thief && thief.takeaways > 0) slides.push({ kind: "thief", eyebrow: "Takeaway king", big: String(thief.takeaways), title: thief.name, line: "pucks stolen. Check your pockets." });
 
   const best = groupGameNights(games).sort((a, b) => b.wins - b.losses - (a.wins - a.losses) || b.goalsFor - b.goalsAgainst - (a.goalsFor - a.goalsAgainst))[0];
   if (best) slides.push({ kind: "night", eyebrow: "Best game night", big: `${best.wins}-${best.losses}`, title: best.label, line: `${best.goalsFor} goals for, ${best.goalsAgainst} against` });
