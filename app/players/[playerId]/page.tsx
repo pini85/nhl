@@ -8,7 +8,7 @@ import { Section } from "@/components/club/Section";
 import { StatTile } from "@/components/club/StatTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CLUB_ID } from "@/lib/config";
-import { getGames, getOurLines, getPlayer, getSnapshot } from "@/lib/data/club";
+import { getExtraStats, getGames, getOurLines, getPlayer, getSnapshot } from "@/lib/data/club";
 import { getClubRows } from "@/lib/data/opponents";
 import { allAwards, badgeCabinet } from "@/lib/stats/awards";
 import { BadgeCabinet } from "@/components/club/AwardChips";
@@ -31,11 +31,19 @@ export default function PlayerPage({ params }: PageProps<"/players/[playerId]">)
 
 async function PlayerContent({ params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
-  const [detail, snapshot, allGames, allLines, clubRows] = await Promise.all([getPlayer(playerId), getSnapshot(), getGames(), getOurLines(), getClubRows()]);
+  const [detail, snapshot, allGames, allLines, clubRows, extras] = await Promise.all([
+    getPlayer(playerId),
+    getSnapshot(),
+    getGames(),
+    getOurLines(),
+    getClubRows(),
+    getExtraStats(),
+  ]);
   if (!detail) notFound();
   const { lines, games } = detail;
   const roster = snapshot?.members ?? null;
-  const { skaters, goalies } = playerTotals(lines, games, roster, CLUB_ID);
+  const mine = extras.filter((e) => e.eaPlayerId === playerId);
+  const { skaters, goalies } = playerTotals(lines, games, roster, CLUB_ID, mine);
   const sk = skaters[0];
   const gl = goalies[0];
   const name = sk?.name ?? gl?.name ?? lines[0].playerName;
@@ -58,7 +66,7 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
           <BadgeChip badge={badge} />
         </h1>
         <p className="text-xs text-[var(--muted-fg)]">
-          {POS[mainPos] ?? mainPos} · {lines.length} games for Drop drop drop
+          {POS[mainPos] ?? mainPos} · {(sk?.gp ?? 0) + (gl?.gp ?? 0) || lines.length} games for Drop drop drop
         </p>
       </header>
 
@@ -76,6 +84,9 @@ async function PlayerContent({ params }: { params: Promise<{ playerId: string }>
             <StatTile label="Shots" value={sk.shots} />
             <StatTile label="SH%" value={`${sk.shotPct.toFixed(0)}%`} />
           </div>
+          {mine.length > 0 && (
+            <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Includes older games without a box score, from the in-game club stats.</p>
+          )}
         </Section>
       )}
 

@@ -19,6 +19,8 @@ Each line is one active stretch of work. A new line is added whenever work resum
 - Session 1: 2026-10-23 15:14 to 2026-10-23 17:42 (paused: usage limit reached #1)
 - Session 2: 2026-10-23 20:12 to 2026-10-23 20:29: resumed after usage-limit reset #1
   - Found: the GitHub schedule had never fired; offset the cron to 3-59/10 and started a backup collector loop on the Mac
+- Session 3: 2026-10-24: backfill from in-game screenshots
+  - Added the 10 games from Oct 15–18 that EA no longer serves (score-only), moved the Old Boys win to Oct 20, and stored each member's stats from the 11 games without a box score (in-game season totals minus stored box scores). Site now shows 20 games, 11-9, matching the game.
 
 ## Token use
 Exact totals come from Claude Code's `/cost` or `/usage`. Estimates are added here at each milestone.

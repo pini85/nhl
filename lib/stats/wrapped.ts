@@ -3,17 +3,23 @@ import { allAwards } from "@/lib/stats/awards";
 import { groupGameNights } from "@/lib/stats/nights";
 import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { playerTotals } from "@/lib/stats/players";
-import type { GameLite, PlayerLine } from "@/lib/stats/types";
+import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 
 export type Slide = { kind: string; eyebrow: string; big: string; title?: string; line: string };
 
 // Story slides for /wrapped, built from the archive (all time).
-export function buildWrapped(games: GameLite[], lines: PlayerLine[], clubs: MatchClubRow[], ourClubId: number): { slides: Slide[] } {
+export function buildWrapped(
+  games: GameLite[],
+  lines: PlayerLine[],
+  clubs: MatchClubRow[],
+  ourClubId: number,
+  extras: ExtraStats[] = [],
+): { slides: Slide[] } {
   if (!games.length) return { slides: [] };
   const wins = games.filter((g) => g.outcome === "W").length;
   const gf = games.reduce((s, g) => s + g.goalsFor, 0);
   const ga = games.reduce((s, g) => s + g.goalsAgainst, 0);
-  const { skaters } = playerTotals(lines, games, null, ourClubId);
+  const { skaters } = playerTotals(lines, games, null, ourClubId, extras);
   const slides: Slide[] = [
     { kind: "games", eyebrow: "Games played", big: String(games.length), line: `${wins} wins · ${games.length - wins} losses` },
     { kind: "goals", eyebrow: "Goals scored", big: String(gf), line: `${ga} allowed · ${gf - ga >= 0 ? "+" : ""}${gf - ga} difference` },

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/db/client";
-import { clubSnapshots } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { clubSnapshots, extraPlayerStats, matches } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
-import { allGames, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
+import { allGames, extraStats, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
 import { createTestDb } from "../helpers/db";
 import { createFixtureEa } from "../helpers/fixture-ea";
 
@@ -40,6 +41,22 @@ describe("club queries after collecting the fixtures", () => {
     expect(g).toHaveLength(10);
     expect(g.find((x) => x.matchId === "2782817800237")?.opponentName).toBe("INFERNAL LEGION");
     expect(g.find((x) => x.source === "summary")?.opponentName).toBeNull();
+  });
+
+  it("uses the stored opponent name for games without a box score", async () => {
+    await db.update(matches).set({ opponentName: "Old Boys" }).where(eq(matches.source, "summary"));
+    const g = await allGames(db);
+    expect(g.find((x) => x.source === "summary")?.opponentName).toBe("Old Boys");
+    expect(g.find((x) => x.matchId === "2782817800237")?.opponentName).toBe("INFERNAL LEGION");
+  });
+
+  it("reads extra player stats", async () => {
+    expect(await extraStats(db)).toEqual([]);
+    await db.insert(extraPlayerStats).values({
+      eaPlayerId: "802564056", playerName: "Popomasta-SMB", coversFrom: new Date("2026-10-15T19:42:49Z"),
+      gp: 11, goals: 2, assists: 3, plusMinus: 4, shots: 14, hits: 7, pim: 2, ppg: 0, shg: 0, takeaways: 35, giveaways: 27,
+    });
+    expect(await extraStats(db)).toEqual([expect.objectContaining({ eaPlayerId: "802564056", gp: 11, goals: 2, takeaways: 35 })]);
   });
 
   it("returns only our player lines", async () => {

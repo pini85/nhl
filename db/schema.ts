@@ -23,6 +23,8 @@ export const matches = pgTable(
     matchType: text("match_type").notNull(),
     source: text("source", { enum: ["full", "summary"] }).notNull(),
     opponentClubId: integer("opponent_club_id").notNull(),
+    // Name for games without a box score (no match_clubs row), e.g. entered from the in-game history.
+    opponentName: text("opponent_name"),
     goalsFor: integer("goals_for").notNull(),
     goalsAgainst: integer("goals_against").notNull(),
     outcome: text("outcome", { enum: ["W", "L"] }).notNull(),
@@ -108,6 +110,28 @@ export const matchPlayers = pgTable(
   },
   (t) => [primaryKey({ columns: [t.matchId, t.eaPlayerId] }), index("match_players_player_idx").on(t.eaPlayerId)],
 );
+
+// Player stats from games without a box score, taken from the in-game club totals
+// (season total minus what our stored box scores already add up to).
+export const extraPlayerStats = pgTable("extra_player_stats", {
+  eaPlayerId: text("ea_player_id").primaryKey(),
+  playerName: text("player_name").notNull(),
+  // Earliest game these stats cover; date filters only count them when the range reaches back this far.
+  coversFrom: timestamp("covers_from", { withTimezone: true }).notNull(),
+  gp: stat("gp"),
+  goals: stat("goals"),
+  assists: stat("assists"),
+  plusMinus: stat("plus_minus"),
+  shots: stat("shots"),
+  hits: stat("hits"),
+  pim: stat("pim"),
+  ppg: stat("ppg"),
+  shg: stat("shg"),
+  takeaways: stat("takeaways"),
+  giveaways: stat("giveaways"),
+  note: text("note"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const clubSnapshots = pgTable("club_snapshots", {
   id: serial("id").primaryKey(),

@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db/client";
 import { CLUB_TAG } from "@/lib/config";
-import { allGames, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
+import { allGames, extraStats, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
 
 // Cached reads for pages. Refreshed by /api/revalidate (collector) and every 5 minutes.
 
@@ -45,4 +45,11 @@ export async function getSnapshotHistory() {
   cacheTag(CLUB_TAG);
   cacheLife("club");
   return snapshotHistory(getDb());
+}
+
+export async function getExtraStats() {
+  "use cache";
+  cacheTag(CLUB_TAG);
+  cacheLife("club");
+  return extraStats(getDb());
 }

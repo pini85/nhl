@@ -6,8 +6,8 @@ import { EmptyState } from "@/components/club/Section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CLUB_ID } from "@/lib/config";
-import { getGames, getOurLines, getSnapshot } from "@/lib/data/club";
-import { filterGames, playerTotals } from "@/lib/stats/players";
+import { getExtraStats, getGames, getOurLines, getSnapshot } from "@/lib/data/club";
+import { extrasInRange, filterGames, playerTotals } from "@/lib/stats/players";
 import { clubRecords, currentStreak, milestones } from "@/lib/stats/records";
 import { RecordsView } from "@/components/club/RecordsView";
 import { LinesView } from "@/components/club/LinesView";
@@ -54,18 +54,23 @@ export default function PlayersPage() {
 
 async function LeadersData() {
   await connection(); // "30 days" depends on the current time
-  const [games, lines, snapshot] = await Promise.all([getGames(), getOurLines(), getSnapshot()]);
+  const [games, lines, snapshot, extras] = await Promise.all([getGames(), getOurLines(), getSnapshot(), getExtraStats()]);
   if (!lines.length) return <EmptyState title="No player stats yet" />;
   const now = new Date();
   const totalsFor = (range: "all" | "30d" | "last10") => {
     const ids = filterGames(games, range, now);
-    return playerTotals(lines.filter((l) => ids.has(l.matchId)), games, snapshot?.members ?? null, CLUB_ID);
+    return playerTotals(lines.filter((l) => ids.has(l.matchId)), games, snapshot?.members ?? null, CLUB_ID, extrasInRange(extras, range, now));
+  };
+  const withExtras = {
+    all: extrasInRange(extras, "all", now).length > 0,
+    "30d": extrasInRange(extras, "30d", now).length > 0,
+    last10: false,
   };
   const heat = Object.fromEntries(heatMap(lines, games, CLUB_ID));
   const ovr = Object.fromEntries(
     [...new Set(lines.map((l) => l.eaPlayerId))].map((id) => [id, playerCard(lines, games, id)?.ovr ?? null]),
   );
-  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} ovr={ovr} />;
+  return <Leaders data={{ all: totalsFor("all"), "30d": totalsFor("30d"), last10: totalsFor("last10") }} heat={heat} ovr={ovr} withExtras={withExtras} />;
 }
 
 async function RecordsData() {
