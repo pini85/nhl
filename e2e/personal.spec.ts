@@ -128,3 +128,43 @@ test.describe("onboarding", () => {
     });
   });
 });
+
+test.describe("Home", () => {
+  test("greets a picked teammate with their own card", async ({ page }) => {
+    await setPlayer(page, PUCK);
+    await page.goto("/");
+    const card = page.getByRole("link", { name: /Hey puck_control/ });
+    await expect(card).toBeVisible();
+    await page.screenshot({ path: "e2e/screenshots/home-personal.png" });
+    await card.click();
+    await expect(page).toHaveURL(/\/me$/);
+  });
+
+  test("nudges people who skipped onboarding", async ({ page }) => {
+    await setPlayer(page, "skipped");
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /Set up your profile/ })).toBeVisible();
+  });
+
+  test("shows nothing personal for people not on the team", async ({ page }) => {
+    await setPlayer(page, "guest");
+    await page.goto("/");
+    await expect(page.getByText("Division 8").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Set up your profile|Hey / })).toHaveCount(0);
+  });
+
+  test("a closed moment card stays gone after reload (skipped when no moment in the last 14 days)", async ({ page }) => {
+    await setPlayer(page, "guest");
+    await page.goto("/");
+    await expect(page.getByText("Division 8").first()).toBeVisible();
+    const first = page.locator("[data-moment]").first();
+    test.skip((await first.count()) === 0, "no moments in the live data's last 14 days");
+    const id = await first.getAttribute("data-moment");
+    await first.getByRole("button", { name: "Dismiss" }).click();
+    await expect(page.locator(`[data-moment="${id}"]`)).toHaveCount(0);
+    await expect.poll(async () => (await page.context().cookies()).find((c) => c.name === "ddd-seen")?.value ?? "").toContain(id!);
+    await page.reload();
+    await expect(page.getByText("Division 8").first()).toBeVisible();
+    await expect(page.locator(`[data-moment="${id}"]`)).toHaveCount(0);
+  });
+});

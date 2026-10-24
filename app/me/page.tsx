@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { MomentCards } from "@/components/club/MomentCards";
 import { MyNight } from "@/components/club/MyNight";
 import { Onboarding } from "@/components/club/Onboarding";
 import { PlayerProfile } from "@/components/club/PlayerProfile";
@@ -33,7 +34,12 @@ async function MeContent() {
         <PlayerProfile
           playerId={me.playerId}
           you
-          top={<MyNight night={lastNight(lines, games, me.playerId, CLUB_ID)} streaks={activeStreaks(lines, games, me.playerId)} />}
+          top={
+            <>
+              <MomentCards onlyMine title="Your moments" />
+              <MyNight night={lastNight(lines, games, me.playerId, CLUB_ID)} streaks={activeStreaks(lines, games, me.playerId)} />
+            </>
+          }
         />
         <PickerToggle label="Not you? Switch player" main={main} rest={rest} />
       </>

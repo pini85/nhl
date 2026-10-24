@@ -21,6 +21,7 @@ export type Moment = {
   prevHolderName: string | null;
   matchId: string | null;
   nightKey: string | null;
+  where: string | null; // "vs HK Bricks" or "on Thu Oct 22"
 };
 
 export type MomentInput = {
@@ -65,6 +66,17 @@ const RECORD_WORDS: Record<string, { short: string; full: (v: number) => string 
 };
 const words = (key: string) => RECORD_WORDS[key] ?? { short: key, full: (v: number) => `${v} ${key}` };
 
+const STREAK_KEYS = new Set(["point-streak", "win-streak"]);
+
+/** "vs {opponent}" for a game id. */
+function versus(games: GameLite[]) {
+  const byId = new Map(games.map((g) => [g.matchId, g]));
+  return (matchId: string | null) => {
+    const g = matchId ? byId.get(matchId) : undefined;
+    return g ? `vs ${g.opponentName ?? `Club ${g.opponentClubId}`}` : null;
+  };
+}
+
 // FNV-1a 32-bit → base36: short, stable, no crypto needed.
 function hashId(parts: (string | null)[]): string {
   let h = 0x811c9dc5;
@@ -91,6 +103,7 @@ function recordMoments(input: MomentInput, since: Date): Moment[] {
   if (firstIdx < 0) return [];
 
   const byKey = (rs: RecordItem[]) => new Map(rs.map((r) => [r.key, r]));
+  const vs = versus(games);
   let prev = byKey(firstIdx > 0 ? clubRecords(lines, chrono.slice(0, firstIdx), ourClubId) : []);
   // Latest moment per record key, so a record pushed further over several games is one card.
   const latest = new Map<string, Moment>();
@@ -117,6 +130,7 @@ function recordMoments(input: MomentInput, since: Date): Moment[] {
           prevHolderName: extending ? earlier.prevHolderName : before.holder,
           matchId: r.matchId,
           nightKey: null,
+          where: STREAK_KEYS.has(key) ? null : vs(r.matchId),
         }),
       );
     }
@@ -128,7 +142,10 @@ function recordMoments(input: MomentInput, since: Date): Moment[] {
 function awardMoments(input: MomentInput, since: Date): Moment[] {
   const { lines, games, clubs, ourClubId } = input;
   const byMatch = new Map(games.map((g) => [g.matchId, g]));
-  const nightEnd = new Map(groupGameNights(games).map((n) => [n.key, n.games[0].playedAt]));
+  const nights = groupGameNights(games);
+  const nightEnd = new Map(nights.map((n) => [n.key, n.games[0].playedAt]));
+  const nightLabel = new Map(nights.map((n) => [n.key, n.label]));
+  const vs = versus(games);
   const out: Moment[] = [];
   for (const a of allAwards(lines, games, clubs, ourClubId)) {
     if (!RARE_AWARDS.has(a.key)) continue;
@@ -148,6 +165,7 @@ function awardMoments(input: MomentInput, since: Date): Moment[] {
         prevHolderName: null,
         matchId: a.matchId,
         nightKey: a.nightKey,
+        where: a.matchId ? vs(a.matchId) : a.nightKey && nightLabel.has(a.nightKey) ? `on ${nightLabel.get(a.nightKey)}` : null,
       }),
     );
   }
@@ -173,6 +191,7 @@ function milestoneMoments(input: MomentInput, since: Date): Moment[] {
     totals.set(e.eaPlayerId, t);
   }
 
+  const vs = versus(games);
   const out: Moment[] = [];
   for (const l of ours) {
     const t = totals.get(l.eaPlayerId) ?? { games: 0, goals: 0, assists: 0, points: 0, hits: 0 };
@@ -202,6 +221,7 @@ function milestoneMoments(input: MomentInput, since: Date): Moment[] {
               prevHolderName: null,
               matchId: l.matchId,
               nightKey: null,
+              where: vs(l.matchId),
             }),
           );
         }
@@ -231,6 +251,7 @@ function teamMoments(input: MomentInput, since: Date): Moment[] {
         prevHolderName: null,
         matchId: m.matchId,
         nightKey: null,
+        where: null,
       }),
     );
   }
@@ -252,6 +273,7 @@ function teamMoments(input: MomentInput, since: Date): Moment[] {
         prevHolderName: null,
         matchId: null,
         nightKey: null,
+        where: null,
       }),
     );
   }
@@ -282,10 +304,11 @@ export function momentHref(m: Moment): string | null {
 
 export function momentText(m: Moment, meId: string | null): string {
   const mine = meId !== null && m.playerId === meId;
+  const at = m.where ? ` ${m.where}` : "";
   switch (m.kind) {
     case "record": {
       const w = words(m.key);
-      const full = w.full(m.value ?? 0);
+      const full = w.full(m.value ?? 0) + at;
       if (!m.playerId) return `🔥 Team record: ${full}`;
       if (m.prevHolderId === m.playerId) return mine ? `🏆 You beat your own club record: ${full}` : `🏆 ${m.playerName} beat their own club record: ${full}`;
       if (mine) return `🏆 You set a club record: ${full}`;
@@ -293,10 +316,10 @@ export function momentText(m: Moment, meId: string | null): string {
       return `🏆 ${m.playerName} set a club record: ${full}${m.prevHolderName ? ` (was ${m.prevHolderName}'s)` : ""}`;
     }
     case "award":
-      if (m.key === "nightmvp") return mine ? `${m.emoji} You were Night MVP` : `${m.emoji} Night MVP: ${m.playerName}`;
-      return mine ? `${m.emoji} Your ${m.label.toLowerCase()}` : `${m.emoji} ${m.label} for ${m.playerName}`;
+      if (m.key === "nightmvp") return mine ? `${m.emoji} You were Night MVP${at}` : `${m.emoji} Night MVP${at}: ${m.playerName}`;
+      return mine ? `${m.emoji} Your ${m.label.toLowerCase()}${at}` : `${m.emoji} ${m.label} for ${m.playerName}${at}`;
     case "milestone":
-      return mine ? `${m.emoji} Your ${m.label}` : `${m.emoji} ${m.label} for ${m.playerName}`;
+      return mine ? `${m.emoji} Your ${m.label}${m.where ? `, ${m.where}` : ""}` : `${m.emoji} ${m.label} for ${m.playerName}${m.where ? `, ${m.where}` : ""}`;
     case "team":
       return `${m.emoji} ${m.label}`;
   }

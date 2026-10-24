@@ -59,7 +59,7 @@ describe("award moments", () => {
     const g = [game("t2", "2026-10-12T19:00:00Z")];
     const hat = ofKey(moments(input(g, [line("t2", "b", "Bob", { goals: 3 })]), SINCE), "hattrick");
     expect(hat).toHaveLength(1);
-    expect(hat[0]).toMatchObject({ playerId: "b", matchId: "t2", emoji: "🎩", label: "Hat trick" });
+    expect(hat[0]).toMatchObject({ playerId: "b", matchId: "t2", emoji: "🎩", label: "Hat trick", where: "vs Opp" });
     expect(momentHref(hat[0])).toBe("/games/t2");
   });
 
@@ -67,6 +67,7 @@ describe("award moments", () => {
     const g = [game("t2", "2026-10-12T19:00:00Z"), game("t3", "2026-10-12T19:40:00Z")];
     const mvp = ofKey(moments(input(g, [line("t2", "b", "Bob", { goals: 1 })]), SINCE), "nightmvp")[0];
     expect(mvp.nightKey).toBe("2026-10-12");
+    expect(mvp.where).toBe("on Mon Oct 12");
     expect(mvp.at).toEqual(new Date("2026-10-12T19:40:00Z"));
     expect(momentHref(mvp)).toBe("/nights/2026-10-12");
   });
@@ -153,12 +154,13 @@ describe("momentText", () => {
     prevHolderName: "puck_control",
     matchId: "t2",
     nightKey: null,
+    where: "vs HK Bricks",
   };
 
   it("words a record for the new holder, the previous holder and everyone", () => {
-    expect(momentText(rec, "b")).toBe("🏆 You set a club record: 15 hits in a game");
+    expect(momentText(rec, "b")).toBe("🏆 You set a club record: 15 hits in a game vs HK Bricks");
     expect(momentText(rec, "a")).toBe("😤 R4D1M_19 took your hits record (15)");
-    expect(momentText(rec, null)).toBe("🏆 R4D1M_19 set a club record: 15 hits in a game (was puck_control's)");
+    expect(momentText(rec, null)).toBe("🏆 R4D1M_19 set a club record: 15 hits in a game vs HK Bricks (was puck_control's)");
     expect(isAboutMe(rec, "a")).toBe(true);
     expect(isAboutMe(rec, "b")).toBe(true);
     expect(isAboutMe(rec, "z")).toBe(false);
@@ -166,29 +168,29 @@ describe("momentText", () => {
 
   it("words beating your own record", () => {
     const own = { ...rec, prevHolderId: "b", prevHolderName: "R4D1M_19" };
-    expect(momentText(own, "b")).toBe("🏆 You beat your own club record: 15 hits in a game");
-    expect(momentText(own, null)).toBe("🏆 R4D1M_19 beat their own club record: 15 hits in a game");
+    expect(momentText(own, "b")).toBe("🏆 You beat your own club record: 15 hits in a game vs HK Bricks");
+    expect(momentText(own, null)).toBe("🏆 R4D1M_19 beat their own club record: 15 hits in a game vs HK Bricks");
   });
 
   it("words streak records with a hyphen", () => {
-    const streak = { ...rec, key: "point-streak", label: "point streak", value: 8 };
+    const streak = { ...rec, key: "point-streak", label: "point streak", value: 8, where: null };
     expect(momentText(streak, "b")).toBe("🏆 You set a club record: 8-game point streak");
   });
 
   it("words team records, awards, milestones and team moments", () => {
-    expect(momentText({ ...rec, key: "win-streak", label: "wins in a row", value: 6, playerId: null, playerName: null, prevHolderId: null, prevHolderName: null }, null)).toBe(
+    expect(momentText({ ...rec, key: "win-streak", label: "wins in a row", value: 6, playerId: null, playerName: null, prevHolderId: null, prevHolderName: null, where: null }, null)).toBe(
       "🔥 Team record: 6 wins in a row",
     );
     const award: Moment = { ...rec, kind: "award", key: "hattrick", emoji: "🎩", label: "Hat trick", value: null, prevHolderId: null, prevHolderName: null };
-    expect(momentText(award, "b")).toBe("🎩 Your hat trick");
-    expect(momentText(award, null)).toBe("🎩 Hat trick for R4D1M_19");
-    const mvp: Moment = { ...award, key: "nightmvp", emoji: "⭐", label: "Night MVP", matchId: null, nightKey: "2026-10-12" };
-    expect(momentText(mvp, "b")).toBe("⭐ You were Night MVP");
-    expect(momentText(mvp, null)).toBe("⭐ Night MVP: R4D1M_19");
+    expect(momentText(award, "b")).toBe("🎩 Your hat trick vs HK Bricks");
+    expect(momentText(award, null)).toBe("🎩 Hat trick for R4D1M_19 vs HK Bricks");
+    const mvp: Moment = { ...award, key: "nightmvp", emoji: "⭐", label: "Night MVP", matchId: null, nightKey: "2026-10-12", where: "on Mon Oct 12" };
+    expect(momentText(mvp, "b")).toBe("⭐ You were Night MVP on Mon Oct 12");
+    expect(momentText(mvp, null)).toBe("⭐ Night MVP on Mon Oct 12: R4D1M_19");
     const ms: Moment = { ...award, kind: "milestone", key: "points", emoji: "💯", label: "100th point", value: 100 };
-    expect(momentText(ms, "b")).toBe("💯 Your 100th point");
-    expect(momentText(ms, null)).toBe("💯 100th point for R4D1M_19");
-    const team: Moment = { ...award, kind: "team", key: "promotion", emoji: "⬆️", label: "Promoted to Division 7", playerId: null, playerName: null };
+    expect(momentText(ms, "b")).toBe("💯 Your 100th point, vs HK Bricks");
+    expect(momentText(ms, null)).toBe("💯 100th point for R4D1M_19, vs HK Bricks");
+    const team: Moment = { ...award, kind: "team", key: "promotion", emoji: "⬆️", label: "Promoted to Division 7", playerId: null, playerName: null, where: null };
     expect(momentText(team, "b")).toBe("⬆️ Promoted to Division 7");
   });
 });

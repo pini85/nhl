@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeStreaks, bestTeammates, lastNight, nextMilestones, recordStanding, rosterChoices, vsTeam } from "@/lib/stats/personal";
+import { activeStreaks, bestTeammates, homeCardParts, lastNight, nextMilestones, recordStanding, rosterChoices, vsTeam } from "@/lib/stats/personal";
 import { clubRecords } from "@/lib/stats/records";
 import type { ExtraStats } from "@/lib/stats/types";
 import { CLUB, game, line } from "../helpers/builders";
@@ -178,4 +178,38 @@ describe("bestTeammates", () => {
       { eaPlayerId: "c", name: "Cid", gp: 3, winPct: 2 / 3 },
     ]);
   });
+});
+
+describe("homeCardParts", () => {
+  const night = {
+    nightKey: "2026-10-22",
+    label: "Thu Oct 22",
+    playedAt: new Date("2026-10-22T21:00:00Z"),
+    gp: 4,
+    goals: 2,
+    assists: 1,
+    plusMinus: 2,
+    wins: 3,
+    losses: 1,
+    pointsVsAvg: 0.5,
+    goalie: null,
+  };
+  it("joins last night, a streak and the next milestone", () => {
+    expect(homeCardParts(night, [{ key: "points", length: 4 }], [{ stat: "goals", target: 50, remaining: 3 }], NOW)).toEqual([
+      "Last night: 2G 1A, 3–1",
+      "🔥 4-game point streak",
+      "3 goals to 50",
+    ]);
+  });
+  it("falls back to the milestone and last played date after 14 days off", () => {
+    const old = { ...night, playedAt: new Date("2026-10-01T21:00:00Z"), label: "Thu Oct 1" };
+    expect(homeCardParts(old, [], [{ stat: "games", target: 25, remaining: 4 }], NOW)).toEqual(["4 games to 25", "Last played Oct 1"]);
+  });
+  it("words a goalie's night with saves", () => {
+    const g = { ...night, goals: 0, assists: 0, goalie: { saves: 30, shots: 33, ga: 3 } };
+    expect(homeCardParts(g, [], [], NOW)[0]).toBe("Last night: 30 saves, 3–1");
+  });
+  it("is empty when there's nothing to say", () => expect(homeCardParts(null, [], [], NOW)).toEqual([]));
+  it("says '1 assist', not '1 assists'", () =>
+    expect(homeCardParts(null, [], [{ stat: "assists", target: 25, remaining: 1 }], NOW)).toEqual(["1 assist to 25"]));
 });

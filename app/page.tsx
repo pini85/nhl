@@ -23,6 +23,8 @@ import { celebrationFor } from "@/lib/stats/celebrate";
 import { funFacts } from "@/lib/stats/funfacts";
 import { InstallCard } from "@/components/club/InstallPrompt";
 import { OnboardingHole } from "@/components/club/OnboardingHole";
+import { HomePersonal } from "@/components/club/HomePersonal";
+import { MomentCards } from "@/components/club/MomentCards";
 import { FunFacts } from "@/components/club/FunFacts";
 import { Celebrate } from "@/components/club/Celebrate";
 
@@ -61,6 +63,12 @@ export default async function Home() {
 
   const party = season && snapshot ? celebrationFor(season.state, snapshot.division, snapshot.seasons) : null;
   const blocks = [
+    <Suspense key="me" fallback={null}>
+      <HomePersonal />
+    </Suspense>,
+    <Suspense key="moments" fallback={null}>
+      <MomentCards limit={3} />
+    </Suspense>,
     party && <Celebrate key="party" message={party.message} storageKey={party.key} />,
     season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
     snapshot && (

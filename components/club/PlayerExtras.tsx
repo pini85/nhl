@@ -25,7 +25,7 @@ export function PlayerExtras({ you, milestones, standing, vs, teammates }: Props
               <li key={m.stat}>
                 <div className="flex items-baseline justify-between text-sm">
                   <span>
-                    <b className="tabular text-[var(--accent-blue)]">{m.remaining}</b> {STAT_WORD[m.stat]} to {m.target}
+                    <b className="tabular text-[var(--accent-blue)]">{m.remaining}</b> {m.remaining === 1 ? STAT_WORD[m.stat].slice(0, -1) : STAT_WORD[m.stat]} to {m.target}
                   </span>
                   <span className="tabular text-[11px] text-[var(--muted-fg)]">
                     {m.target - m.remaining}/{m.target}

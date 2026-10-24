@@ -237,3 +237,23 @@ export function bestTeammates(
     .sort((a, b) => b.winPct - a.winPct || b.gp - a.gp)
     .slice(0, 2);
 }
+
+const HOME_RECENT_DAYS = 14;
+const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", month: "short", day: "numeric" });
+const STREAK_WORD: Record<Streak["key"], string> = { points: "point", goals: "goal", games: "games-played" };
+
+/** The bits after "Hey {name} 👋" on the Home card. */
+export function homeCardParts(night: LastNight | null, streaks: Streak[], milestones: NextMilestone[], now: Date): string[] {
+  const parts: string[] = [];
+  const recent = night && now.getTime() - night.playedAt.getTime() <= HOME_RECENT_DAYS * DAY;
+  if (night && recent) {
+    const line = night.goalie && night.goals + night.assists === 0 ? `${night.goalie.saves} saves` : `${night.goals}G ${night.assists}A`;
+    parts.push(`Last night: ${line}, ${night.wins}–${night.losses}`);
+    const s = streaks.find((x) => x.key !== "games") ?? streaks[0];
+    if (s) parts.push(`🔥 ${s.length}-game ${STREAK_WORD[s.key]} streak`);
+  }
+  const m = milestones[0];
+  if (m) parts.push(`${m.remaining} ${m.remaining === 1 ? m.stat.slice(0, -1) : m.stat} to ${m.target}`);
+  if (night && !recent) parts.push(`Last played ${dayFmt.format(night.playedAt)}`);
+  return parts;
+}
