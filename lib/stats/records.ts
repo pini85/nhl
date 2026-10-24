@@ -70,7 +70,8 @@ export function clubRecords(lines: PlayerLine[], games: GameLite[], ourClubId: n
   }
   if (bestEnd) records.push({ key: "win-streak", label: "Longest win streak", value: bestRun, holder: null, matchId: bestEnd.matchId, playedAt: bestEnd.playedAt });
 
-  const ps = pointStreaks(ours, byId);
+  // Streaks need every game in a row, so only box-score games count.
+  const ps = pointStreaks(ours.filter((l) => byId.get(l.matchId)!.source === "full"), byId);
   if (ps && ps.value > 1) records.push({ key: "point-streak", label: "Longest point streak", ...ps });
 
   return records;

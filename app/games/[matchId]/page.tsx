@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BoxScore } from "@/components/club/BoxScore";
@@ -83,9 +84,26 @@ async function GameContent({ params }: { params: Promise<{ matchId: string }> })
       </section>
 
       {game.source === "summary" ? (
-        <Section>
-          <p className="text-sm text-[var(--muted-fg)]">Only the score was saved for this game. It was recovered from EA&apos;s recent results after the full box score had expired.</p>
-        </Section>
+        <>
+          <Section>
+            <p className="text-sm text-[var(--muted-fg)]">Only the score was saved for this game: EA no longer had its box score.</p>
+            {lines.filter((l) => l.clubId === CLUB_ID).length > 0 && (
+              <ul className="mt-3 space-y-1 text-sm">
+                {lines.filter((l) => l.clubId === CLUB_ID).map((l) => (
+                  <li key={l.eaPlayerId} className="flex justify-between">
+                    <Link href={`/players/${l.eaPlayerId}`} className="font-semibold">
+                      {l.playerName}
+                    </Link>
+                    <span className="tabular text-[var(--accent-blue)]">
+                      {l.goals}G {l.assists}A
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+          <AwardChips awards={gameAwards(lines, game, clubs, CLUB_ID)} />
+        </>
       ) : (
         <>
           {ours && theirs && (

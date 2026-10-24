@@ -17,7 +17,8 @@ export type FormPoint = { matchId: string; label: string; goals: number; assists
 
 // A player's last `n` skater games, oldest → newest.
 export function playerForm(lines: PlayerLine[], games: GameLite[], n = 10): FormPoint[] {
-  const byId = new Map(games.map((g) => [g.matchId, g]));
+  // Box-score games only: a lone known line from a score-only game would skew the trend.
+  const byId = new Map(games.filter((g) => g.source === "full").map((g) => [g.matchId, g]));
   return lines
     .filter((l) => l.position !== "goalie" && byId.has(l.matchId))
     .map((l) => ({ l, g: byId.get(l.matchId)! }))

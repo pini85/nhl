@@ -57,7 +57,7 @@ const make = (key: AwardKey, l: { eaPlayerId: string; playerName: string }, matc
 });
 
 export function gameAwards(lines: PlayerLine[], game: GameLite, clubs: MatchClubRow[], ourClubId: number): Award[] {
-  if (game.source !== "full") return [];
+  // Score-only games usually have no player lines; when one was typed in, it can still earn awards.
   const ours = lines.filter((l) => l.matchId === game.matchId && l.clubId === ourClubId);
   const awards: Award[] = [];
   const us = clubs.find((c) => c.clubId === ourClubId);

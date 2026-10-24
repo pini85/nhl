@@ -74,6 +74,24 @@ const fixed = await db
   .returning({ id: matches.matchId });
 console.log(`Old Boys fixed: ${fixed.length}`);
 
+// Player lines we know for score-only games (told by the team). Everything else in the line is
+// unknown and left at 0; the season totals below absorb the difference.
+const KNOWN_LINES = [
+  { at: "2026-10-15T20:12:34Z", opponent: 35445, eaPlayerId: "1273735466", name: "puck_control", position: "leftWing", goals: 5, assists: 3 },
+];
+for (const k of KNOWN_LINES) {
+  const matchId = `manual-${k.opponent}-${new Date(k.at).getTime() / 1000}`;
+  const zero = {
+    playerLevel: 0, toiSeconds: 0, plusMinus: 0, shots: 0, shotAttempts: 0, hits: 0, pim: 0, ppg: 0, shg: 0, gwg: 0,
+    blockedShots: 0, takeaways: 0, giveaways: 0, interceptions: 0, passAttempts: 0, passes: 0, faceoffWins: 0,
+    faceoffLosses: 0, possessionSeconds: 0, penaltiesDrawn: 0, deflections: 0, saucerPasses: 0, glSaves: 0, glShots: 0,
+    glGa: 0, glSavePct: 0, glPokeChecks: 0, ratingOffense: 0, ratingDefense: 0, ratingTeamplay: 0,
+  };
+  const row = { ...zero, matchId, clubId: CLUB_ID, eaPlayerId: k.eaPlayerId, playerName: k.name, position: k.position, isGuest: false, dnf: false, platform: null, goals: k.goals, assists: k.assists };
+  await db.insert(matchPlayers).values(row).onConflictDoUpdate({ target: [matchPlayers.matchId, matchPlayers.eaPlayerId], set: { goals: k.goals, assists: k.assists } });
+  console.log(`known line: ${k.name} ${k.goals}G ${k.assists}A in ${matchId}`);
+}
+
 // Extra = season total minus what our stored box scores (before the cutoff) already add up to.
 const stored = await db
   .select({

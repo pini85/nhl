@@ -18,7 +18,8 @@ export function funFacts(lines: PlayerLine[], games: GameLite[], ourClubId: numb
 
   // Team record when a player gets on the scoresheet (top 2 scorers with 3+ such games).
   for (const s of skaters.slice(0, 2)) {
-    const scored = lines.filter((l) => l.eaPlayerId === s.eaPlayerId && l.goals + l.assists > 0);
+    const fullIds = new Set(full.map((g) => g.matchId));
+    const scored = lines.filter((l) => fullIds.has(l.matchId) && l.eaPlayerId === s.eaPlayerId && l.goals + l.assists > 0);
     if (scored.length < MIN_GAMES) continue;
     const w = scored.filter((l) => outcome.get(l.matchId) === "W").length;
     facts.push({ key: `when-${s.eaPlayerId}`, text: `Team record when ${s.name} gets a point: ${w}-${scored.length - w}`, score: 60 + (w / scored.length) * 30 });
