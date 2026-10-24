@@ -20,6 +20,7 @@ import { hotPlayers } from "@/lib/stats/players";
 import { seasonProgress } from "@/lib/stats/season";
 import { celebrationFor } from "@/lib/stats/celebrate";
 import { funFacts } from "@/lib/stats/funfacts";
+import { InstallCard } from "@/components/club/InstallPrompt";
 import { FunFacts } from "@/components/club/FunFacts";
 import { Celebrate } from "@/components/club/Celebrate";
 
@@ -77,6 +78,7 @@ export default async function Home() {
     <Link key="search" href="/opponents" className="arena-card my-3 flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted-fg)]">
       <Search className="size-4" aria-hidden /> Scouting a club? Search opponents
     </Link>,
+    <InstallCard key="install" />,
     nemesisList.length > 0 && <NemesisCards key="nemesis" nemesis={nemesisList} bags={[]} crests={crestMap(clubRows, scouted)} />,
   ].filter(Boolean);
 

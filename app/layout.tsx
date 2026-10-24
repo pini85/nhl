@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { Suspense } from "react";
 import { BottomNav, BottomNavView } from "@/components/club/BottomNav";
+import { InstallPrompt } from "@/components/club/InstallPrompt";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -32,11 +34,23 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Chrome fires its install event once, often before React loads, so catch it early and keep it for the "Add" button.
+const CAPTURE_INSTALL = `
+addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__dddInstall = e; dispatchEvent(new Event("ddd:installable")); });
+addEventListener("appinstalled", function () { window.__dddInstall = null; window.__dddInstalled = true; dispatchEvent(new Event("ddd:installed")); });
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="min-h-dvh">
+        <Script id="capture-install" strategy="beforeInteractive">
+          {CAPTURE_INSTALL}
+        </Script>
         <main className="mx-auto w-full max-w-md px-4 pt-4 pb-28">{children}</main>
+        <Suspense fallback={null}>
+          <InstallPrompt />
+        </Suspense>
         <Suspense fallback={<BottomNavView path={null} />}>
           <BottomNav />
         </Suspense>

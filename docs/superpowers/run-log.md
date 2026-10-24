@@ -21,6 +21,8 @@ Each line is one active stretch of work. A new line is added whenever work resum
   - Found: the GitHub schedule had never fired; offset the cron to 3-59/10 and started a backup collector loop on the Mac
 - Session 3: 2026-10-24: backfill from in-game screenshots
   - Added the 10 games from Oct 15–18 that EA no longer serves (score-only), moved the Old Boys win to Oct 20, and stored each member's stats from the 11 games without a box score (in-game season totals minus stored box scores). Site now shows 20 games, 11-9, matching the game.
+- Session 4: 2026-10-24 21:45: install prompt (Add to Home Screen)
+  - Banner after a 3rd page / 2nd day / scout result or game night (snoozed 14 days when closed), how-to sheet per phone (Chrome one-tap, iPhone Share steps, Instagram/Facebook/WebView → open in Safari/Chrome), Get the app card on home, `/?install=1` link for the group chat. 15 unit + 7 phone e2e tests.
 
 ## Token use
 Exact totals come from Claude Code's `/cost` or `/usage`. Estimates are added here at each milestone.
