@@ -176,7 +176,7 @@ export function recapMessage(f: RecapFacts, intro: string | null = null, ids: Re
   ];
   const games = ["**Games**", ...[...night.games].reverse().map(gameLine)];
 
-  const mvpLine = mvp && mvp.points > 0 ? [`⭐ **Night MVP:** ${who(mvp.playerName)} · ${mvp.goals}G ${mvp.assists}A`] : [];
+  const mvpLine = mvp && mvp.points > 0 ? ["**🏆 Night MVP**", `${who(mvp.playerName)} · ${mvp.goals}G ${mvp.assists}A`] : [];
   const starLines =
     hasPlayerData && stars.length ? ["**Three stars**", ...stars.map((s, i) => `${"⭐".repeat(3 - i)} ${who(s.name)} · ${s.goals}G ${s.assists}A`)] : [];
   const lead = [
