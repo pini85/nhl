@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupGameNights } from "@/lib/stats/nights";
-import { divisionJourney, heat, nightSeries, playerForm } from "@/lib/stats/trends";
+import { divisionJourney, heat, nightSeries, nightTeammates, playerForm } from "@/lib/stats/trends";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 import { games, lines } from "../helpers/club-fixtures";
 
@@ -85,6 +85,31 @@ describe("nightSeries you vs teammates", () => {
     expect(p.mates?.forwards).toEqual({ goals: 1, assists: 0.7, points: 1.7 }); // (2+0+1)/3, (1+1+0)/3, (3+1+1)/3
     expect(p.mates?.defense).toEqual({ goals: 0, assists: 2.5, points: 2.5 }); // d1 2A, x 3A
     expect(p.mates?.all).toEqual({ goals: 0.8, assists: 1.8, points: 2.5 }); // c 3P, rw 1P, d1 2P, x 4P over 4
+  });
+  it("keeps each teammate's own night totals for picking one player", () => {
+    const p = night([
+      line("m1", "me", 1, 0, "leftWing"),
+      line("m1", "kai", 2, 1, "rightWing"),
+      line("m2", "kai", 1, 0, "defenseMen"), // any position counts toward kai's own total
+      line("m1", "g", 0, 1, "goalie"),
+    ]);
+    expect(p.others).toEqual({ kai: { goals: 3, assists: 1, points: 4 } });
+  });
+  it("lists teammates by games played, with their main role", () => {
+    const ls = [
+      line("m1", "me", 1, 0, "leftWing"),
+      line("m1", "kai", 0, 0, "rightWing"),
+      line("m2", "kai", 0, 0, "rightWing"),
+      line("m1", "dan", 0, 0, "defenseMen"),
+      line("m2", "dan", 0, 0, "defenseMen"),
+      line("m2", "sam", 0, 0, "center"),
+      line("m1", "g", 0, 0, "goalie"),
+    ].map((l) => ({ ...l, playerName: l.eaPlayerId.toUpperCase() }));
+    expect(nightTeammates(groupGameNights([g1, g2]), ls, "me")).toEqual([
+      { id: "dan", name: "DAN", role: "defense", games: 2 },
+      { id: "kai", name: "KAI", role: "forwards", games: 2 },
+      { id: "sam", name: "SAM", role: "forwards", games: 1 },
+    ]);
   });
   it("a night of score-only games is 'no box score', not 'didn't play'", () => {
     const p = night([], [{ ...g1, source: "summary" as const }]);

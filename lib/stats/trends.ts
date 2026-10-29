@@ -26,7 +26,11 @@ export type NightPoint = {
    * all skaters, forwards only, defense only. Null when no teammate played that role.
    */
   mates?: Record<MateGroup, StatLine | null>;
+  /** Each teammate skater's own totals for the night (every skater game, any position), by player id. */
+  others?: Record<string, StatLine>;
 };
+
+export type Teammate = { id: string; name: string; role: "forwards" | "defense"; games: number };
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
@@ -51,12 +55,14 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
       point.boxScore = full.length > 0;
       let me: StatLine | null = null;
       const perMate: Record<MateGroup, Map<string, StatLine>> = { all: new Map(), forwards: new Map(), defense: new Map() };
+      const others: Record<string, StatLine> = {};
       for (const g of full) {
         for (const l of byMatch.get(g.matchId) ?? []) {
           if (l.eaPlayerId === mine.playerId) {
             addLine((me ??= { goals: 0, assists: 0, points: 0 }), l);
             continue;
           }
+          if (l.position !== "goalie") addLine((others[l.eaPlayerId] ??= { goals: 0, assists: 0, points: 0 }), l);
           for (const group of groupsOf(l.position)) {
             const t = perMate[group].get(l.eaPlayerId) ?? { goals: 0, assists: 0, points: 0 };
             addLine(t, l);
@@ -71,10 +77,29 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
         return { goals: avg("goals"), assists: avg("assists"), points: avg("points") };
       };
       point.me = me;
+      point.others = others;
       point.mates = { all: average(perMate.all), forwards: average(perMate.forwards), defense: average(perMate.defense) };
       return point;
     })
     .reverse();
+}
+
+// Teammate skaters who played box-score games in the newest `max` nights, most games first.
+// Role is where they played most of those games (ties go to forwards).
+export function nightTeammates(nights: GameNight[], lines: PlayerLine[], playerId: string, max = 12): Teammate[] {
+  const ids = new Set(nights.slice(0, max).flatMap((n) => n.games.filter((g) => g.source === "full").map((g) => g.matchId)));
+  const acc = new Map<string, { name: string; f: number; d: number }>();
+  for (const l of lines) {
+    if (!ids.has(l.matchId) || l.eaPlayerId === playerId || l.position === "goalie") continue;
+    const t = acc.get(l.eaPlayerId) ?? { name: l.playerName, f: 0, d: 0 };
+    if (l.position === "defenseMen") t.d++;
+    else t.f++;
+    t.name = l.playerName;
+    acc.set(l.eaPlayerId, t);
+  }
+  return [...acc.entries()]
+    .map(([id, t]) => ({ id, name: t.name, role: (t.d > t.f ? "defense" : "forwards") as Teammate["role"], games: t.f + t.d }))
+    .sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
 }
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", month: "short", day: "numeric" });

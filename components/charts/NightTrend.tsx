@@ -3,7 +3,7 @@ import { NightTrendChart } from "@/components/charts/NightTrendChart";
 import { getOurLines } from "@/lib/data/club";
 import { getMe } from "@/lib/me-server";
 import type { GameNight } from "@/lib/stats/nights";
-import { nightSeries } from "@/lib/stats/trends";
+import { nightSeries, nightTeammates } from "@/lib/stats/trends";
 
 /** Goals per game night, plus "You vs teammates" when the viewer has picked who they are. */
 export async function NightTrend({ nights }: { nights: GameNight[] }) {
@@ -13,7 +13,13 @@ export async function NightTrend({ nights }: { nights: GameNight[] }) {
   return (
     <>
       <NightTrendChart data={data} />
-      {mine && <MeVsMatesChart data={data} />}
+      {mine && (
+        <MeVsMatesChart
+          data={data}
+          teammates={nightTeammates(nights, lines, mine.playerId)}
+          myRole={nightTeammates(nights, lines.filter((l) => l.eaPlayerId === mine.playerId), "").at(0)?.role ?? "all"}
+        />
+      )}
     </>
   );
 }
