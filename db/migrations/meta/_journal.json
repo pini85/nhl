@@ -50,6 +50,13 @@
       "when": 1792865957246,
       "tag": "0006_quiet_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793286120475,
+      "tag": "0007_discord_posts",
+      "breakpoints": true
     }
   ]
 }
