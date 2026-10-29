@@ -1,13 +1,42 @@
 import type { GameNight } from "@/lib/stats/nights";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
-export type NightPoint = { key: string; label: string; goalsFor: number; goalsAgainst: number; wins: number; losses: number };
+export type NightPoint = {
+  key: string;
+  label: string;
+  goalsFor: number;
+  goalsAgainst: number;
+  wins: number;
+  losses: number;
+  /** The viewer's own goals that night; null when they didn't play. Absent when no player is picked. */
+  myGoals?: number | null;
+  /** Average goals per teammate skater that night (one decimal); null when no teammate data. Absent when no player is picked. */
+  teammateAvg?: number | null;
+};
 
 // Oldest → newest, limited to the most recent `max` nights.
-export function nightSeries(nights: GameNight[], max = 12): NightPoint[] {
+// Pass `mine` (our club's lines) to add the picked player's goals and the teammate average per night.
+export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: PlayerLine[]; playerId: string }): NightPoint[] {
+  const myLines = mine ? new Map(mine.lines.filter((l) => l.eaPlayerId === mine.playerId).map((l) => [l.matchId, l])) : null;
+  const byMatch = new Map<string, PlayerLine[]>();
+  for (const l of mine?.lines ?? []) {
+    if (l.eaPlayerId === mine?.playerId || l.position === "goalie") continue;
+    byMatch.set(l.matchId, [...(byMatch.get(l.matchId) ?? []), l]);
+  }
   return nights
     .slice(0, max)
-    .map((n) => ({ key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses }))
+    .map((n) => {
+      const point: NightPoint = { key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses };
+      if (myLines) {
+        const played = n.games.map((g) => myLines.get(g.matchId)).filter((l) => l !== undefined);
+        point.myGoals = played.length ? played.reduce((s, l) => s + l.goals, 0) : null;
+        const perMate = new Map<string, number>();
+        for (const g of n.games) for (const l of byMatch.get(g.matchId) ?? []) perMate.set(l.eaPlayerId, (perMate.get(l.eaPlayerId) ?? 0) + l.goals);
+        const totals = [...perMate.values()];
+        point.teammateAvg = totals.length ? Math.round((totals.reduce((s, x) => s + x, 0) / totals.length) * 10) / 10 : null;
+      }
+      return point;
+    })
     .reverse();
 }
 

@@ -12,6 +12,7 @@ import { TrophyCase } from "@/components/club/TrophyCase";
 import { CLUB_ID, CLUB_NAME } from "@/lib/config";
 import { getGames, getOurLines, getSnapshot, getSnapshotHistory } from "@/lib/data/club";
 import { NightTrendChart } from "@/components/charts/NightTrendChart";
+import { NightTrend } from "@/components/charts/NightTrend";
 import { divisionJourney, heatMap, nightSeries } from "@/lib/stats/trends";
 import { getClubRows, getScoutedClubs } from "@/lib/data/opponents";
 import { crestMap } from "@/lib/opponents/directory";
@@ -76,7 +77,11 @@ export default async function Home() {
     ),
     journey.length > 0 && <DivisionJourney key="journey" runs={journey} />,
     latest && <LatestNight key="night" night={latest} mvp={mvp} />,
-    nights.length > 0 && <NightTrendChart key="trend" data={nightSeries(nights)} />,
+    nights.length > 0 && (
+      <Suspense key="trend" fallback={<NightTrendChart data={nightSeries(nights)} />}>
+        <NightTrend nights={nights} />
+      </Suspense>
+    ),
     <HotPlayers key="hot" players={hot} />,
     games.length >= 3 && (
       <Link key="wrapped" href="/wrapped" className="arena-card my-3 flex items-center justify-between px-3.5 py-3 text-sm font-semibold">

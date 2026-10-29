@@ -3,3 +3,6 @@ export const US = "#2f9be0";
 export const THEM = "#e5506a";
 export const GRID = "rgba(255,255,255,0.06)";
 export const AXIS = "#7f95b5";
+export const ME = "#c08a20";
+// Reference line (dashed), not a category — dash pattern carries identity.
+export const MATES = "#b4c3d9";
