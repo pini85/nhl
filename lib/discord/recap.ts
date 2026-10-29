@@ -1,4 +1,5 @@
 // The Discord "last night" recap: which night to post, and the message text. Pure, so it is easy to test.
+import { DISCORD_IDS } from "@/lib/discord/members";
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { gameAwards } from "@/lib/stats/awards";
 import { momentText, moments, type MomentInput } from "@/lib/stats/moments";
@@ -36,9 +37,21 @@ export type RecapFacts = {
   recap: NightRecap;
   url: string;
   insights: string[];
-  awards: string[];
+  awards: { text: string; name: string; vs: string | null }[];
   highlights: string[];
 };
+
+/** Escapes Discord markdown, so gamertags like puck_control don't turn into italics. */
+export const escapeMd = (text: string) => text.replace(/([\\*_~`|>])/g, "\\$1");
+
+/** A player as their Discord @handle when we know their user ID, else their (escaped) gamertag. */
+export function mentioner(ids: Record<string, string> = DISCORD_IDS) {
+  const byName = new Map(Object.entries(ids).map(([name, id]) => [name.toLowerCase(), id]));
+  return (name: string) => {
+    const id = byName.get(name.toLowerCase());
+    return id ? `<@${id}>` : escapeMd(name);
+  };
+}
 
 const opp = (g: GameLite) => g.opponentName ?? `Club ${g.opponentClubId}`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
@@ -48,7 +61,7 @@ const one = (n: number) => n.toFixed(1);
 function gameLine(g: GameLite): string {
   const icon = g.outcome === "W" ? "✅" : "❌";
   const tags = [g.overtime && "OT", g.dnf === "opponent_quit" && "they quit", g.dnf === "we_quit" && "we quit"].filter(Boolean);
-  return `${icon} **${g.goalsFor}-${g.goalsAgainst}** vs ${opp(g)}${tags.length ? ` (${tags.join(", ")})` : ""}`;
+  return `${icon} **${g.goalsFor}-${g.goalsAgainst}** vs ${escapeMd(opp(g))}${tags.length ? ` (${tags.join(", ")})` : ""}`;
 }
 
 /** Short "what it means" lines: compared with the rest of the season, streaks, best/worst game, rivalries. */
@@ -108,7 +121,10 @@ export function recapFacts(
   const byMatch = new Map(night.games.map((g) => [g.matchId, g]));
   const awards = night.games
     .flatMap((g) => gameAwards(input.lines, g, input.clubs.filter((c) => c.matchId === g.matchId), input.ourClubId))
-    .map((a) => `${a.emoji} ${a.label}: ${a.name}${a.matchId && byMatch.get(a.matchId) ? ` vs ${opp(byMatch.get(a.matchId)!)}` : ""}`);
+    .map((a) => {
+      const g = a.matchId ? byMatch.get(a.matchId) : undefined;
+      return { text: `${a.emoji} ${a.label}`, name: a.name, vs: g ? opp(g) : null };
+    });
 
   // Club records, milestones and team news from tonight (awards are listed above already).
   const start = night.games.at(-1)!.playedAt;
@@ -124,7 +140,7 @@ export function recapFacts(
     recap,
     url: `${siteUrl.replace(/\/$/, "")}/nights/${night.key}`,
     insights: nightInsights(night, input.games),
-    awards: [...new Set(awards)].slice(0, MAX_LIST),
+    awards: awards.filter((a, i) => awards.findIndex((b) => b.text === a.text && b.name === a.name && b.vs === a.vs) === i).slice(0, MAX_LIST),
     highlights: highlights.slice(0, MAX_LIST),
   };
 }
@@ -139,7 +155,7 @@ export function factsForWriter(f: RecapFacts): string {
     stars.length ? `Top scorers: ${stars.map((s) => `${s.name} ${s.goals}G ${s.assists}A`).join(", ")}` : null,
     leaders.hits ? `Most hits: ${leaders.hits.name} ${leaders.hits.value}` : null,
     leaders.goalie ? `Goalie: ${leaders.goalie.name} ${leaders.goalie.saves}/${leaders.goalie.shots} saves` : null,
-    ...f.awards.map((a) => `Award: ${a}`),
+    ...f.awards.map((a) => `Award: ${a.text}: ${a.name}${a.vs ? ` vs ${a.vs}` : ""}`),
     ...f.highlights.map((h) => `Highlight: ${h}`),
     ...f.insights.map((i) => `Insight: ${i}`),
   ]
@@ -147,25 +163,30 @@ export function factsForWriter(f: RecapFacts): string {
     .join("\n");
 }
 
-/** The Discord message (max 2000 characters). The link at the end unfurls into the night's preview card. */
-export function recapMessage(f: RecapFacts, intro: string | null = null): string {
+/**
+ * The Discord message (max 2000 characters). The link at the end unfurls into the night's preview card.
+ * Players in `ids` show as their Discord @handle (shown, not pinged: the post sends no notifications).
+ */
+export function recapMessage(f: RecapFacts, intro: string | null = null, ids: Record<string, string> = DISCORD_IDS): string {
   const { night, mvp, stars, leaders, hasPlayerData } = f.recap;
+  const who = mentioner(ids);
   const head = [
     `🏒 **Game night recap · ${night.label}**`,
     `**${night.wins}-${night.losses}** in ${night.games.length} game${night.games.length === 1 ? "" : "s"} · GF ${night.goalsFor} · GA ${night.goalsAgainst}`,
   ];
   const games = ["**Games**", ...[...night.games].reverse().map(gameLine)];
 
-  const players: string[] = [];
-  if (mvp && mvp.points > 0) players.push(`⭐ **Night MVP:** ${mvp.playerName} (${mvp.goals}G ${mvp.assists}A)`);
-  if (hasPlayerData && stars.length) players.push(`**Three stars:** ${stars.map((s, i) => `${"⭐".repeat(3 - i)} ${s.name} ${s.goals}G ${s.assists}A`).join(" · ")}`);
+  const mvpLine = mvp && mvp.points > 0 ? [`⭐ **Night MVP:** ${who(mvp.playerName)} · ${mvp.goals}G ${mvp.assists}A`] : [];
+  const starLines =
+    hasPlayerData && stars.length ? ["**Three stars**", ...stars.map((s, i) => `${"⭐".repeat(3 - i)} ${who(s.name)} · ${s.goals}G ${s.assists}A`)] : [];
   const lead = [
-    leaders.hits && `💥 ${leaders.hits.name} ${leaders.hits.value} hits`,
-    leaders.shots && `🎯 ${leaders.shots.name} ${leaders.shots.value} shots`,
-    leaders.plusMinus && `➕ ${leaders.plusMinus.name} ${signed(leaders.plusMinus.value)}`,
-    leaders.goalie && `🧤 ${leaders.goalie.name} ${leaders.goalie.pct.toFixed(3).replace(/^0/, "")} (${leaders.goalie.saves}/${leaders.goalie.shots})`,
-  ].filter(Boolean);
-  if (hasPlayerData && lead.length) players.push(`**Leaders:** ${lead.join(" · ")}`);
+    leaders.hits && `💥 Hits: ${who(leaders.hits.name)} · ${leaders.hits.value}`,
+    leaders.shots && `🎯 Shots: ${who(leaders.shots.name)} · ${leaders.shots.value}`,
+    leaders.plusMinus && `➕ Plus/minus: ${who(leaders.plusMinus.name)} · ${signed(leaders.plusMinus.value)}`,
+    leaders.goalie &&
+      `🧤 Save %: ${who(leaders.goalie.name)} · ${leaders.goalie.pct.toFixed(3).replace(/^0/, "")} (${leaders.goalie.saves}/${leaders.goalie.shots})`,
+  ].filter((l): l is string => !!l);
+  const leaderLines = hasPlayerData && lead.length ? ["**Leaders**", ...lead] : [];
 
   const list = (title: string, items: string[]) => (items.length ? [`**${title}**`, ...items.map((i) => `• ${i}`)] : []);
   const footer = [`👉 Full recap: ${f.url}`];
@@ -175,7 +196,18 @@ export function recapMessage(f: RecapFacts, intro: string | null = null): string
   let awards = f.awards;
   let insights = f.insights;
   const build = () =>
-    [head, intro ? [intro] : [], games, players, list("Highlights", highlights), list("Awards", awards), list("Insights", insights), footer]
+    [
+      head,
+      intro ? [escapeMd(intro)] : [],
+      games,
+      mvpLine,
+      starLines,
+      leaderLines,
+      list("Highlights", highlights.map(escapeMd)),
+      list("Awards", awards.map((a) => `${a.text}: ${who(a.name)}${a.vs ? ` vs ${escapeMd(a.vs)}` : ""}`)),
+      list("Insights", insights.map(escapeMd)),
+      footer,
+    ]
       .filter((s) => s.length)
       .map((s) => s.join("\n"))
       .join("\n\n");
@@ -186,6 +218,6 @@ export function recapMessage(f: RecapFacts, intro: string | null = null): string
     else highlights = highlights.slice(0, -1);
     text = build();
   }
-  if (text.length > DISCORD_LIMIT && intro) return recapMessage({ ...f, awards, insights, highlights }, null);
+  if (text.length > DISCORD_LIMIT && intro) return recapMessage({ ...f, awards, insights, highlights }, null, ids);
   return text.length > DISCORD_LIMIT ? `${text.slice(0, DISCORD_LIMIT - footer[0].length - 3)}…\n${footer[0]}` : text;
 }

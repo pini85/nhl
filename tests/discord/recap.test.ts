@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nightToPost, recapFacts, recapMessage } from "@/lib/discord/recap";
+import { escapeMd, nightToPost, recapFacts, recapMessage } from "@/lib/discord/recap";
 import { groupGameNights } from "@/lib/stats/nights";
 import { game } from "../helpers/builders";
 import { games, lines } from "../helpers/club-fixtures";
@@ -40,7 +40,7 @@ describe("recapMessage", () => {
   it("has the record, games, MVP and the night's link", () => {
     const text = recapMessage(facts);
     expect(text).toContain(`**${last.wins}-${last.losses}**`);
-    expect(text).toContain("Night MVP:** puck_control");
+    expect(text).toContain("Night MVP:** puck\\_control");
     expect(text).toContain("https://drop-drop-drop.vercel.app/nights/2026-10-22");
     expect(text.split("\n").filter((l) => /^(✅|❌)/.test(l))).toHaveLength(last.games.length);
     expect(text.length).toBeLessThanOrEqual(2000);
@@ -53,8 +53,30 @@ describe("recapMessage", () => {
 
   it("stays within Discord's limit with lots of extras", () => {
     const many = Array.from({ length: 80 }, (_, i) => `Something notable number ${i} happened tonight`);
-    const text = recapMessage({ ...facts, awards: many, insights: many, highlights: many }, "x".repeat(400));
+    const awards = many.map((text) => ({ text, name: "puck_control", vs: "Opp" }));
+    const text = recapMessage({ ...facts, awards, insights: many, highlights: many }, "x".repeat(400));
     expect(text.length).toBeLessThanOrEqual(2000);
     expect(text).toContain("/nights/2026-10-22");
+  });
+});
+
+describe("players in the recap", () => {
+  const facts = recapFacts(last, input, "https://site.test")!;
+
+  it("each star and leader gets their own row", () => {
+    const rows = recapMessage(facts, null, {}).split("\n");
+    expect(rows.filter((r) => /^⭐+ [^*]/.test(r))).toHaveLength(3);
+    for (const label of ["💥 Hits:", "🎯 Shots:", "➕ Plus/minus:", "🧤 Save %:"]) expect(rows.some((r) => r.startsWith(label))).toBe(true);
+  });
+
+  it("known players show as their Discord handle, others by gamertag", () => {
+    const text = recapMessage(facts, null, { PUCK_CONTROL: "111" });
+    expect(text).toContain("Night MVP:** <@111> · ");
+    expect(text).not.toContain("puck\\_control ·");
+    expect(text).toContain("ThePooker");
+  });
+
+  it("underscores in gamertags don't turn into italics", () => {
+    expect(escapeMd("puck_control *x*")).toBe("puck\\_control \\*x\\*");
   });
 });
