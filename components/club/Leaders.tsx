@@ -54,7 +54,7 @@ export function BadgeChip({ badge }: { badge: Badge }) {
   );
 }
 
-function Chips<T extends string>({ items, value, onChange }: { items: { key: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+export function Chips<T extends string>({ items, value, onChange }: { items: { key: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
     <div className="flex gap-1.5">
       {items.map((i) => (
