@@ -3,6 +3,11 @@ import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
 export type StatLine = { goals: number; assists: number; points: number };
 export type StatKey = keyof StatLine;
+export type MateGroup = "all" | "forwards" | "defense";
+
+const FORWARDS = new Set(["center", "leftWing", "rightWing"]);
+const groupsOf = (position: string): MateGroup[] =>
+  FORWARDS.has(position) ? ["all", "forwards"] : position === "defenseMen" ? ["all", "defense"] : position === "goalie" ? [] : ["all"];
 
 export type NightPoint = {
   key: string;
@@ -16,8 +21,11 @@ export type NightPoint = {
   boxScore?: boolean;
   /** The viewer's totals for the night; null when they didn't play (or no box score). */
   me?: StatLine | null;
-  /** Average per teammate skater of their night totals, one decimal; null when there's no teammate data. */
-  mates?: StatLine | null;
+  /**
+   * Average per teammate of their night totals, one decimal, by the position they played in each game:
+   * all skaters, forwards only, defense only. Null when no teammate played that role.
+   */
+  mates?: Record<MateGroup, StatLine | null>;
 };
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -42,21 +50,28 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
       const full = n.games.filter((g) => g.source === "full");
       point.boxScore = full.length > 0;
       let me: StatLine | null = null;
-      const perMate = new Map<string, StatLine>();
+      const perMate: Record<MateGroup, Map<string, StatLine>> = { all: new Map(), forwards: new Map(), defense: new Map() };
       for (const g of full) {
         for (const l of byMatch.get(g.matchId) ?? []) {
-          if (l.eaPlayerId === mine.playerId) addLine((me ??= { goals: 0, assists: 0, points: 0 }), l);
-          else if (l.position !== "goalie") {
-            const t = perMate.get(l.eaPlayerId) ?? { goals: 0, assists: 0, points: 0 };
+          if (l.eaPlayerId === mine.playerId) {
+            addLine((me ??= { goals: 0, assists: 0, points: 0 }), l);
+            continue;
+          }
+          for (const group of groupsOf(l.position)) {
+            const t = perMate[group].get(l.eaPlayerId) ?? { goals: 0, assists: 0, points: 0 };
             addLine(t, l);
-            perMate.set(l.eaPlayerId, t);
+            perMate[group].set(l.eaPlayerId, t);
           }
         }
       }
-      const totals = [...perMate.values()];
-      const avg = (k: StatKey) => round1(totals.reduce((s, t) => s + t[k], 0) / totals.length);
+      const average = (m: Map<string, StatLine>): StatLine | null => {
+        const totals = [...m.values()];
+        if (!totals.length) return null;
+        const avg = (k: StatKey) => round1(totals.reduce((s, t) => s + t[k], 0) / totals.length);
+        return { goals: avg("goals"), assists: avg("assists"), points: avg("points") };
+      };
       point.me = me;
-      point.mates = totals.length ? { goals: avg("goals"), assists: avg("assists"), points: avg("points") } : null;
+      point.mates = { all: average(perMate.all), forwards: average(perMate.forwards), defense: average(perMate.defense) };
       return point;
     })
     .reverse();
