@@ -28,6 +28,8 @@ export type NightPoint = {
   mates?: Record<MateGroup, StatLine | null>;
   /** Each teammate skater's own totals for the night (every skater game, any position), by player id. */
   others?: Record<string, StatLine>;
+  /** Where each teammate skater played most that night (ties go to forwards), by player id. */
+  roles?: Record<string, "forwards" | "defense">;
 };
 
 export type Teammate = { id: string; name: string; role: "forwards" | "defense"; games: number };
@@ -56,13 +58,19 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
       let me: StatLine | null = null;
       const perMate: Record<MateGroup, Map<string, StatLine>> = { all: new Map(), forwards: new Map(), defense: new Map() };
       const others: Record<string, StatLine> = {};
+      const fd: Record<string, { f: number; d: number }> = {};
       for (const g of full) {
         for (const l of byMatch.get(g.matchId) ?? []) {
           if (l.eaPlayerId === mine.playerId) {
             addLine((me ??= { goals: 0, assists: 0, points: 0 }), l);
             continue;
           }
-          if (l.position !== "goalie") addLine((others[l.eaPlayerId] ??= { goals: 0, assists: 0, points: 0 }), l);
+          if (l.position !== "goalie") {
+            addLine((others[l.eaPlayerId] ??= { goals: 0, assists: 0, points: 0 }), l);
+            const c = (fd[l.eaPlayerId] ??= { f: 0, d: 0 });
+            if (l.position === "defenseMen") c.d++;
+            else c.f++;
+          }
           for (const group of groupsOf(l.position)) {
             const t = perMate[group].get(l.eaPlayerId) ?? { goals: 0, assists: 0, points: 0 };
             addLine(t, l);
@@ -78,6 +86,7 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
       };
       point.me = me;
       point.others = others;
+      point.roles = Object.fromEntries(Object.entries(fd).map(([id, c]) => [id, c.d > c.f ? "defense" : "forwards"]));
       point.mates = { all: average(perMate.all), forwards: average(perMate.forwards), defense: average(perMate.defense) };
       return point;
     })
