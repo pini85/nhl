@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "@/db/client";
 import { discordPosts } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
-import { postNightRecap } from "@/lib/discord/post";
+import { postNightRecap, postSample } from "@/lib/discord/post";
 import { createTestDb } from "../helpers/db";
 import { createFixtureEa } from "../helpers/fixture-ea";
 
@@ -37,3 +37,18 @@ describe("postNightRecap", () => {
     expect((await postNightRecap({ ...deps, fetch: ok() })).status).toBe("posted");
   });
 });
+
+describe("postSample", () => {
+  it("sends the welcome, then the newest night, without marking it posted", async () => {
+    const fetch = ok();
+    expect(await postNightRecapSample(fetch)).toBe("2026-10-22");
+    const bodies = fetch.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string).content as string);
+    expect(bodies[0]).toContain("8:00 CET");
+    expect(bodies[1]).toContain("/nights/2026-10-22");
+    expect(await db.select().from(discordPosts)).toEqual([]);
+  });
+});
+
+function postNightRecapSample(fetch: ReturnType<typeof ok>) {
+  return postSample({ db, webhookUrl: "https://discord.test/hook", siteUrl: "https://site.test", fetch });
+}

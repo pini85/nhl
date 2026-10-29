@@ -1,0 +1,30 @@
+name: discord-test
+# Sends the Discord bot's welcome message and a sample recap of the newest night.
+# Run it from the Actions tab whenever you want to check the bot.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-74a215f2-bgxb9v]
+    paths: [".github/workflows/discord-test.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Creates the table that remembers which nights were posted (safe to repeat).
+      - run: node --import tsx db/migrate.mts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - run: pnpm discord:test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

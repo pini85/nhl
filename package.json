@@ -16,6 +16,7 @@
     "collect:ci": "node --import tsx scripts/collect.mts",
     "scout:watch": "node --import tsx scripts/scout-watch.mts",
     "discord:recap": "node --import tsx scripts/discord-recap.mts",
+    "discord:test": "node --import tsx scripts/discord-test.mts",
     "e2e": "playwright test"
   },
   "dependencies": {
