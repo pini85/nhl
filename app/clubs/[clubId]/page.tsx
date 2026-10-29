@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { CommonOpponentsChart } from "@/components/charts/CommonOpponentsChart";
 import { Crest } from "@/components/club/Crest";
 import { LocalTime } from "@/components/club/LocalTime";
 import { RelativeTime } from "@/components/club/RelativeTime";
@@ -28,6 +27,8 @@ import {
 
 const POS: Record<string, string> = { center: "C", leftWing: "LW", rightWing: "RW", defenseMen: "D", goalie: "G" };
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+// Goals per game: whole numbers stay whole, others get one decimal.
+const signedRate = (n: number) => `${n > 0 ? "+" : ""}${Number.isInteger(n) ? n : n.toFixed(1)}`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 const savePct = (n: number) => n.toFixed(3).replace(/^0/, "");
 const recordColor = (r: { wins: number; losses: number }) =>
@@ -70,7 +71,9 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const recent = theirRecentGames(snapshot, clubRows, scouted, ourH2H, new Set(games.map((g) => g.matchId)));
   const recentWins = recent.filter((g) => g.outcome === "W").length;
   const common = commonOpponents(recent, ourH2H, CLUB_ID);
-  const commonChart = common.rows.map((r) => ({
+  const sameOpponents = common.rows.map((r) => ({
+    clubId: r.clubId,
+    edge: Math.round((r.us.diffPerGame - r.them.diffPerGame) * 10) / 10,
     name: recent.find((g) => g.opponentClubId === r.clubId)?.opponentName ?? r.name ?? `Club ${r.clubId}`,
     them: r.them,
     us: r.us,
@@ -188,7 +191,52 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
         </Section>
       )}
 
-      <CommonOpponentsChart opponentName={name} data={commonChart} />
+      {sameOpponents.length > 0 && (
+        <Section title="Same opponents · goal diff per game">
+          <p className="mb-2 text-[11px] text-[var(--muted-fg)]">
+            We did better against <b className="text-[var(--fg)]">{sameOpponents.filter((r) => r.edge > 0).length}</b> of{" "}
+            {sameOpponents.length} club{sameOpponents.length === 1 ? "" : "s"} they also played
+          </p>
+          <table className="tabular w-full text-xs">
+            <thead className="text-[10px] text-[var(--muted-fg)]">
+              <tr>
+                <th className="text-left font-medium">Club</th>
+                <th className="text-right font-medium">Them</th>
+                <th className="text-right font-medium">Us</th>
+                <th className="text-right font-medium">Better</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sameOpponents.map((r) => (
+                <tr key={r.clubId} className="border-t border-white/[0.05] align-top">
+                  <td className="py-1.5">
+                    <Link href={`/clubs/${r.clubId}`} className="block max-w-[8.5rem] truncate">
+                      {r.name}
+                    </Link>
+                  </td>
+                  <td className="py-1.5 text-right">
+                    <b>{signedRate(r.them.diffPerGame)}</b>
+                    <div className="text-[10px] text-[var(--muted-fg)]">
+                      {r.them.goalsFor}-{r.them.goalsAgainst} · {r.them.gp}gp
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right">
+                    <b>{signedRate(r.us.diffPerGame)}</b>
+                    <div className="text-[10px] text-[var(--muted-fg)]">
+                      {r.us.goalsFor}-{r.us.goalsAgainst} · {r.us.gp}gp
+                    </div>
+                  </td>
+                  <td
+                    className={`py-1.5 text-right font-bold ${r.edge > 0 ? "text-[var(--win-fg)]" : r.edge < 0 ? "text-[var(--loss-fg)]" : "text-[var(--muted-fg)]"}`}
+                  >
+                    {r.edge > 0 ? `Us ${signedRate(r.edge)}` : r.edge < 0 ? `Them ${signedRate(-r.edge)}` : "Even"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
 
       <Section title="Head-to-head">
         {h2h ? (
