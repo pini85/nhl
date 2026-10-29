@@ -15,6 +15,7 @@ import { getClubRows, getOpponentLines, getOpponentSnapshot, getScoutedClubs } f
 import { getDivision } from "@/lib/divisions";
 import {
   clubTotals,
+  commonOpponents,
   dangerousPlayers,
   headToHead,
   ourAverages,
@@ -28,6 +29,8 @@ const POS: Record<string, string> = { center: "C", leftWing: "LW", rightWing: "R
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 const savePct = (n: number) => n.toFixed(3).replace(/^0/, "");
+const recordColor = (r: { wins: number; losses: number }) =>
+  r.wins > r.losses ? "text-[var(--win-fg)]" : r.losses > r.wins ? "text-[var(--loss-fg)]" : "";
 const plural = (n: number, word: string) => (n ? `${n} ${word}${n === 1 ? "" : "s"}` : null);
 
 export default function ClubPage({ params }: PageProps<"/clubs/[clubId]">) {
@@ -62,8 +65,10 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const totals = snapshot ? clubTotals(snapshot) : null;
   const roster = rosterStats(snapshot?.members ?? null);
   const leaders = rosterLeaders(snapshot?.members ?? null);
-  const recent = theirRecentGames(snapshot, clubRows, scouted, new Set(games.map((g) => g.matchId)));
+  const ourH2H = headToHead(games);
+  const recent = theirRecentGames(snapshot, clubRows, scouted, ourH2H, new Set(games.map((g) => g.matchId)));
   const recentWins = recent.filter((g) => g.outcome === "W").length;
+  const common = commonOpponents(recent, ourH2H, CLUB_ID);
   const form = (snapshot?.seasonResults ?? []).filter(Boolean).slice().reverse();
 
   return (
@@ -110,8 +115,31 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
 
       {recent.length > 0 && (
         <Section title={`Their last ${recent.length} games · ${recentWins}-${recent.length - recentWins}`}>
+          {common.clubs > 0 && (
+            <div className="mb-2 rounded-xl bg-white/[0.04] px-3 py-2 text-xs">
+              <div className="text-[10px] tracking-wide text-[var(--muted-fg)] uppercase">
+                Common opponents · {common.clubs} club{common.clubs === 1 ? "" : "s"} we also played
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span>
+                  They went{" "}
+                  <b className="tabular">
+                    {common.theirTotal.wins}-{common.theirTotal.losses}
+                  </b>
+                </span>
+                <span>
+                  We&apos;re{" "}
+                  <b className={`tabular ${recordColor(common.ourTotal)}`}>
+                    {common.ourTotal.wins}-{common.ourTotal.losses}
+                  </b>{" "}
+                  vs them
+                </span>
+              </div>
+            </div>
+          )}
           <ul className="divide-y divide-white/[0.05]">
             {recent.map((g) => {
+              const ours = g.opponentClubId === CLUB_ID ? undefined : common.ours.get(g.opponentClubId);
               const row = (
                 <>
                   <span className="w-11 shrink-0">
@@ -123,6 +151,14 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
                   <span className={`min-w-0 flex-1 truncate ${g.opponentClubId === CLUB_ID ? "font-bold text-[var(--accent-blue)]" : ""}`}>
                     vs {g.opponentName}
                   </span>
+                  {ours && (
+                    <span
+                      className={`tabular shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold ${recordColor(ours)}`}
+                      title="Our record against this club"
+                    >
+                      Us {ours.wins}-{ours.losses}
+                    </span>
+                  )}
                   {g.playedAt && (
                     <span className="shrink-0 text-xs text-[var(--muted-fg)]">
                       <LocalTime iso={g.playedAt} format="date" />
@@ -373,10 +409,12 @@ function theirRecentGames(
   snapshot: Awaited<ReturnType<typeof getOpponentSnapshot>>,
   clubRows: { clubId: number; name: string }[],
   scouted: { clubId: number; name: string }[],
+  ourH2H: { clubId: number; name: string | null }[],
   ourMatchIds: Set<string>,
 ): RecentRow[] {
   if (!snapshot) return [];
   const names = new Map<number, string>();
+  for (const h of ourH2H) if (h.name) names.set(h.clubId, h.name);
   for (const r of clubRows) if (r.name) names.set(r.clubId, r.name);
   for (const c of scouted) names.set(c.clubId, c.name);
   const label = (id: number, fromGame: string | null) => (id === CLUB_ID ? "Us" : (fromGame ?? names.get(id) ?? `Club ${id}`));

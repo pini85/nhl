@@ -265,3 +265,33 @@ export function rosterStats(members: RosterMember[] | null): { skaters: SkaterRo
     .sort((a, b) => b.gp - a.gp);
   return { skaters, goalies };
 }
+
+export type Record2 = { wins: number; losses: number };
+export type CommonOpponents = {
+  // Our record against each club they played, for clubs we have played too.
+  ours: Map<number, Record2>;
+  // Their results in these games vs those clubs, and our all-time record vs the same clubs.
+  theirTotal: Record2;
+  ourTotal: Record2;
+  clubs: number;
+};
+
+// Clubs that show up in both their recent games and our history. Games against us don't count.
+export function commonOpponents(theirGames: { opponentClubId: number; outcome: "W" | "L" }[], ourH2H: H2H[], ourClubId: number): CommonOpponents {
+  const ours = new Map<number, Record2>();
+  for (const h of ourH2H) if (h.clubId !== ourClubId) ours.set(h.clubId, { wins: h.wins, losses: h.losses });
+  const theirTotal = { wins: 0, losses: 0 };
+  const seen = new Set<number>();
+  for (const g of theirGames) {
+    if (g.opponentClubId === ourClubId || !ours.has(g.opponentClubId)) continue;
+    if (g.outcome === "W") theirTotal.wins++;
+    else theirTotal.losses++;
+    seen.add(g.opponentClubId);
+  }
+  const ourTotal = { wins: 0, losses: 0 };
+  for (const id of seen) {
+    ourTotal.wins += ours.get(id)!.wins;
+    ourTotal.losses += ours.get(id)!.losses;
+  }
+  return { ours, theirTotal, ourTotal, clubs: seen.size };
+}

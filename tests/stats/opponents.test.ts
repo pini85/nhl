@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { toRosterMember } from "@/lib/ea/normalize";
 import { toClubSummary } from "@/lib/ea/api";
 import type { OpponentProfile } from "@/lib/opponents/profile";
-import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, clubTotals, recentFromSummary, rosterLeaders, rosterStats } from "@/lib/stats/opponents";
+import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, clubTotals, commonOpponents, recentFromSummary, rosterLeaders, rosterStats } from "@/lib/stats/opponents";
 import type { GameLite } from "@/lib/stats/types";
 import { games, lines, normalized } from "../helpers/club-fixtures";
 
@@ -183,4 +183,36 @@ describe("ourAverages", () => {
     expect(ourAverages([], 56507)).toEqual({
       shots: 0, hits: 0, pim: 0, faceoffPct: 0, passPct: 0, goalsFor: 0, goalsAgainst: 0, shotsAgainst: 0, ppPct: 0, shootingPct: 0,
     }));
+});
+
+describe("commonOpponents", () => {
+  const h2h = headToHead([
+    extra(10, 3, 1, "2026-10-01T20:00:00Z"),
+    extra(10, 1, 2, "2026-10-02T20:00:00Z"),
+    extra(10, 4, 0, "2026-10-03T20:00:00Z"),
+    extra(20, 0, 5, "2026-10-04T20:00:00Z"),
+  ]);
+  it("compares their results with ours against the same clubs", () => {
+    const c = commonOpponents(
+      [
+        { opponentClubId: 10, outcome: "L" },
+        { opponentClubId: 10, outcome: "W" },
+        { opponentClubId: 20, outcome: "W" },
+        { opponentClubId: 30, outcome: "W" },
+        { opponentClubId: 56507, outcome: "W" },
+      ],
+      h2h,
+      56507,
+    );
+    expect(c.ours.get(10)).toEqual({ wins: 2, losses: 1 });
+    expect(c.ours.get(30)).toBeUndefined();
+    expect(c.theirTotal).toEqual({ wins: 2, losses: 1 });
+    expect(c.ourTotal).toEqual({ wins: 2, losses: 2 });
+    expect(c.clubs).toBe(2);
+  });
+  it("empty when there is no overlap", () => {
+    const c = commonOpponents([{ opponentClubId: 99, outcome: "W" }], h2h, 56507);
+    expect(c.clubs).toBe(0);
+    expect(c.theirTotal).toEqual({ wins: 0, losses: 0 });
+  });
 });
