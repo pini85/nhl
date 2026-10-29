@@ -9,7 +9,7 @@ export function ChartFrame({
 }: {
   title: string;
   label: string;
-  legend?: { name: string; color: string }[];
+  legend?: { name: string; color: string; dashed?: boolean }[];
   table: { head: string[]; rows: (string | number)[][] };
   children: ReactNode;
 }) {
@@ -21,7 +21,11 @@ export function ChartFrame({
           <ul className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[10px] text-[var(--muted-fg)]">
             {legend.map((l) => (
               <li key={l.name} className="flex items-center gap-1 whitespace-nowrap">
-                <span className="inline-block size-2 rounded-sm" style={{ background: l.color }} aria-hidden />
+                {l.dashed ? (
+                  <span className="inline-block w-3.5 border-t-2 border-dashed" style={{ borderColor: l.color }} aria-hidden />
+                ) : (
+                  <span className="inline-block size-2 rounded-sm" style={{ background: l.color }} aria-hidden />
+                )}
                 {l.name}
               </li>
             ))}

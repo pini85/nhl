@@ -31,7 +31,21 @@ describe("nightSeries", () => {
     });
     expect(mine).toEqual(expected);
     expect(nightSeries(nights, 12, { lines, playerId: "nobody" }).every((p) => p.myGoals === null)).toBe(true);
-    expect(nightSeries(nights).every((p) => p.myGoals === undefined)).toBe(true);
+    expect(nightSeries(nights).every((p) => p.myGoals === undefined && p.teammateAvg === undefined)).toBe(true);
+  });
+});
+
+describe("nightSeries teammate average", () => {
+  const base = lines.find((l) => l.position !== "goalie")!;
+  const game = { ...games[0], matchId: "m1" };
+  const line = (id: string, goals: number, position = "center") => ({ ...base, matchId: "m1", eaPlayerId: id, goals, position });
+  it("averages other skaters' goals, leaving out me and goalies", () => {
+    const ls = [line("me", 5), line("a", 1), line("b", 3), line("g", 9, "goalie")];
+    expect(nightSeries(groupGameNights([game]), 12, { lines: ls, playerId: "me" })[0]).toMatchObject({ myGoals: 5, teammateAvg: 2 });
+  });
+  it("rounds to one decimal", () => {
+    const ls = [line("me", 0), line("a", 1), line("b", 0), line("c", 0)];
+    expect(nightSeries(groupGameNights([game]), 12, { lines: ls, playerId: "me" })[0].teammateAvg).toBe(0.3);
   });
 });
 
