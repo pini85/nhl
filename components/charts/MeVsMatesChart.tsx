@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartFrame, ChartTooltip } from "@/components/charts/ChartFrame";
-import { AXIS, GRID, MATES, ME } from "@/components/charts/palette";
+import { AXIS, COMPARE, GRID, ME } from "@/components/charts/palette";
 import { Chips } from "@/components/club/Leaders";
 import type { MateGroup, NightPoint, StatKey, StatLine, Teammate } from "@/lib/stats/trends";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ const GROUPS: { key: MateGroup; label: string }[] = [
 
 type NightRow = { id: string; name: string; you: boolean; stats: StatLine };
 
-/** The picked player's goals, assists or points per night against one teammate, plus who played the selected night. */
+/** The picked player's goals, assists or points per night against up to three teammates, plus who played the selected night. */
 export function MeVsMatesChart({
   data,
   teammates,
@@ -37,7 +37,8 @@ export function MeVsMatesChart({
 }) {
   const [stat, setStat] = useState<StatKey>("goals");
   const [group, setGroup] = useState<MateGroup>(myRole);
-  const [pick, setPick] = useState<string | null>(null);
+  // One slot per comparison line, so a player keeps their color while others come and go. Null = not chosen yet.
+  const [slots, setSlots] = useState<(string | null)[] | null>(null);
   const [nightKey, setNightKey] = useState<string | undefined>(data.at(-1)?.key);
   if (!data.some((d) => d.me)) return null;
 
@@ -53,17 +54,28 @@ export function MeVsMatesChart({
     .sort(byStat);
   const list = (night.me ? [...mates, { id: "", name: myName, you: true, stats: night.me }] : mates).sort(byStat);
 
-  // The comparison line: the teammate you tapped (stays picked across nights), else that night's top teammate.
-  const compareId = pick && nameOf.has(pick) ? pick : mates[0]?.id;
-  const compareName = compareId ? (nameOf.get(compareId) ?? compareId) : null;
+  // Comparison lines: the teammates you tapped (they stay across nights), else that night's top teammate.
+  const current = (slots ?? [mates[0]?.id ?? null, null, null]).map((id) => (id && nameOf.has(id) ? id : null));
+  const compared = current.flatMap((id, slot) => (id ? [{ id, slot, name: nameOf.get(id)!, ...COMPARE[slot] }] : []));
+  const slotOf = (id: string) => current.indexOf(id);
+  const toggle = (id: string) => {
+    const next = [...current];
+    const at = next.indexOf(id);
+    if (at >= 0) next[at] = null;
+    else {
+      const free = next.indexOf(null);
+      next[free >= 0 ? free : 0] = id; // all three taken: replace the first
+    }
+    setSlots(next);
+  };
 
   const rows = data.map((d) => ({
     key: d.key,
     label: d.label,
     boxScore: d.boxScore,
     mine: d.me ? d.me[stat] : null,
-    other: compareId ? (d.others?.[compareId]?.[stat] ?? null) : null,
-  }));
+    ...Object.fromEntries(compared.map((c) => [`c${c.slot}`, d.others?.[c.id]?.[stat] ?? null])),
+  })) as { key: string; label: string; boxScore?: boolean; mine: number | null; [slot: string]: unknown }[];
   type Row = (typeof rows)[number];
   const short = (label: string) => label.split(" ").slice(1).join(" "); // "Thu Oct 22" → "Oct 22"
   const missing = (r: Row) => (r.boxScore === false ? "No box score" : "Didn't play");
@@ -71,11 +83,11 @@ export function MeVsMatesChart({
   return (
     <ChartFrame
       title="You vs teammates"
-      label={`Your ${word} per game night${compareName ? ` against ${compareName}` : ""}`}
-      legend={[{ name: `Your ${word}`, color: ME }, ...(compareName ? [{ name: compareName, color: MATES }] : [])]}
+      label={`Your ${word} per game night${compared.length ? ` against ${compared.map((c) => c.name).join(", ")}` : ""}`}
+      legend={[{ name: `Your ${word}`, color: ME }, ...compared.map((c) => ({ name: c.name, color: c.color, dashed: c.dashed }))]}
       table={{
-        head: ["Night", `You (${word})`, ...(compareName ? [compareName] : [])],
-        rows: [...rows].reverse().map((r) => [r.label, r.mine ?? "–", ...(compareName ? [r.other ?? "–"] : [])]),
+        head: ["Night", `You (${word})`, ...compared.map((c) => c.name)],
+        rows: [...rows].reverse().map((r) => [r.label, r.mine ?? "–", ...compared.map((c) => (r[`c${c.slot}`] as number | null) ?? "–")]),
       }}
     >
       <div className="mt-1 mb-2 flex flex-col gap-1.5">
@@ -121,24 +133,29 @@ export function MeVsMatesChart({
                     title={r.label}
                     rows={[
                       { name: `Your ${word}`, value: r.mine == null ? missing(r) : String(r.mine), color: ME },
-                      ...(compareName ? [{ name: compareName, value: r.other == null ? missing(r) : String(r.other), color: MATES }] : []),
+                      ...compared.map((c) => {
+                        const v = r[`c${c.slot}`] as number | null;
+                        return { name: c.name, value: v == null ? missing(r) : String(v), color: c.color };
+                      }),
                     ]}
                   />
                 );
               }}
             />
-            {compareName && (
+            {compared.map((c) => (
               <Line
-                dataKey="other"
-                name={compareName}
+                key={c.slot}
+                dataKey={`c${c.slot}`}
+                name={c.name}
                 type="linear"
-                stroke={MATES}
+                stroke={c.color}
                 strokeWidth={2}
-                dot={{ r: 3, fill: MATES, stroke: SURFACE, strokeWidth: 2 }}
-                activeDot={{ r: 4, fill: MATES, stroke: SURFACE, strokeWidth: 2 }}
+                strokeDasharray={c.dashed ? "5 4" : undefined}
+                dot={{ r: 3, fill: c.color, stroke: SURFACE, strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: c.color, stroke: SURFACE, strokeWidth: 2 }}
                 isAnimationActive={false}
               />
-            )}
+            ))}
             <Line
               dataKey="mine"
               name={`Your ${word}`}
@@ -155,7 +172,7 @@ export function MeVsMatesChart({
 
       <div className="mt-3 border-t border-[var(--card-border)] pt-2">
         <p className="mb-1 text-[10px] text-[var(--muted-fg)]">
-          {night.label} · {night.boxScore === false ? "no box score" : `${list.length} played`} · tap a night to change, a player to compare
+          {night.label} · {night.boxScore === false ? "no box score" : `${list.length} played`} · tap a night or up to 3 players
         </p>
         {list.length > 0 && (
           <table className="tabular w-full text-xs">
@@ -171,18 +188,19 @@ export function MeVsMatesChart({
             </thead>
             <tbody>
               {list.map((p) => {
-                const comparing = !p.you && p.id === compareId;
+                const slot = p.you ? -1 : slotOf(p.id);
+                const comparing = slot >= 0;
                 return (
                   <tr
                     key={p.id || "you"}
-                    onClick={p.you ? undefined : () => setPick(p.id)}
+                    onClick={p.you ? undefined : () => toggle(p.id)}
                     className={cn(!p.you && "cursor-pointer", (p.you || comparing) && "bg-white/[0.05]")}
                   >
                     <td className="py-1.5 pl-1">
                       <span className="flex items-center gap-1.5">
                         <span
                           className="inline-block size-2 rounded-full"
-                          style={{ background: p.you ? ME : comparing ? MATES : "transparent" }}
+                          style={{ background: p.you ? ME : comparing ? COMPARE[slot].color : "transparent" }}
                           aria-hidden
                         />
                         {p.you ? (
