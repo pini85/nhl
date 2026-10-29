@@ -22,6 +22,17 @@ describe("nightSeries", () => {
     expect(s).toHaveLength(12);
     expect(s.at(-1)?.key).toBe("2026-09-29");
   });
+  it("adds the picked player's goals per night, null when they sat out", () => {
+    const nights = groupGameNights(games);
+    const mine = nightSeries(nights, 12, { lines, playerId: "828785353" }).map((p) => p.myGoals);
+    const expected = [...nights].reverse().map((n) => {
+      const own = lines.filter((l) => l.eaPlayerId === "828785353" && n.games.some((g) => g.matchId === l.matchId));
+      return own.length ? own.reduce((s, l) => s + l.goals, 0) : null;
+    });
+    expect(mine).toEqual(expected);
+    expect(nightSeries(nights, 12, { lines, playerId: "nobody" }).every((p) => p.myGoals === null)).toBe(true);
+    expect(nightSeries(nights).every((p) => p.myGoals === undefined)).toBe(true);
+  });
 });
 
 describe("playerForm", () => {

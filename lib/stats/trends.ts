@@ -1,13 +1,31 @@
 import type { GameNight } from "@/lib/stats/nights";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
-export type NightPoint = { key: string; label: string; goalsFor: number; goalsAgainst: number; wins: number; losses: number };
+export type NightPoint = {
+  key: string;
+  label: string;
+  goalsFor: number;
+  goalsAgainst: number;
+  wins: number;
+  losses: number;
+  /** The viewer's own goals that night; null when they didn't play. Absent when no player is picked. */
+  myGoals?: number | null;
+};
 
 // Oldest → newest, limited to the most recent `max` nights.
-export function nightSeries(nights: GameNight[], max = 12): NightPoint[] {
+// Pass `mine` to add the picked player's goals per night.
+export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: PlayerLine[]; playerId: string }): NightPoint[] {
+  const myLines = mine ? new Map(mine.lines.filter((l) => l.eaPlayerId === mine.playerId).map((l) => [l.matchId, l])) : null;
   return nights
     .slice(0, max)
-    .map((n) => ({ key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses }))
+    .map((n) => {
+      const point: NightPoint = { key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses };
+      if (myLines) {
+        const played = n.games.map((g) => myLines.get(g.matchId)).filter((l) => l !== undefined);
+        point.myGoals = played.length ? played.reduce((s, l) => s + l.goals, 0) : null;
+      }
+      return point;
+    })
     .reverse();
 }
 
