@@ -274,24 +274,55 @@ export type CommonOpponents = {
   theirTotal: Record2;
   ourTotal: Record2;
   clubs: number;
+  // One row per shared club, in the order they first appear in their games (newest first).
+  rows: CommonRow[];
+};
+
+export type CommonRow = {
+  clubId: number;
+  name: string | null;
+  them: { gp: number; goalsFor: number; goalsAgainst: number; diffPerGame: number };
+  us: { gp: number; goalsFor: number; goalsAgainst: number; diffPerGame: number };
 };
 
 // Clubs that show up in both their recent games and our history. Games against us don't count.
-export function commonOpponents(theirGames: { opponentClubId: number; outcome: "W" | "L" }[], ourH2H: H2H[], ourClubId: number): CommonOpponents {
+export function commonOpponents(
+  theirGames: { opponentClubId: number; opponentName?: string | null; outcome: "W" | "L"; goalsFor: number; goalsAgainst: number }[],
+  ourH2H: H2H[],
+  ourClubId: number,
+): CommonOpponents {
   const ours = new Map<number, Record2>();
-  for (const h of ourH2H) if (h.clubId !== ourClubId) ours.set(h.clubId, { wins: h.wins, losses: h.losses });
+  const ourRows = new Map<number, H2H>();
+  for (const h of ourH2H) {
+    if (h.clubId === ourClubId) continue;
+    ours.set(h.clubId, { wins: h.wins, losses: h.losses });
+    ourRows.set(h.clubId, h);
+  }
   const theirTotal = { wins: 0, losses: 0 };
   const seen = new Set<number>();
+  const byClub = new Map<number, CommonRow>();
   for (const g of theirGames) {
     if (g.opponentClubId === ourClubId || !ours.has(g.opponentClubId)) continue;
     if (g.outcome === "W") theirTotal.wins++;
     else theirTotal.losses++;
     seen.add(g.opponentClubId);
+    const h = ourRows.get(g.opponentClubId)!;
+    const row = byClub.get(g.opponentClubId) ?? {
+      clubId: g.opponentClubId,
+      name: h.name ?? g.opponentName ?? null,
+      them: { gp: 0, goalsFor: 0, goalsAgainst: 0, diffPerGame: 0 },
+      us: { gp: h.gp, goalsFor: h.goalsFor, goalsAgainst: h.goalsAgainst, diffPerGame: h.goalDiff / h.gp },
+    };
+    row.them.gp++;
+    row.them.goalsFor += g.goalsFor;
+    row.them.goalsAgainst += g.goalsAgainst;
+    row.them.diffPerGame = (row.them.goalsFor - row.them.goalsAgainst) / row.them.gp;
+    byClub.set(g.opponentClubId, row);
   }
   const ourTotal = { wins: 0, losses: 0 };
   for (const id of seen) {
     ourTotal.wins += ours.get(id)!.wins;
     ourTotal.losses += ours.get(id)!.losses;
   }
-  return { ours, theirTotal, ourTotal, clubs: seen.size };
+  return { ours, theirTotal, ourTotal, clubs: seen.size, rows: [...byClub.values()] };
 }

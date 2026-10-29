@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { CommonOpponentsChart } from "@/components/charts/CommonOpponentsChart";
 import { Crest } from "@/components/club/Crest";
 import { LocalTime } from "@/components/club/LocalTime";
 import { RelativeTime } from "@/components/club/RelativeTime";
@@ -69,6 +70,11 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const recent = theirRecentGames(snapshot, clubRows, scouted, ourH2H, new Set(games.map((g) => g.matchId)));
   const recentWins = recent.filter((g) => g.outcome === "W").length;
   const common = commonOpponents(recent, ourH2H, CLUB_ID);
+  const commonChart = common.rows.map((r) => ({
+    name: recent.find((g) => g.opponentClubId === r.clubId)?.opponentName ?? r.name ?? `Club ${r.clubId}`,
+    them: r.them,
+    us: r.us,
+  }));
   const form = (snapshot?.seasonResults ?? []).filter(Boolean).slice().reverse();
 
   return (
@@ -181,6 +187,8 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
           </ul>
         </Section>
       )}
+
+      <CommonOpponentsChart opponentName={name} data={commonChart} />
 
       <Section title="Head-to-head">
         {h2h ? (

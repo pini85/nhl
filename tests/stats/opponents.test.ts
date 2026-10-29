@@ -195,11 +195,11 @@ describe("commonOpponents", () => {
   it("compares their results with ours against the same clubs", () => {
     const c = commonOpponents(
       [
-        { opponentClubId: 10, outcome: "L" },
-        { opponentClubId: 10, outcome: "W" },
-        { opponentClubId: 20, outcome: "W" },
-        { opponentClubId: 30, outcome: "W" },
-        { opponentClubId: 56507, outcome: "W" },
+        { opponentClubId: 10, outcome: "L", goalsFor: 1, goalsAgainst: 4 },
+        { opponentClubId: 10, outcome: "W", goalsFor: 3, goalsAgainst: 2 },
+        { opponentClubId: 20, outcome: "W", goalsFor: 2, goalsAgainst: 1 },
+        { opponentClubId: 30, outcome: "W", goalsFor: 9, goalsAgainst: 0 },
+        { opponentClubId: 56507, outcome: "W", goalsFor: 5, goalsAgainst: 0 },
       ],
       h2h,
       56507,
@@ -209,10 +209,17 @@ describe("commonOpponents", () => {
     expect(c.theirTotal).toEqual({ wins: 2, losses: 1 });
     expect(c.ourTotal).toEqual({ wins: 2, losses: 2 });
     expect(c.clubs).toBe(2);
+    expect(c.rows.map((r) => r.clubId)).toEqual([10, 20]);
+    // Them vs 10: 4-6 over 2 games = -1/game. Us vs 10: 8-3 over 3 games = +5/3 per game.
+    expect(c.rows[0].them).toEqual({ gp: 2, goalsFor: 4, goalsAgainst: 6, diffPerGame: -1 });
+    expect(c.rows[0].us).toMatchObject({ gp: 3, goalsFor: 8, goalsAgainst: 3 });
+    expect(c.rows[0].us.diffPerGame).toBeCloseTo(5 / 3, 5);
+    expect(c.rows[1].us.diffPerGame).toBe(-5);
   });
   it("empty when there is no overlap", () => {
-    const c = commonOpponents([{ opponentClubId: 99, outcome: "W" }], h2h, 56507);
+    const c = commonOpponents([{ opponentClubId: 99, outcome: "W", goalsFor: 1, goalsAgainst: 0 }], h2h, 56507);
     expect(c.clubs).toBe(0);
     expect(c.theirTotal).toEqual({ wins: 0, losses: 0 });
+    expect(c.rows).toEqual([]);
   });
 });
