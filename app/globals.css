@@ -129,3 +129,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}
+
+/* Recharts makes charts focusable; tapping one on a phone drew a thick focus box. The tooltip already shows focus. */
+.recharts-wrapper, .recharts-wrapper *:focus, .recharts-surface:focus { outline: none; }
