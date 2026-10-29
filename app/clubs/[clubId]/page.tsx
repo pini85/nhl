@@ -11,9 +11,18 @@ import { StatTile } from "@/components/club/StatTile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CLUB_ID } from "@/lib/config";
 import { getGames } from "@/lib/data/club";
-import { getClubRows, getOpponentLines, getOpponentSnapshot } from "@/lib/data/opponents";
+import { getClubRows, getOpponentLines, getOpponentSnapshot, getScoutedClubs } from "@/lib/data/opponents";
 import { getDivision } from "@/lib/divisions";
-import { clubTotals, dangerousPlayers, headToHead, ourAverages, playStyle, rosterStats } from "@/lib/stats/opponents";
+import {
+  clubTotals,
+  dangerousPlayers,
+  headToHead,
+  ourAverages,
+  playStyle,
+  recentFromSummary,
+  rosterLeaders,
+  rosterStats,
+} from "@/lib/stats/opponents";
 
 const POS: Record<string, string> = { center: "C", leftWing: "LW", rightWing: "RW", defenseMen: "D", goalie: "G" };
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -33,11 +42,12 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const clubId = Number((await params).clubId);
   if (!Number.isInteger(clubId) || clubId <= 0 || clubId === CLUB_ID) notFound();
 
-  const [snapshot, games, clubRows, theirLines] = await Promise.all([
+  const [snapshot, games, clubRows, theirLines, scouted] = await Promise.all([
     getOpponentSnapshot(clubId),
     getGames(),
     getClubRows(),
     getOpponentLines(clubId),
+    getScoutedClubs(),
   ]);
   const h2h = headToHead(games.filter((g) => g.opponentClubId === clubId))[0] ?? null;
   if (!snapshot && !h2h) notFound();
@@ -51,6 +61,9 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const styles = profile ? playStyle(profile, ours) : [];
   const totals = snapshot ? clubTotals(snapshot) : null;
   const roster = rosterStats(snapshot?.members ?? null);
+  const leaders = rosterLeaders(snapshot?.members ?? null);
+  const recent = theirRecentGames(snapshot, clubRows, scouted, new Set(games.map((g) => g.matchId)));
+  const recentWins = recent.filter((g) => g.outcome === "W").length;
   const form = (snapshot?.seasonResults ?? []).filter(Boolean).slice().reverse();
 
   return (
@@ -92,6 +105,44 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
               .filter(Boolean)
               .join(" · ")}
           </p>
+        </Section>
+      )}
+
+      {recent.length > 0 && (
+        <Section title={`Their last ${recent.length} games · ${recentWins}-${recent.length - recentWins}`}>
+          <ul className="divide-y divide-white/[0.05]">
+            {recent.map((g) => {
+              const row = (
+                <>
+                  <span className="w-11 shrink-0">
+                    <ResultPill outcome={g.outcome} overtime={g.overtime} dnf={g.dnf} />
+                  </span>
+                  <span className="tabular w-10 shrink-0 font-bold">
+                    {g.goalsFor}-{g.goalsAgainst}
+                  </span>
+                  <span className={`min-w-0 flex-1 truncate ${g.opponentClubId === CLUB_ID ? "font-bold text-[var(--accent-blue)]" : ""}`}>
+                    vs {g.opponentName}
+                  </span>
+                  {g.playedAt && (
+                    <span className="shrink-0 text-xs text-[var(--muted-fg)]">
+                      <LocalTime iso={g.playedAt} format="date" />
+                    </span>
+                  )}
+                </>
+              );
+              return (
+                <li key={g.key}>
+                  {g.href ? (
+                    <Link href={g.href} className="flex items-center gap-2.5 py-2 text-sm">
+                      {row}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2.5 py-2 text-sm">{row}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </Section>
       )}
 
@@ -159,14 +210,11 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
 
       {profile && (
         <Section title={`Lineup · last ${profile.matches} games`}>
-          <div className="mb-2 grid grid-cols-2 gap-1.5">
-            <StatTile label="Goals/GP" value={profile.avg.goalsFor.toFixed(1)} />
-            <StatTile label="Against/GP" value={profile.avg.goalsAgainst.toFixed(1)} />
-          </div>
           <div className="flex flex-wrap gap-1.5">
             {profile.lineup.slice(0, 8).map((p) => (
               <span key={p.name} className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs">
-                <b className="text-[var(--accent-blue)]">{POS[p.position] ?? p.position}</b> {p.name}
+                <b className="text-[var(--accent-blue)]">{POS[p.position] ?? p.position}</b> {p.name}{" "}
+                <span className="text-[var(--muted-fg)]">×{p.games}</span>
               </span>
             ))}
           </div>
@@ -179,7 +227,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
       )}
 
       {profile && (
-        <Section title="Play style vs us">
+        <Section title={`Play style vs us · last ${profile.matches} games`}>
           {styles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {styles.map((s) => (
@@ -198,13 +246,20 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
               </tr>
             </thead>
             <tbody>
-              {[
-                ["Shots", profile.avg.shots.toFixed(1), ours.shots.toFixed(1)],
-                ["Hits", profile.avg.hits.toFixed(1), ours.hits.toFixed(1)],
-                ["PIM", profile.avg.pim.toFixed(1), ours.pim.toFixed(1)],
-                ["Faceoffs", pct(profile.avg.faceoffPct), pct(ours.faceoffPct)],
-                ["Passing", pct(profile.avg.passPct), pct(ours.passPct)],
-              ].map(([label, t, u]) => (
+              {(
+                [
+                  ["Goals for", profile.avg.goalsFor.toFixed(1), ours.goalsFor.toFixed(1)],
+                  ["Goals against", profile.avg.goalsAgainst.toFixed(1), ours.goalsAgainst.toFixed(1)],
+                  ["Shots", profile.avg.shots.toFixed(1), ours.shots.toFixed(1)],
+                  profile.avg.shotsAgainst !== undefined && ["Shots against", profile.avg.shotsAgainst.toFixed(1), ours.shotsAgainst.toFixed(1)],
+                  profile.avg.shootingPct !== undefined && ["Shooting", pct(profile.avg.shootingPct), pct(ours.shootingPct)],
+                  profile.avg.ppPct !== undefined && ["Power play", pct(profile.avg.ppPct), pct(ours.ppPct)],
+                  ["Hits", profile.avg.hits.toFixed(1), ours.hits.toFixed(1)],
+                  ["PIM", profile.avg.pim.toFixed(1), ours.pim.toFixed(1)],
+                  ["Faceoffs", pct(profile.avg.faceoffPct), pct(ours.faceoffPct)],
+                  ["Passing", pct(profile.avg.passPct), pct(ours.passPct)],
+                ].filter(Boolean) as string[][]
+              ).map(([label, t, u]) => (
                 <tr key={label} className="border-t border-white/[0.05]">
                   <td className="py-1.5 text-xs text-[var(--muted-fg)]">{label}</td>
                   <td className="py-1.5 text-right font-bold">{t}</td>
@@ -213,6 +268,20 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
               ))}
             </tbody>
           </table>
+        </Section>
+      )}
+
+      {leaders.length > 0 && (
+        <Section title="Team leaders · NHL 27 career">
+          <div className="grid grid-cols-3 gap-1.5">
+            {leaders.map((l) => (
+              <div key={l.label} className="min-w-0 rounded-xl bg-white/[0.04] px-2 py-2 text-center">
+                <div className="tabular text-lg font-black">{l.value}</div>
+                <div className="truncate text-[11px]">{l.name}</div>
+                <div className="text-[10px] tracking-wide text-[var(--muted-fg)] uppercase">{l.label}</div>
+              </div>
+            ))}
+          </div>
         </Section>
       )}
 
@@ -233,9 +302,11 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
             <tbody>
               {roster.skaters.map((m) => (
                 <tr key={m.name} className="border-t border-white/[0.05]">
-                  <td className="max-w-0 truncate py-1.5">
-                    <span className="mr-1 text-[10px] text-[var(--muted-fg)]">{POS[m.position] ?? ""}</span>
-                    {m.name}
+                  <td className="py-1.5">
+                    <span className="flex max-w-[9.5rem] items-baseline">
+                      <span className="mr-1 shrink-0 text-[10px] text-[var(--muted-fg)]">{POS[m.position] ?? ""}</span>
+                      <span className="truncate">{m.name}</span>
+                    </span>
                   </td>
                   <td className="text-right">{m.gp}</td>
                   <td className="text-right">{m.goals}</td>
@@ -266,7 +337,9 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
             <tbody>
               {roster.goalies.map((g) => (
                 <tr key={g.name} className="border-t border-white/[0.05]">
-                  <td className="max-w-0 truncate py-1.5">{g.name}</td>
+                  <td className="py-1.5">
+                    <span className="block max-w-[9.5rem] truncate">{g.name}</span>
+                  </td>
                   <td className="text-right">{g.gp}</td>
                   <td className="text-right">{g.wins}</td>
                   <td className="text-right font-bold">{savePct(g.savePct)}</td>
@@ -280,4 +353,61 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
       )}
     </>
   );
+}
+
+type RecentRow = {
+  key: string;
+  opponentClubId: number;
+  opponentName: string;
+  goalsFor: number;
+  goalsAgainst: number;
+  outcome: "W" | "L";
+  overtime: boolean;
+  dnf: string;
+  playedAt: string | null;
+  href: string | null;
+};
+
+// Their own last games against anyone. Newer snapshots keep full games; older ones only EA's last-10 summary.
+function theirRecentGames(
+  snapshot: Awaited<ReturnType<typeof getOpponentSnapshot>>,
+  clubRows: { clubId: number; name: string }[],
+  scouted: { clubId: number; name: string }[],
+  ourMatchIds: Set<string>,
+): RecentRow[] {
+  if (!snapshot) return [];
+  const names = new Map<number, string>();
+  for (const r of clubRows) if (r.name) names.set(r.clubId, r.name);
+  for (const c of scouted) names.set(c.clubId, c.name);
+  const label = (id: number, fromGame: string | null) => (id === CLUB_ID ? "Us" : (fromGame ?? names.get(id) ?? `Club ${id}`));
+  const link = (id: number, matchId: string | null) =>
+    matchId && ourMatchIds.has(matchId) ? `/games/${matchId}` : id !== CLUB_ID && names.has(id) ? `/clubs/${id}` : null;
+
+  const full = snapshot.profile?.recentGames;
+  if (full?.length) {
+    return full.map((g) => ({
+      key: g.matchId,
+      opponentClubId: g.opponentClubId,
+      opponentName: label(g.opponentClubId, g.opponentName),
+      goalsFor: g.goalsFor,
+      goalsAgainst: g.goalsAgainst,
+      outcome: g.outcome,
+      overtime: g.overtime,
+      dnf: g.dnf,
+      playedAt: g.playedAt,
+      href: link(g.opponentClubId, g.matchId),
+    }));
+  }
+  return recentFromSummary(snapshot.raw).map((r) => ({
+    key: `s${r.index}`,
+    opponentClubId: r.opponentClubId,
+    opponentName: label(r.opponentClubId, null),
+    goalsFor: r.goalsFor,
+    goalsAgainst: r.goalsAgainst,
+    outcome: r.outcome,
+    overtime: false,
+    dnf: "none",
+    playedAt: null,
+    href: link(r.opponentClubId, null),
+  }));
 }

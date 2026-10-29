@@ -18,6 +18,13 @@ describe("buildProfile", () => {
     expect(p.lineup).toHaveLength(names.size);
     expect(p.avg.shots).toBeGreaterThan(0);
     expect(p.usualHourCet).not.toBeNull();
+    expect(p.recentGames).toHaveLength(ms.length);
+    const g = p.recentGames![0];
+    expect(g.opponentClubId).not.toBe(1616);
+    expect(g.opponentName).toBeTruthy();
+    expect(["W", "L"]).toContain(g.outcome);
+    expect(p.recentGames!.map((x) => x.playedAt)).toEqual([...p.recentGames!.map((x) => x.playedAt)].sort().reverse());
+    expect(p.avg.shotsAgainst).toBeGreaterThan(0);
   });
 
   it("returns null without matches", () => expect(buildProfile([], 1)).toBeNull());

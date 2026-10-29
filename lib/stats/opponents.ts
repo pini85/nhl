@@ -1,4 +1,5 @@
-import { type MatchClubRow, type RosterMember, toInt, toNum } from "@/lib/ea/normalize";
+import { type MatchClubRow, parseRecentResults, type RecentResult, type RosterMember, toInt, toNum } from "@/lib/ea/normalize";
+import type { EaSeasonalStats } from "@/lib/ea/schemas";
 import type { OpponentProfile } from "@/lib/opponents/profile";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
@@ -99,21 +100,43 @@ export function dangerousPlayers(
     .slice(0, 5);
 }
 
-export type StyleAverages = { shots: number; hits: number; pim: number; faceoffPct: number; passPct: number };
+export type StyleAverages = {
+  shots: number;
+  hits: number;
+  pim: number;
+  faceoffPct: number;
+  passPct: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  shotsAgainst: number;
+  ppPct: number;
+  shootingPct: number;
+};
 
 export function ourAverages(clubs: MatchClubRow[], ourClubId: number): StyleAverages {
   const ours = clubs.filter((c) => c.clubId === ourClubId);
-  if (!ours.length) return { shots: 0, hits: 0, pim: 0, faceoffPct: 0, passPct: 0 };
+  if (!ours.length) {
+    return { shots: 0, hits: 0, pim: 0, faceoffPct: 0, passPct: 0, goalsFor: 0, goalsAgainst: 0, shotsAgainst: 0, ppPct: 0, shootingPct: 0 };
+  }
+  const theirs = new Map(clubs.filter((c) => c.clubId !== ourClubId).map((c) => [c.matchId, c]));
   const sum = (f: (c: MatchClubRow) => number) => ours.reduce((s, c) => s + f(c), 0);
   const fow = sum((c) => c.faceoffWins);
   const fol = sum((c) => c.faceoffLosses);
   const passa = sum((c) => c.passAttempts);
+  const shots = sum((c) => c.shots);
+  const goals = sum((c) => c.score);
+  const ppo = sum((c) => c.ppo);
   return {
-    shots: sum((c) => c.shots) / ours.length,
+    shots: shots / ours.length,
     hits: sum((c) => c.hits) / ours.length,
     pim: sum((c) => c.pim) / ours.length,
     faceoffPct: fow + fol ? fow / (fow + fol) : 0,
     passPct: passa ? sum((c) => c.passCompletions) / passa : 0,
+    goalsFor: goals / ours.length,
+    goalsAgainst: sum((c) => theirs.get(c.matchId)?.score ?? 0) / ours.length,
+    shotsAgainst: sum((c) => theirs.get(c.matchId)?.shots ?? 0) / ours.length,
+    ppPct: ppo ? sum((c) => c.ppg) / ppo : 0,
+    shootingPct: shots ? goals / shots : 0,
   };
 }
 
@@ -149,9 +172,17 @@ export type ClubTotals = {
   rankingPoints: number;
 };
 
+type Bag = Record<string, unknown>;
+
+// Snapshots keep EA's club summary as raw.info = { season, info }; the season half holds the numbers.
+function seasonBag(raw: unknown): Bag {
+  const info = (raw as { info?: Bag } | null)?.info;
+  return (info?.season ?? {}) as Bag;
+}
+
 // A club's all-time numbers from the EA club info we save with every snapshot.
 export function clubTotals(snapshot: { wins: number; losses: number; otl: number; raw: unknown }): ClubTotals | null {
-  const info = ((snapshot.raw as { info?: Record<string, unknown> } | null)?.info ?? {}) as Record<string, unknown>;
+  const info = seasonBag(snapshot.raw);
   const { wins, losses, otl } = snapshot;
   const gp = wins + losses + otl || toInt(info.totalGames);
   if (!gp) return null;
@@ -174,6 +205,32 @@ export function clubTotals(snapshot: { wins: number; losses: number; otl: number
     relegations: toInt(info.relegations),
     rankingPoints: toInt(info.rankingPoints),
   };
+}
+
+// Their last games from EA's club summary, for snapshots taken before we kept full games.
+export function recentFromSummary(raw: unknown): RecentResult[] {
+  return parseRecentResults(seasonBag(raw) as EaSeasonalStats);
+}
+
+export type Leader = { label: string; name: string; value: string };
+
+// Who leads the roster in each category (career, all clubs). Skips categories nobody has.
+export function rosterLeaders(members: RosterMember[] | null): Leader[] {
+  const skaters = (members ?? []).filter((m) => m.gp > 0);
+  const best = (label: string, score: (m: RosterMember) => number, show: (m: RosterMember) => string, eligible?: (m: RosterMember) => boolean) => {
+    const top = (eligible ? skaters.filter(eligible) : skaters).sort((a, b) => score(b) - score(a))[0];
+    return top && score(top) > 0 ? { label, name: top.name, value: show(top) } : null;
+  };
+  const enough = (m: RosterMember) => m.gp >= 10;
+  const shots = (m: RosterMember) => toInt(m.raw.skshots);
+  return [
+    best("Goals", (m) => m.goals, (m) => String(m.goals)),
+    best("Assists", (m) => m.assists, (m) => String(m.assists)),
+    best("Pts/GP", (m) => m.points / m.gp, (m) => (m.points / m.gp).toFixed(2), enough),
+    best("Shooting", (m) => (shots(m) >= 20 ? m.goals / shots(m) : 0), (m) => `${Math.round((m.goals / shots(m)) * 100)}%`, enough),
+    best("Hits", (m) => toInt(m.raw.skhits), (m) => String(toInt(m.raw.skhits))),
+    best("+/-", (m) => m.plusMinus, (m) => `+${m.plusMinus}`),
+  ].filter((l): l is Leader => l !== null);
 }
 
 export type SkaterRow = { name: string; position: string; gp: number; goals: number; assists: number; points: number; plusMinus: number; pointsPerGame: number };

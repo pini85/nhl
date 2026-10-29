@@ -1,9 +1,35 @@
-import { toInt, toNum } from "@/lib/ea/normalize";
+import { type Dnf, decodeResult, type Outcome, toInt, toNum } from "@/lib/ea/normalize";
 import type { EaMatch } from "@/lib/ea/schemas";
+
+export type RecentClubGame = {
+  matchId: string;
+  playedAt: string;
+  opponentClubId: number;
+  opponentName: string | null;
+  goalsFor: number;
+  goalsAgainst: number;
+  outcome: Outcome;
+  overtime: boolean;
+  dnf: Dnf;
+};
 
 export type OpponentProfile = {
   matches: number;
-  avg: { shots: number; hits: number; pim: number; faceoffPct: number; passPct: number; goalsFor: number; goalsAgainst: number };
+  avg: {
+    shots: number;
+    hits: number;
+    pim: number;
+    faceoffPct: number;
+    passPct: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    // Added later: older snapshots don't have these.
+    shotsAgainst?: number;
+    ppPct?: number;
+    shootingPct?: number;
+  };
+  // Newest first. Added later: older snapshots don't have it.
+  recentGames?: RecentClubGame[];
   humanGoalieShare: number;
   lineup: { name: string; position: string; games: number }[];
   platforms: Record<string, number>;
@@ -18,11 +44,13 @@ const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Amsterdam",
 export function buildProfile(matches: EaMatch[], clubId: number): OpponentProfile | null {
   if (!matches.length) return null;
   const key = String(clubId);
+  let shotsAgainst = 0, ppg = 0, ppo = 0;
   let shots = 0, hits = 0, pim = 0, fow = 0, fol = 0, passa = 0, passc = 0, gf = 0, ga = 0, withGoalie = 0;
   let levelSum = 0, levelCount = 0;
   const positions = new Map<string, Map<string, number>>();
   const platforms: Record<string, number> = {};
   const hours = new Map<number, number>();
+  const recentGames: RecentClubGame[] = [];
 
   for (const m of matches) {
     const club = (m.clubs[key] ?? {}) as Bag;
@@ -32,6 +60,22 @@ export function buildProfile(matches: EaMatch[], clubId: number): OpponentProfil
     passc += toInt(club.passc);
     gf += toInt(club.score);
     ga += toInt(club.opponentScore);
+    ppg += toInt(club.ppg);
+    ppo += toInt(club.ppo);
+    const oppKey = String(club.opponentClubId ?? Object.keys(m.clubs).find((k) => k !== key) ?? "");
+    const opp = (m.clubs[oppKey] ?? {}) as Bag;
+    shotsAgainst += toInt(opp.shots);
+    const goalsFor = toInt(club.score);
+    const goalsAgainst = toInt(club.opponentScore);
+    recentGames.push({
+      matchId: m.matchId,
+      playedAt: new Date(m.timestamp * 1000).toISOString(),
+      opponentClubId: toInt(oppKey),
+      opponentName: ((opp.details ?? {}) as Bag).name ? String(((opp.details ?? {}) as Bag).name) : null,
+      goalsFor,
+      goalsAgainst,
+      ...decodeResult(String(club.result ?? ""), goalsFor, goalsAgainst),
+    });
     hits += toInt(agg.skhits);
     pim += toInt(agg.skpim);
     fow += toInt(agg.skfow);
@@ -74,7 +118,11 @@ export function buildProfile(matches: EaMatch[], clubId: number): OpponentProfil
       passPct: passa ? passc / passa : 0,
       goalsFor: gf / n,
       goalsAgainst: ga / n,
+      shotsAgainst: shotsAgainst / n,
+      ppPct: ppo ? ppg / ppo : 0,
+      shootingPct: shots ? gf / shots : 0,
     },
+    recentGames: recentGames.sort((a, b) => b.playedAt.localeCompare(a.playedAt)),
     humanGoalieShare: withGoalie / n,
     lineup,
     platforms,

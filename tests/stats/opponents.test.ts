@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { toRosterMember } from "@/lib/ea/normalize";
+import { toClubSummary } from "@/lib/ea/api";
 import type { OpponentProfile } from "@/lib/opponents/profile";
-import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, clubTotals, rosterStats } from "@/lib/stats/opponents";
+import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, clubTotals, recentFromSummary, rosterLeaders, rosterStats } from "@/lib/stats/opponents";
 import type { GameLite } from "@/lib/stats/types";
 import { games, lines, normalized } from "../helpers/club-fixtures";
 
@@ -81,14 +82,44 @@ describe("dangerousPlayers", () => {
 });
 
 describe("clubTotals", () => {
-  const info = JSON.parse(readFileSync("tests/fixtures/ea/2026-10-23/clubs-search.json", "utf8"))["56507"];
+  const entry = JSON.parse(readFileSync("tests/fixtures/ea/2026-10-23/clubs-search.json", "utf8"))["56507"];
+  // Same shape the collector saves: raw = { info: summary.raw } = { info: { season, info } }.
+  const raw = { info: toClubSummary(56507, entry, entry.clubInfo).raw };
   it("reads games, goals and history from the club info", () => {
-    const t = clubTotals({ wins: 11, losses: 9, otl: 0, raw: { info } })!;
-    expect(t).toMatchObject({ gp: 20, wins: 11, winPct: 0.55, goalsFor: 66, goalsAgainst: 57, goalDiff: 9, seasons: 2, titles: 1, promotions: 2, relegations: 0, rankingPoints: 76 });
+    const t = clubTotals({ wins: 11, losses: 9, otl: 0, raw })!;
+    expect(t).toMatchObject({
+      gp: 20, wins: 11, winPct: 0.55, goalsFor: 66, goalsAgainst: 57, goalDiff: 9,
+      seasons: 2, titles: 1, promotions: 2, relegations: 0, rankingPoints: 76,
+    });
     expect(t.goalsForPerGame).toBeCloseTo(3.3, 5);
   });
-  it("null when the club has no games", () => expect(clubTotals({ wins: 0, losses: 0, otl: 0, raw: { info: {} } })).toBeNull());
+  it("null when the club has no games", () => expect(clubTotals({ wins: 0, losses: 0, otl: 0, raw: {} })).toBeNull());
   it("copes with a missing raw blob", () => expect(clubTotals({ wins: 1, losses: 0, otl: 0, raw: null })).toMatchObject({ gp: 1, goalsFor: 0 }));
+
+  it("lists their last games from the summary, newest first", () => {
+    const r = recentFromSummary(raw);
+    expect(r).toHaveLength(10);
+    expect(r[0]).toMatchObject({ opponentClubId: 1808, goalsFor: 2, goalsAgainst: 4, outcome: "L" });
+    expect(recentFromSummary(null)).toEqual([]);
+  });
+});
+
+describe("rosterLeaders", () => {
+  const members = (
+    JSON.parse(readFileSync("tests/fixtures/ea/2026-10-23/members-stats.json", "utf8")).members as Record<string, unknown>[]
+  ).map(toRosterMember);
+  it("names the top player per category", () => {
+    const l = Object.fromEntries(rosterLeaders(members).map((x) => [x.label, `${x.name} ${x.value}`]));
+    expect(l.Goals).toBe("ThePooker 182");
+    expect(l.Assists).toBe("Popomasta-SMB 169");
+    expect(l.Hits).toBe("Popomasta-SMB 430");
+    expect(l["+/-"]).toBe("mike_v_75 +1");
+  });
+  it("skips categories nobody has", () => {
+    const m = toRosterMember({ name: "x", skgp: "3", skplusmin: "-2" });
+    expect(rosterLeaders([m]).map((x) => x.label)).not.toContain("+/-");
+    expect(rosterLeaders(null)).toEqual([]);
+  });
 });
 
 describe("rosterStats", () => {
@@ -119,7 +150,7 @@ describe("playStyle", () => {
     avgPlayerLevel: 0,
     usualHourCet: null,
   });
-  const ours = { shots: 20, hits: 20, pim: 10, faceoffPct: 0.5, passPct: 0.7 };
+  const ours = { shots: 20, hits: 20, pim: 10, faceoffPct: 0.5, passPct: 0.7, goalsFor: 3, goalsAgainst: 3, shotsAgainst: 20, ppPct: 0.2, shootingPct: 0.15 };
   it("labels physical and disciplined clubs", () => {
     const s = playStyle(profile({ hits: 30, pim: 2 }), ours);
     expect(s).toContain("Very physical");
@@ -143,6 +174,13 @@ describe("ourAverages", () => {
     const ours = clubs.filter((c) => c.clubId === 56507);
     expect(a.shots).toBeCloseTo(ours.reduce((s, c) => s + c.shots, 0) / ours.length, 5);
     expect(a.faceoffPct).toBeGreaterThan(0);
+    expect(a.goalsFor).toBeCloseTo(ours.reduce((s, c) => s + c.score, 0) / ours.length, 5);
+    const against = ours.reduce((s, c) => s + clubs.find((o) => o.matchId === c.matchId && o.clubId !== 56507)!.score, 0);
+    expect(a.goalsAgainst).toBeCloseTo(against / ours.length, 5);
+    expect(a.shotsAgainst).toBeGreaterThan(0);
   });
-  it("zeros without data", () => expect(ourAverages([], 56507)).toEqual({ shots: 0, hits: 0, pim: 0, faceoffPct: 0, passPct: 0 }));
+  it("zeros without data", () =>
+    expect(ourAverages([], 56507)).toEqual({
+      shots: 0, hits: 0, pim: 0, faceoffPct: 0, passPct: 0, goalsFor: 0, goalsAgainst: 0, shotsAgainst: 0, ppPct: 0, shootingPct: 0,
+    }));
 });
