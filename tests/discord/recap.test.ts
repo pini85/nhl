@@ -64,16 +64,9 @@ describe("players in the recap", () => {
   const facts = recapFacts(last, input, "https://site.test")!;
 
   it("each star and leader gets their own row", () => {
-    const rows = recapMessage(facts, null, {}).split("\n");
+    const rows = recapMessage(facts).split("\n");
     expect(rows.filter((r) => /^⭐+ /.test(r))).toHaveLength(3);
     for (const label of ["💥 Hits:", "🎯 Shots:", "➕ Plus/minus:", "🧤 Save %:"]) expect(rows.some((r) => r.startsWith(label))).toBe(true);
-  });
-
-  it("known players show as their Discord handle, others by gamertag", () => {
-    const text = recapMessage(facts, null, { PUCK_CONTROL: "111" });
-    expect(text).toContain("**🏆 Night MVP**\n<@111> · ");
-    expect(text).not.toContain("puck\\_control ·");
-    expect(text).toContain("ThePooker");
   });
 
   it("underscores in gamertags don't turn into italics", () => {

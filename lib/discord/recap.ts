@@ -1,5 +1,4 @@
 // The Discord "last night" recap: which night to post, and the message text. Pure, so it is easy to test.
-import { DISCORD_IDS } from "@/lib/discord/members";
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { gameAwards } from "@/lib/stats/awards";
 import { momentText, moments, type MomentInput } from "@/lib/stats/moments";
@@ -43,15 +42,6 @@ export type RecapFacts = {
 
 /** Escapes Discord markdown, so gamertags like puck_control don't turn into italics. */
 export const escapeMd = (text: string) => text.replace(/([\\*_~`|>])/g, "\\$1");
-
-/** A player as their Discord @handle when we know their user ID, else their (escaped) gamertag. */
-export function mentioner(ids: Record<string, string> = DISCORD_IDS) {
-  const byName = new Map(Object.entries(ids).map(([name, id]) => [name.toLowerCase(), id]));
-  return (name: string) => {
-    const id = byName.get(name.toLowerCase());
-    return id ? `<@${id}>` : escapeMd(name);
-  };
-}
 
 const opp = (g: GameLite) => g.opponentName ?? `Club ${g.opponentClubId}`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
@@ -165,11 +155,10 @@ export function factsForWriter(f: RecapFacts): string {
 
 /**
  * The Discord message (max 2000 characters). The link at the end unfurls into the night's preview card.
- * Players in `ids` show as their Discord @handle (shown, not pinged: the post sends no notifications).
  */
-export function recapMessage(f: RecapFacts, intro: string | null = null, ids: Record<string, string> = DISCORD_IDS): string {
+export function recapMessage(f: RecapFacts, intro: string | null = null): string {
   const { night, mvp, stars, leaders, hasPlayerData } = f.recap;
-  const who = mentioner(ids);
+  const who = escapeMd; // plain names, with markdown escaped
   const head = [
     `🏒 **Game night recap · ${night.label}**`,
     `**${night.wins}-${night.losses}** in ${night.games.length} game${night.games.length === 1 ? "" : "s"} · GF ${night.goalsFor} · GA ${night.goalsAgainst}`,
@@ -218,6 +207,6 @@ export function recapMessage(f: RecapFacts, intro: string | null = null, ids: Re
     else highlights = highlights.slice(0, -1);
     text = build();
   }
-  if (text.length > DISCORD_LIMIT && intro) return recapMessage({ ...f, awards, insights, highlights }, null, ids);
+  if (text.length > DISCORD_LIMIT && intro) return recapMessage({ ...f, awards, insights, highlights }, null);
   return text.length > DISCORD_LIMIT ? `${text.slice(0, DISCORD_LIMIT - footer[0].length - 3)}…\n${footer[0]}` : text;
 }
