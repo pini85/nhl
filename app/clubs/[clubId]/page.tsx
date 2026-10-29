@@ -15,6 +15,7 @@ import { getClubRows, getOpponentLines, getOpponentSnapshot, getScoutedClubs } f
 import { getDivision } from "@/lib/divisions";
 import {
   clubTotals,
+  commonOpponents,
   dangerousPlayers,
   headToHead,
   ourAverages,
@@ -26,8 +27,12 @@ import {
 
 const POS: Record<string, string> = { center: "C", leftWing: "LW", rightWing: "RW", defenseMen: "D", goalie: "G" };
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+// Goals per game: whole numbers stay whole, others get one decimal.
+const signedRate = (n: number) => `${n > 0 ? "+" : ""}${Number.isInteger(n) ? n : n.toFixed(1)}`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 const savePct = (n: number) => n.toFixed(3).replace(/^0/, "");
+const recordColor = (r: { wins: number; losses: number }) =>
+  r.wins > r.losses ? "text-[var(--win-fg)]" : r.losses > r.wins ? "text-[var(--loss-fg)]" : "";
 const plural = (n: number, word: string) => (n ? `${n} ${word}${n === 1 ? "" : "s"}` : null);
 
 export default function ClubPage({ params }: PageProps<"/clubs/[clubId]">) {
@@ -62,8 +67,17 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const totals = snapshot ? clubTotals(snapshot) : null;
   const roster = rosterStats(snapshot?.members ?? null);
   const leaders = rosterLeaders(snapshot?.members ?? null);
-  const recent = theirRecentGames(snapshot, clubRows, scouted, new Set(games.map((g) => g.matchId)));
+  const ourH2H = headToHead(games);
+  const recent = theirRecentGames(snapshot, clubRows, scouted, ourH2H, new Set(games.map((g) => g.matchId)));
   const recentWins = recent.filter((g) => g.outcome === "W").length;
+  const common = commonOpponents(recent, ourH2H, CLUB_ID);
+  const sameOpponents = common.rows.map((r) => ({
+    clubId: r.clubId,
+    edge: Math.round((r.us.diffPerGame - r.them.diffPerGame) * 10) / 10,
+    name: recent.find((g) => g.opponentClubId === r.clubId)?.opponentName ?? r.name ?? `Club ${r.clubId}`,
+    them: r.them,
+    us: r.us,
+  }));
   const form = (snapshot?.seasonResults ?? []).filter(Boolean).slice().reverse();
 
   return (
@@ -110,8 +124,31 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
 
       {recent.length > 0 && (
         <Section title={`Their last ${recent.length} games · ${recentWins}-${recent.length - recentWins}`}>
+          {common.clubs > 0 && (
+            <div className="mb-2 rounded-xl bg-white/[0.04] px-3 py-2 text-xs">
+              <div className="text-[10px] tracking-wide text-[var(--muted-fg)] uppercase">
+                Common opponents · {common.clubs} club{common.clubs === 1 ? "" : "s"} we also played
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span>
+                  They went{" "}
+                  <b className="tabular">
+                    {common.theirTotal.wins}-{common.theirTotal.losses}
+                  </b>
+                </span>
+                <span>
+                  We&apos;re{" "}
+                  <b className={`tabular ${recordColor(common.ourTotal)}`}>
+                    {common.ourTotal.wins}-{common.ourTotal.losses}
+                  </b>{" "}
+                  vs them
+                </span>
+              </div>
+            </div>
+          )}
           <ul className="divide-y divide-white/[0.05]">
             {recent.map((g) => {
+              const ours = g.opponentClubId === CLUB_ID ? undefined : common.ours.get(g.opponentClubId);
               const row = (
                 <>
                   <span className="w-11 shrink-0">
@@ -123,6 +160,14 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
                   <span className={`min-w-0 flex-1 truncate ${g.opponentClubId === CLUB_ID ? "font-bold text-[var(--accent-blue)]" : ""}`}>
                     vs {g.opponentName}
                   </span>
+                  {ours && (
+                    <span
+                      className={`tabular shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold ${recordColor(ours)}`}
+                      title="Our record against this club"
+                    >
+                      Us {ours.wins}-{ours.losses}
+                    </span>
+                  )}
                   {g.playedAt && (
                     <span className="shrink-0 text-xs text-[var(--muted-fg)]">
                       <LocalTime iso={g.playedAt} format="date" />
@@ -143,6 +188,53 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
               );
             })}
           </ul>
+        </Section>
+      )}
+
+      {sameOpponents.length > 0 && (
+        <Section title="Same opponents · goal diff per game">
+          <p className="mb-2 text-[11px] text-[var(--muted-fg)]">
+            We did better against <b className="text-[var(--fg)]">{sameOpponents.filter((r) => r.edge > 0).length}</b> of{" "}
+            {sameOpponents.length} club{sameOpponents.length === 1 ? "" : "s"} they also played
+          </p>
+          <table className="tabular w-full text-xs">
+            <thead className="text-[10px] text-[var(--muted-fg)]">
+              <tr>
+                <th className="text-left font-medium">Club</th>
+                <th className="text-right font-medium">Them</th>
+                <th className="text-right font-medium">Us</th>
+                <th className="text-right font-medium">Better</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sameOpponents.map((r) => (
+                <tr key={r.clubId} className="border-t border-white/[0.05] align-top">
+                  <td className="py-1.5">
+                    <Link href={`/clubs/${r.clubId}`} className="block max-w-[8.5rem] truncate">
+                      {r.name}
+                    </Link>
+                  </td>
+                  <td className="py-1.5 text-right">
+                    <b>{signedRate(r.them.diffPerGame)}</b>
+                    <div className="text-[10px] text-[var(--muted-fg)]">
+                      {r.them.goalsFor}-{r.them.goalsAgainst} · {r.them.gp}gp
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right">
+                    <b>{signedRate(r.us.diffPerGame)}</b>
+                    <div className="text-[10px] text-[var(--muted-fg)]">
+                      {r.us.goalsFor}-{r.us.goalsAgainst} · {r.us.gp}gp
+                    </div>
+                  </td>
+                  <td
+                    className={`py-1.5 text-right font-bold ${r.edge > 0 ? "text-[var(--win-fg)]" : r.edge < 0 ? "text-[var(--loss-fg)]" : "text-[var(--muted-fg)]"}`}
+                  >
+                    {r.edge > 0 ? `Us ${signedRate(r.edge)}` : r.edge < 0 ? `Them ${signedRate(-r.edge)}` : "Even"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Section>
       )}
 
@@ -373,10 +465,12 @@ function theirRecentGames(
   snapshot: Awaited<ReturnType<typeof getOpponentSnapshot>>,
   clubRows: { clubId: number; name: string }[],
   scouted: { clubId: number; name: string }[],
+  ourH2H: { clubId: number; name: string | null }[],
   ourMatchIds: Set<string>,
 ): RecentRow[] {
   if (!snapshot) return [];
   const names = new Map<number, string>();
+  for (const h of ourH2H) if (h.name) names.set(h.clubId, h.name);
   for (const r of clubRows) if (r.name) names.set(r.clubId, r.name);
   for (const c of scouted) names.set(c.clubId, c.name);
   const label = (id: number, fromGame: string | null) => (id === CLUB_ID ? "Us" : (fromGame ?? names.get(id) ?? `Club ${id}`));
