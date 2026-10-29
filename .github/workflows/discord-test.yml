@@ -3,9 +3,6 @@ name: discord-test
 # Run it from the Actions tab whenever you want to check the bot.
 on:
   workflow_dispatch:
-  push:
-    branches: [ccr-74a215f2-bgxb9v]
-    paths: [".github/workflows/discord-test.yml"]
 jobs:
   test:
     runs-on: ubuntu-latest
