@@ -1,4 +1,4 @@
-import type { MatchClubRow, RosterMember } from "@/lib/ea/normalize";
+import { type MatchClubRow, type RosterMember, toInt, toNum } from "@/lib/ea/normalize";
 import type { OpponentProfile } from "@/lib/opponents/profile";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
@@ -131,17 +131,80 @@ export function playStyle(profile: OpponentProfile, ours: StyleAverages): string
   return labels;
 }
 
-// Share of games the roster's players didn't finish (EA counts DNFs per player).
-export function quitRate(members: RosterMember[] | null): number | null {
-  if (!members?.length) return null;
-  let played = 0;
-  let unfinished = 0;
-  for (const m of members) {
-    const gp = Number(m.raw.gamesplayed ?? 0);
-    const done = Number(m.raw.gamesCompleted ?? gp);
-    if (!Number.isFinite(gp) || gp <= 0) continue;
-    played += gp;
-    unfinished += Math.max(0, gp - (Number.isFinite(done) ? done : gp));
-  }
-  return played ? unfinished / played : null;
+export type ClubTotals = {
+  gp: number;
+  wins: number;
+  losses: number;
+  otl: number;
+  winPct: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalsForPerGame: number;
+  goalsAgainstPerGame: number;
+  goalDiff: number;
+  seasons: number;
+  titles: number;
+  promotions: number;
+  relegations: number;
+  rankingPoints: number;
+};
+
+// A club's all-time numbers from the EA club info we save with every snapshot.
+export function clubTotals(snapshot: { wins: number; losses: number; otl: number; raw: unknown }): ClubTotals | null {
+  const info = ((snapshot.raw as { info?: Record<string, unknown> } | null)?.info ?? {}) as Record<string, unknown>;
+  const { wins, losses, otl } = snapshot;
+  const gp = wins + losses + otl || toInt(info.totalGames);
+  if (!gp) return null;
+  const goalsFor = toInt(info.goals);
+  const goalsAgainst = toInt(info.goalsAgainst);
+  return {
+    gp,
+    wins,
+    losses,
+    otl,
+    winPct: wins / gp,
+    goalsFor,
+    goalsAgainst,
+    goalsForPerGame: goalsFor / gp,
+    goalsAgainstPerGame: goalsAgainst / gp,
+    goalDiff: goalsFor - goalsAgainst,
+    seasons: toInt(info.seasons),
+    titles: toInt(info.titlesWon),
+    promotions: toInt(info.promotions),
+    relegations: toInt(info.relegations),
+    rankingPoints: toInt(info.rankingPoints),
+  };
+}
+
+export type SkaterRow = { name: string; position: string; gp: number; goals: number; assists: number; points: number; plusMinus: number; pointsPerGame: number };
+export type GoalieRow = { name: string; gp: number; wins: number; savePct: number; gaa: number; shutouts: number };
+
+// Career numbers for the roster: skaters by points, goalies by games in net.
+export function rosterStats(members: RosterMember[] | null): { skaters: SkaterRow[]; goalies: GoalieRow[] } {
+  const list = members ?? [];
+  const skaters = list
+    .filter((m) => m.gp > 0)
+    .map((m) => ({
+      name: m.name,
+      position: m.position,
+      gp: m.gp,
+      goals: m.goals,
+      assists: m.assists,
+      points: m.points,
+      plusMinus: m.plusMinus,
+      pointsPerGame: m.points / m.gp,
+    }))
+    .sort((a, b) => b.points - a.points || b.goals - a.goals);
+  const goalies = list
+    .map((m) => ({
+      name: m.name,
+      gp: toInt(m.raw.glgp),
+      wins: toInt(m.raw.glwins),
+      savePct: toNum(m.raw.glsavepct),
+      gaa: toNum(m.raw.glgaa),
+      shutouts: toInt(m.raw.glso),
+    }))
+    .filter((g) => g.gp > 0)
+    .sort((a, b) => b.gp - a.gp);
+  return { skaters, goalies };
 }

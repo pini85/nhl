@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { toRosterMember } from "@/lib/ea/normalize";
 import type { OpponentProfile } from "@/lib/opponents/profile";
-import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, quitRate } from "@/lib/stats/opponents";
+import { dangerousPlayers, headToHead, nemesis, ourAverages, playStyle, punchingBags, clubTotals, rosterStats } from "@/lib/stats/opponents";
 import type { GameLite } from "@/lib/stats/types";
 import { games, lines, normalized } from "../helpers/club-fixtures";
 
@@ -80,15 +80,33 @@ describe("dangerousPlayers", () => {
   it("is empty for a club we never played", () => expect(dangerousPlayers(lines, 999)).toEqual([]));
 });
 
-describe("quitRate", () => {
+describe("clubTotals", () => {
+  const info = JSON.parse(readFileSync("tests/fixtures/ea/2026-10-23/clubs-search.json", "utf8"))["56507"];
+  it("reads games, goals and history from the club info", () => {
+    const t = clubTotals({ wins: 11, losses: 9, otl: 0, raw: { info } })!;
+    expect(t).toMatchObject({ gp: 20, wins: 11, winPct: 0.55, goalsFor: 66, goalsAgainst: 57, goalDiff: 9, seasons: 2, titles: 1, promotions: 2, relegations: 0, rankingPoints: 76 });
+    expect(t.goalsForPerGame).toBeCloseTo(3.3, 5);
+  });
+  it("null when the club has no games", () => expect(clubTotals({ wins: 0, losses: 0, otl: 0, raw: { info: {} } })).toBeNull());
+  it("copes with a missing raw blob", () => expect(clubTotals({ wins: 1, losses: 0, otl: 0, raw: null })).toMatchObject({ gp: 1, goalsFor: 0 }));
+});
+
+describe("rosterStats", () => {
   const members = (
     JSON.parse(readFileSync("tests/fixtures/ea/2026-10-23/members-stats.json", "utf8")).members as Record<string, unknown>[]
   ).map(toRosterMember);
-  it("sums games not completed over games played", () => expect(quitRate(members)).toBeCloseTo(54 / 572, 4));
-  it("null without data", () => {
-    expect(quitRate(null)).toBeNull();
-    expect(quitRate([])).toBeNull();
+  it("lists skaters by points with per-game rate", () => {
+    const { skaters, goalies } = rosterStats(members);
+    expect(skaters.map((s) => s.name)).toEqual(["ThePooker", "puck_control", "Popomasta-SMB", "mike_v_75"]);
+    expect(skaters[0]).toMatchObject({ gp: 189, goals: 182, assists: 160, points: 342, plusMinus: -187 });
+    expect(skaters[0].pointsPerGame).toBeCloseTo(342 / 189, 5);
+    expect(goalies).toEqual([]);
   });
+  it("picks up anyone who played in net", () => {
+    const g = toRosterMember({ name: "wall", favoritePosition: "goalie", glgp: "10", glwins: "6", glsavepct: "0.812", glgaa: "2.40", glso: "1" });
+    expect(rosterStats([g]).goalies).toEqual([{ name: "wall", gp: 10, wins: 6, savePct: 0.812, gaa: 2.4, shutouts: 1 }]);
+  });
+  it("empty without data", () => expect(rosterStats(null)).toEqual({ skaters: [], goalies: [] }));
 });
 
 describe("playStyle", () => {

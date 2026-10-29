@@ -13,10 +13,13 @@ import { CLUB_ID } from "@/lib/config";
 import { getGames } from "@/lib/data/club";
 import { getClubRows, getOpponentLines, getOpponentSnapshot } from "@/lib/data/opponents";
 import { getDivision } from "@/lib/divisions";
-import { dangerousPlayers, headToHead, ourAverages, playStyle, quitRate } from "@/lib/stats/opponents";
+import { clubTotals, dangerousPlayers, headToHead, ourAverages, playStyle, rosterStats } from "@/lib/stats/opponents";
 
 const POS: Record<string, string> = { center: "C", leftWing: "LW", rightWing: "RW", defenseMen: "D", goalie: "G" };
 const pct = (n: number) => `${Math.round(n * 100)}%`;
+const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+const savePct = (n: number) => n.toFixed(3).replace(/^0/, "");
+const plural = (n: number, word: string) => (n ? `${n} ${word}${n === 1 ? "" : "s"}` : null);
 
 export default function ClubPage({ params }: PageProps<"/clubs/[clubId]">) {
   return (
@@ -46,7 +49,8 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const profile = snapshot?.profile ?? null;
   const ours = ourAverages(clubRows, CLUB_ID);
   const styles = profile ? playStyle(profile, ours) : [];
-  const quit = quitRate(snapshot?.members ?? null);
+  const totals = snapshot ? clubTotals(snapshot) : null;
+  const roster = rosterStats(snapshot?.members ?? null);
   const form = (snapshot?.seasonResults ?? []).filter(Boolean).slice().reverse();
 
   return (
@@ -66,6 +70,30 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
           )}
         </div>
       </header>
+
+      {totals && (
+        <Section title="Club stats · all-time">
+          <div className="grid grid-cols-3 gap-1.5">
+            <StatTile label="Games" value={totals.gp} glow />
+            <StatTile label="Win %" value={pct(totals.winPct)} />
+            <StatTile label="Record" value={`${totals.wins}-${totals.losses}-${totals.otl}`} />
+            <StatTile label="Goals/GP" value={totals.goalsForPerGame.toFixed(1)} />
+            <StatTile label="Against/GP" value={totals.goalsAgainstPerGame.toFixed(1)} />
+            <StatTile label="Goal diff" value={signed(totals.goalDiff)} />
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--muted-fg)]">
+            {[
+              plural(totals.seasons, "season"),
+              plural(totals.titles, "title"),
+              plural(totals.promotions, "promotion"),
+              plural(totals.relegations, "relegation"),
+              totals.rankingPoints ? `${totals.rankingPoints} ranking pts` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </Section>
+      )}
 
       <Section title="Head-to-head">
         {h2h ? (
@@ -131,7 +159,10 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
 
       {profile && (
         <Section title={`Lineup · last ${profile.matches} games`}>
-          <p className="mb-2 text-sm">{profile.humanGoalieShare >= 0.5 ? "🥅 Usually a human goalie" : "🤖 Usually a CPU goalie"}</p>
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            <StatTile label="Goals/GP" value={profile.avg.goalsFor.toFixed(1)} />
+            <StatTile label="Against/GP" value={profile.avg.goalsAgainst.toFixed(1)} />
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {profile.lineup.slice(0, 8).map((p) => (
               <span key={p.name} className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs">
@@ -185,40 +216,64 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
         </Section>
       )}
 
-      {quit !== null && (
-        <Section title="Quit rate">
-          <p className="text-sm">
-            {quit >= 0.1 ? "⚠️ " : ""}
-            <b className="tabular">{pct(quit)}</b> of games their players don&apos;t finish
-          </p>
-        </Section>
-      )}
-
-      {snapshot?.members && snapshot.members.length > 0 && (
-        <Section title="Roster · NHL 27 career (all clubs)">
+      {roster.skaters.length > 0 && (
+        <Section title="Skaters · NHL 27 career (all clubs)">
           <table className="tabular w-full text-xs">
             <thead className="text-[10px] text-[var(--muted-fg)]">
               <tr>
                 <th className="text-left font-medium">Player</th>
                 <th className="text-right font-medium">GP</th>
+                <th className="text-right font-medium">G</th>
+                <th className="text-right font-medium">A</th>
                 <th className="text-right font-medium">P</th>
+                <th className="text-right font-medium">+/-</th>
                 <th className="text-right font-medium">P/GP</th>
               </tr>
             </thead>
             <tbody>
-              {[...snapshot.members]
-                .sort((a, b) => b.points - a.points)
-                .map((m) => (
-                  <tr key={m.name} className="border-t border-white/[0.05]">
-                    <td className="py-1.5">
-                      <span className="mr-1 text-[10px] text-[var(--muted-fg)]">{POS[m.position] ?? ""}</span>
-                      {m.name}
-                    </td>
-                    <td className="text-right">{m.gp}</td>
-                    <td className="text-right">{m.points}</td>
-                    <td className="text-right">{m.gp ? (m.points / m.gp).toFixed(2) : "—"}</td>
-                  </tr>
-                ))}
+              {roster.skaters.map((m) => (
+                <tr key={m.name} className="border-t border-white/[0.05]">
+                  <td className="max-w-0 truncate py-1.5">
+                    <span className="mr-1 text-[10px] text-[var(--muted-fg)]">{POS[m.position] ?? ""}</span>
+                    {m.name}
+                  </td>
+                  <td className="text-right">{m.gp}</td>
+                  <td className="text-right">{m.goals}</td>
+                  <td className="text-right">{m.assists}</td>
+                  <td className="text-right font-bold">{m.points}</td>
+                  <td className="text-right">{signed(m.plusMinus)}</td>
+                  <td className="text-right">{m.pointsPerGame.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
+      {roster.goalies.length > 0 && (
+        <Section title="Goalies · NHL 27 career (all clubs)">
+          <table className="tabular w-full text-xs">
+            <thead className="text-[10px] text-[var(--muted-fg)]">
+              <tr>
+                <th className="text-left font-medium">Player</th>
+                <th className="text-right font-medium">GP</th>
+                <th className="text-right font-medium">W</th>
+                <th className="text-right font-medium">SV%</th>
+                <th className="text-right font-medium">GAA</th>
+                <th className="text-right font-medium">SO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roster.goalies.map((g) => (
+                <tr key={g.name} className="border-t border-white/[0.05]">
+                  <td className="max-w-0 truncate py-1.5">{g.name}</td>
+                  <td className="text-right">{g.gp}</td>
+                  <td className="text-right">{g.wins}</td>
+                  <td className="text-right font-bold">{savePct(g.savePct)}</td>
+                  <td className="text-right">{g.gaa.toFixed(2)}</td>
+                  <td className="text-right">{g.shutouts}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </Section>
