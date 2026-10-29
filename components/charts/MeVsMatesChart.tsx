@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartFrame, ChartTooltip } from "@/components/charts/ChartFrame";
 import { AXIS, GRID, MATES, ME } from "@/components/charts/palette";
 import { Chips } from "@/components/club/Leaders";
@@ -9,6 +9,7 @@ import type { MateGroup, NightPoint, StatKey, Teammate } from "@/lib/stats/trend
 
 const SURFACE = "#0d1424";
 const AVG = "__avg";
+const X_PAD = 12;
 const STATS: { key: StatKey; label: string }[] = [
   { key: "goals", label: "Goals" },
   { key: "assists", label: "Assists" },
@@ -25,13 +26,25 @@ export function MeVsMatesChart({ data, teammates, myRole = "all" }: { data: Nigh
   const [stat, setStat] = useState<StatKey>("goals");
   const [group, setGroup] = useState<MateGroup>(myRole);
   const [pick, setPick] = useState<string>(AVG);
+  const [nightKey, setNightKey] = useState<string | undefined>(data.at(-1)?.key);
   if (!data.some((d) => d.me)) return null;
 
+  // Names are the teammates who played the selected night, in that night's role.
+  const night = data.find((d) => d.key === nightKey) ?? data.at(-1)!;
+  const order = new Map(teammates.map((t, i) => [t.id, i]));
+  const nameOf = new Map(teammates.map((t) => [t.id, t.name]));
+  const inGroup = Object.keys(night.others ?? {})
+    .filter((id) => group === "all" || night.roles?.[id] === group)
+    .sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9))
+    .map((id) => ({ id, name: nameOf.get(id) ?? id }));
+
   const word = STATS.find((s) => s.key === stat)!.label.toLowerCase();
-  const inGroup = teammates.filter((t) => group === "all" || t.role === group);
-  const player = inGroup.find((t) => t.id === pick);
+  // A picked teammate stays picked when you tap a night they sat out.
+  const player = inGroup.find((t) => t.id === pick) ?? (nameOf.has(pick) ? { id: pick, name: nameOf.get(pick)! } : undefined);
+  const chips = player && !inGroup.includes(player) ? [...inGroup, player] : inGroup;
   const otherName = player ? player.name : GROUPS.find((g) => g.key === group)!.avg;
   const rows = data.map((d) => ({
+    key: d.key,
     label: d.label,
     boxScore: d.boxScore,
     mine: d.me ? d.me[stat] : null,
@@ -65,14 +78,33 @@ export function MeVsMatesChart({ data, teammates, myRole = "all" }: { data: Nigh
           <span>vs</span>
           <Chips items={GROUPS} value={group} onChange={pickGroup} />
         </div>
+        <p className="text-[10px] text-[var(--muted-fg)]">
+          Played {night.label} · tap a night on the chart to change
+        </p>
         <div className="no-scrollbar -mx-3.5 overflow-x-auto px-3.5 [&_button]:shrink-0 [&_button]:whitespace-nowrap">
-          <Chips items={[{ key: AVG, label: "Average" }, ...inGroup.map((t) => ({ key: t.id, label: t.name }))]} value={pick} onChange={setPick} />
+          <Chips
+            items={[{ key: AVG, label: "Average" }, ...chips.map((t) => ({ key: t.id, label: t.name }))]}
+            value={player ? pick : AVG}
+            onChange={setPick}
+          />
         </div>
       </div>
-      <div className="h-[150px]">
+      <div
+        className="h-[150px]"
+        onClick={(e) => {
+          // Pick the night nearest the tap. Phone taps carry no hover state, so read the plot area from the DOM.
+          const plot = e.currentTarget.querySelector(".recharts-cartesian-grid")?.getBoundingClientRect();
+          if (!plot || rows.length === 0) return;
+          const inner = plot.width - 2 * X_PAD;
+          const i = rows.length === 1 ? 0 : Math.round(((e.clientX - plot.left - X_PAD) / inner) * (rows.length - 1));
+          const row = rows[Math.min(rows.length - 1, Math.max(0, i))];
+          if (row) setNightKey(row.key);
+        }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 12, right: 8, bottom: 0, left: -24 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
+            <ReferenceLine x={night.label} stroke="rgba(255,255,255,0.3)" strokeDasharray="2 3" />
             <XAxis
               dataKey="label"
               tickFormatter={short}
@@ -80,7 +112,7 @@ export function MeVsMatesChart({ data, teammates, myRole = "all" }: { data: Nigh
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
-              padding={{ left: 12, right: 12 }}
+              padding={{ left: X_PAD, right: X_PAD }}
             />
             <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip

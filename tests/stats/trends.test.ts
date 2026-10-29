@@ -94,6 +94,11 @@ describe("nightSeries you vs teammates", () => {
       line("m1", "g", 0, 1, "goalie"),
     ]);
     expect(p.others).toEqual({ kai: { goals: 3, assists: 1, points: 4 } });
+    expect(p.roles).toEqual({ kai: "forwards" }); // 1 game at RW, 1 at D: tie goes to forwards
+  });
+  it("gives each teammate their role for that night", () => {
+    const p = night([line("m1", "dan", 0, 0, "defenseMen"), line("m2", "dan", 0, 0, "defenseMen"), line("m1", "sam", 0, 0, "center")]);
+    expect(p.roles).toEqual({ dan: "defense", sam: "forwards" });
   });
   it("lists teammates by games played, with their main role", () => {
     const ls = [
