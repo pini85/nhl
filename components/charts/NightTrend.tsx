@@ -17,6 +17,7 @@ export async function NightTrend({ nights }: { nights: GameNight[] }) {
         <MeVsMatesChart
           data={data}
           teammates={nightTeammates(nights, lines, mine.playerId)}
+          myName={lines.findLast((l) => l.eaPlayerId === mine.playerId)?.playerName ?? "You"}
           myRole={nightTeammates(nights, lines.filter((l) => l.eaPlayerId === mine.playerId), "").at(0)?.role ?? "all"}
         />
       )}

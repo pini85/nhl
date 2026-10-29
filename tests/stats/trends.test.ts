@@ -37,7 +37,7 @@ describe("nightSeries", () => {
     expect(series.map((p) => p.me)).toEqual(expected);
     expect(series.some((p) => p.me && p.me.points > 0)).toBe(true);
     expect(nightSeries(nights, 12, { lines, playerId: "nobody" }).every((p) => p.me === null)).toBe(true);
-    expect(nightSeries(nights).every((p) => p.me === undefined && p.mates === undefined && p.boxScore === undefined)).toBe(true);
+    expect(nightSeries(nights).every((p) => p.me === undefined && p.others === undefined && p.boxScore === undefined)).toBe(true);
   });
 });
 
@@ -55,36 +55,19 @@ describe("nightSeries you vs teammates", () => {
   });
   const night = (ls: PlayerLine[], gs: GameLite[] = [g1, g2]) => nightSeries(groupGameNights(gs), 12, { lines: ls, playerId: "me" })[0];
 
-  it("sums me over the night and averages each teammate's night total (goalies left out)", () => {
+  it("sums me and each teammate over the night (goalies left out)", () => {
     const p = night([
       line("m1", "me", 2, 1),
       line("m2", "me", 1, 3), // me: 3G 4A 7P
       line("m1", "a", 1, 0),
       line("m2", "a", 0, 2), // a: 1G 2A 3P
-      line("m1", "b", 2, 2), // b (one game): 2G 2A 4P
+      line("m1", "b", 2, 2, "defenseMen"), // b (one game): 2G 2A 4P
       line("m1", "g", 0, 5, "goalie"),
     ]);
     expect(p.boxScore).toBe(true);
     expect(p.me).toEqual({ goals: 3, assists: 4, points: 7 });
-    expect(p.mates?.all).toEqual({ goals: 1.5, assists: 2, points: 3.5 });
-  });
-  it("rounds averages to one decimal", () => {
-    const p = night([line("m1", "me", 0, 0), line("m1", "a", 1, 1), line("m1", "b", 0, 0), line("m1", "c", 0, 1)]);
-    expect(p.mates?.all).toEqual({ goals: 0.3, assists: 0.7, points: 1 });
-  });
-  it("splits teammates into forwards and defense by the position they played each game", () => {
-    const p = night([
-      line("m1", "me", 1, 0, "leftWing"),
-      line("m1", "c", 2, 1, "center"), // forward: 2G 1A
-      line("m1", "rw", 0, 1, "rightWing"), // forward: 0G 1A
-      line("m1", "d1", 0, 2, "defenseMen"), // defense: 0G 2A
-      line("m1", "x", 1, 0, "center"),
-      line("m2", "x", 0, 3, "defenseMen"), // x: forward 1G 0A in m1, defense 0G 3A in m2
-      line("m1", "g", 0, 1, "goalie"),
-    ]);
-    expect(p.mates?.forwards).toEqual({ goals: 1, assists: 0.7, points: 1.7 }); // (2+0+1)/3, (1+1+0)/3, (3+1+1)/3
-    expect(p.mates?.defense).toEqual({ goals: 0, assists: 2.5, points: 2.5 }); // d1 2A, x 3A
-    expect(p.mates?.all).toEqual({ goals: 0.8, assists: 1.8, points: 2.5 }); // c 3P, rw 1P, d1 2P, x 4P over 4
+    expect(p.others).toEqual({ a: { goals: 1, assists: 2, points: 3 }, b: { goals: 2, assists: 2, points: 4 } });
+    expect(p.roles).toEqual({ a: "forwards", b: "defense" });
   });
   it("keeps each teammate's own night totals for picking one player", () => {
     const p = night([
@@ -118,7 +101,7 @@ describe("nightSeries you vs teammates", () => {
   });
   it("a night of score-only games is 'no box score', not 'didn't play'", () => {
     const p = night([], [{ ...g1, source: "summary" as const }]);
-    expect(p).toMatchObject({ boxScore: false, me: null, mates: { all: null, forwards: null, defense: null } });
+    expect(p).toMatchObject({ boxScore: false, me: null, others: {} });
   });
   it("ignores lines from score-only games mixed into a night", () => {
     const p = night([line("m1", "me", 1, 1), line("m2", "me", 5, 5)], [g1, { ...g2, source: "summary" as const }]);
