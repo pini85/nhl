@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CircleUser, Home, Swords, Users } from "lucide-react";
+import { CalendarDays, CircleUser, Home, Orbit, Swords, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const TABS = [
   { href: "/games", label: "Games", icon: CalendarDays },
   { href: "/players", label: "Players", icon: Users },
   { href: "/opponents", label: "Opponents", icon: Swords },
+  { href: "/galaxy", label: "Galaxy", icon: Orbit },
   { href: "/me", label: "Me", icon: CircleUser },
 ];
 

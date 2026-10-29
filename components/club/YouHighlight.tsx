@@ -17,12 +17,17 @@ function subscribe(l: () => void) {
   return () => window.removeEventListener(ME_CHANGED, l);
 }
 
+/** The teammate picked on this device (from the ddd-player cookie), or null. */
+export function useMyId(): string | null {
+  return useSyncExternalStore(subscribe, myId, () => null);
+}
+
 /**
  * Marks your rows everywhere (links to your player page, record holders) with a tint and a "You" tag.
  * Pure CSS added in the browser, so shared pages stay the same for everyone.
  */
 export function YouHighlight() {
-  const id = useSyncExternalStore(subscribe, myId, () => null);
+  const id = useMyId();
   if (!id) return null;
   const link = `a[href="/players/${id}"]`;
   const holder = `[data-player-id="${id}"]`;
