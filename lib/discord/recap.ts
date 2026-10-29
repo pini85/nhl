@@ -18,9 +18,9 @@ const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit"
 
 /**
  * The night to announce now, or null. A night is ready the morning after it was played
- * (from `postHour` Amsterdam time), once 3 hours have passed since its last game.
+ * (from `postHour` Amsterdam time, 08:00 by default), once 3 hours have passed since its last game.
  */
-export function nightToPost(games: GameLite[], now: Date, posted: Set<string>, postHour = 9): GameNight | null {
+export function nightToPost(games: GameLite[], now: Date, posted: Set<string>, postHour = 8): GameNight | null {
   const night = groupGameNights(games)[0];
   if (!night || posted.has(night.key)) return null;
   const first = night.games.at(-1)!.playedAt;

@@ -17,7 +17,8 @@ describe("nightToPost", () => {
   });
 
   it("waits for the morning, and posts each night once", () => {
-    expect(nightToPost(games, new Date("2026-10-23T05:00:00Z"), new Set())).toBeNull(); // 07:00 local
+    expect(nightToPost(games, new Date("2026-10-23T05:59:00Z"), new Set())).toBeNull(); // 07:59 local
+    expect(nightToPost(games, new Date("2026-10-23T06:00:00Z"), new Set())?.key).toBe("2026-10-22"); // 08:00 local
     expect(nightToPost(games, morning, new Set(["2026-10-22"]))).toBeNull();
   });
 
