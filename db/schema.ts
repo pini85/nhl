@@ -206,3 +206,9 @@ export const scoutRequests = pgTable(
   },
   (t) => [uniqueIndex("scout_requests_pending_uq").on(t.normalized).where(sql`status = 'pending'`)],
 );
+
+// Game nights already posted to Discord, so each night is announced once.
+export const discordPosts = pgTable("discord_posts", {
+  nightKey: text("night_key").primaryKey(),
+  postedAt: timestamp("posted_at", { withTimezone: true }).notNull().defaultNow(),
+});

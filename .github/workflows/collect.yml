@@ -31,6 +31,16 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SITE_URL: ${{ secrets.SITE_URL }}
           COLLECT_TRIGGER: cron
+      # Posts last night's recap to Discord once per night (from 08:00 Amsterdam time the morning after). Never blocks collecting.
+      - name: Discord recap
+        if: always()
+        continue-on-error: true
+        run: pnpm discord:recap
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       # Instead of sleeping until the next run, answer scout requests as they come in.
       - name: Watch for scout requests until the next run
         if: always()
