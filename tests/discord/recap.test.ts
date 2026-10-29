@@ -40,7 +40,7 @@ describe("recapMessage", () => {
   it("has the record, games, MVP and the night's link", () => {
     const text = recapMessage(facts);
     expect(text).toContain(`**${last.wins}-${last.losses}**`);
-    expect(text).toContain("Night MVP:** puck\\_control");
+    expect(text).toContain("**🏆 Night MVP**\npuck\\_control · ");
     expect(text).toContain("https://drop-drop-drop.vercel.app/nights/2026-10-22");
     expect(text.split("\n").filter((l) => /^(✅|❌)/.test(l))).toHaveLength(last.games.length);
     expect(text.length).toBeLessThanOrEqual(2000);
@@ -65,13 +65,13 @@ describe("players in the recap", () => {
 
   it("each star and leader gets their own row", () => {
     const rows = recapMessage(facts, null, {}).split("\n");
-    expect(rows.filter((r) => /^⭐+ [^*]/.test(r))).toHaveLength(3);
+    expect(rows.filter((r) => /^⭐+ /.test(r))).toHaveLength(3);
     for (const label of ["💥 Hits:", "🎯 Shots:", "➕ Plus/minus:", "🧤 Save %:"]) expect(rows.some((r) => r.startsWith(label))).toBe(true);
   });
 
   it("known players show as their Discord handle, others by gamertag", () => {
     const text = recapMessage(facts, null, { PUCK_CONTROL: "111" });
-    expect(text).toContain("Night MVP:** <@111> · ");
+    expect(text).toContain("**🏆 Night MVP**\n<@111> · ");
     expect(text).not.toContain("puck\\_control ·");
     expect(text).toContain("ThePooker");
   });
