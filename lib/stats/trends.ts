@@ -1,6 +1,14 @@
 import type { GameNight } from "@/lib/stats/nights";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
+export type StatLine = { goals: number; assists: number; points: number };
+export type StatKey = keyof StatLine;
+export type MateGroup = "all" | "forwards" | "defense";
+
+const FORWARDS = new Set(["center", "leftWing", "rightWing"]);
+const groupsOf = (position: string): MateGroup[] =>
+  FORWARDS.has(position) ? ["all", "forwards"] : position === "defenseMen" ? ["all", "defense"] : position === "goalie" ? [] : ["all"];
+
 export type NightPoint = {
   key: string;
   label: string;
@@ -8,33 +16,62 @@ export type NightPoint = {
   goalsAgainst: number;
   wins: number;
   losses: number;
-  /** The viewer's own goals that night; null when they didn't play. Absent when no player is picked. */
-  myGoals?: number | null;
-  /** Average goals per teammate skater that night (one decimal); null when no teammate data. Absent when no player is picked. */
-  teammateAvg?: number | null;
+  /** The fields below are only set when a player is picked. */
+  /** False when every game that night saved only a final score, so nobody's stats are known. */
+  boxScore?: boolean;
+  /** The viewer's totals for the night; null when they didn't play (or no box score). */
+  me?: StatLine | null;
+  /**
+   * Average per teammate of their night totals, one decimal, by the position they played in each game:
+   * all skaters, forwards only, defense only. Null when no teammate played that role.
+   */
+  mates?: Record<MateGroup, StatLine | null>;
 };
 
+const round1 = (x: number) => Math.round(x * 10) / 10;
+
+function addLine(t: StatLine, l: PlayerLine) {
+  t.goals += l.goals;
+  t.assists += l.assists;
+  t.points += l.goals + l.assists;
+}
+
 // Oldest → newest, limited to the most recent `max` nights.
-// Pass `mine` (our club's lines) to add the picked player's goals and the teammate average per night.
+// Pass `mine` (our club's lines) to add the picked player's stats and the teammate average per night.
 export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: PlayerLine[]; playerId: string }): NightPoint[] {
-  const myLines = mine ? new Map(mine.lines.filter((l) => l.eaPlayerId === mine.playerId).map((l) => [l.matchId, l])) : null;
   const byMatch = new Map<string, PlayerLine[]>();
-  for (const l of mine?.lines ?? []) {
-    if (l.eaPlayerId === mine?.playerId || l.position === "goalie") continue;
-    byMatch.set(l.matchId, [...(byMatch.get(l.matchId) ?? []), l]);
-  }
+  for (const l of mine?.lines ?? []) byMatch.set(l.matchId, [...(byMatch.get(l.matchId) ?? []), l]);
   return nights
     .slice(0, max)
     .map((n) => {
       const point: NightPoint = { key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses };
-      if (myLines) {
-        const played = n.games.map((g) => myLines.get(g.matchId)).filter((l) => l !== undefined);
-        point.myGoals = played.length ? played.reduce((s, l) => s + l.goals, 0) : null;
-        const perMate = new Map<string, number>();
-        for (const g of n.games) for (const l of byMatch.get(g.matchId) ?? []) perMate.set(l.eaPlayerId, (perMate.get(l.eaPlayerId) ?? 0) + l.goals);
-        const totals = [...perMate.values()];
-        point.teammateAvg = totals.length ? Math.round((totals.reduce((s, x) => s + x, 0) / totals.length) * 10) / 10 : null;
+      if (!mine) return point;
+      // Score-only games have no player lines; leave them out of both sides.
+      const full = n.games.filter((g) => g.source === "full");
+      point.boxScore = full.length > 0;
+      let me: StatLine | null = null;
+      const perMate: Record<MateGroup, Map<string, StatLine>> = { all: new Map(), forwards: new Map(), defense: new Map() };
+      for (const g of full) {
+        for (const l of byMatch.get(g.matchId) ?? []) {
+          if (l.eaPlayerId === mine.playerId) {
+            addLine((me ??= { goals: 0, assists: 0, points: 0 }), l);
+            continue;
+          }
+          for (const group of groupsOf(l.position)) {
+            const t = perMate[group].get(l.eaPlayerId) ?? { goals: 0, assists: 0, points: 0 };
+            addLine(t, l);
+            perMate[group].set(l.eaPlayerId, t);
+          }
+        }
       }
+      const average = (m: Map<string, StatLine>): StatLine | null => {
+        const totals = [...m.values()];
+        if (!totals.length) return null;
+        const avg = (k: StatKey) => round1(totals.reduce((s, t) => s + t[k], 0) / totals.length);
+        return { goals: avg("goals"), assists: avg("assists"), points: avg("points") };
+      };
+      point.me = me;
+      point.mates = { all: average(perMate.all), forwards: average(perMate.forwards), defense: average(perMate.defense) };
       return point;
     })
     .reverse();
