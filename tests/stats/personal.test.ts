@@ -207,6 +207,7 @@ describe("homeCardParts", () => {
     plusMinus: 2,
     wins: 3,
     losses: 1,
+    otLosses: 0,
     pointsVsAvg: 0.5,
     goalie: null,
   };

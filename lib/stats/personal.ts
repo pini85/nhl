@@ -1,6 +1,7 @@
 // Personal stats for the Me tab, the Home card and the extras on every player page.
 import { emptyTotals, isShutout, MILESTONE_STEPS, type MilestoneStat } from "@/lib/stats/moments";
 import { groupGameNights } from "@/lib/stats/nights";
+import { countRecord, formatRecord } from "@/lib/stats/record";
 import { PLAYER_RECORDS, type RecordItem } from "@/lib/stats/records";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
 
@@ -72,6 +73,7 @@ export type LastNight = {
   plusMinus: number;
   wins: number;
   losses: number;
+  otLosses: number;
   pointsVsAvg: number | null;
   goalie: { saves: number; shots: number; ga: number } | null;
 };
@@ -96,8 +98,7 @@ export function lastNight(lines: PlayerLine[], games: GameLite[], playerId: stri
     goals: nightLines.reduce((s, l) => s + l.goals, 0),
     assists: nightLines.reduce((s, l) => s + l.assists, 0),
     plusMinus: nightLines.reduce((s, l) => s + l.plusMinus, 0),
-    wins: played.filter((g) => g.outcome === "W").length,
-    losses: played.filter((g) => g.outcome === "L").length,
+    ...countRecord(played),
     pointsVsAvg: skater.length ? pts(skater) / skater.length - pts(allSkater) / allSkater.length : null,
     goalie: keeper.length
       ? { saves: keeper.reduce((s, l) => s + l.glSaves, 0), shots: keeper.reduce((s, l) => s + l.glShots, 0), ga: keeper.reduce((s, l) => s + l.glGa, 0) }
@@ -256,7 +257,7 @@ export function homeCardParts(night: LastNight | null, streaks: Streak[], milest
   const recent = night && now.getTime() - night.playedAt.getTime() <= HOME_RECENT_DAYS * DAY;
   if (night && recent) {
     const line = night.goalie && night.goals + night.assists === 0 ? `${night.goalie.saves} saves` : `${night.goals}G ${night.assists}A`;
-    parts.push(`Last night: ${line}, ${night.wins}–${night.losses}`);
+    parts.push(`Last night: ${line}, ${formatRecord(night, "–")}`);
     const s = streaks.find((x) => x.key !== "games") ?? streaks[0];
     if (s) parts.push(s.key === "games" ? `🔥 ${s.length} games in a row` : `🔥 ${s.length}-game ${STREAK_WORD[s.key]} streak`);
   }

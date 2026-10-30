@@ -1,6 +1,7 @@
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { allAwards } from "@/lib/stats/awards";
 import { groupGameNights } from "@/lib/stats/nights";
+import { formatRecord } from "@/lib/stats/record";
 import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { playerTotals } from "@/lib/stats/players";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
@@ -42,8 +43,8 @@ export function buildWrapped(
   const thief = [...skaters].sort((a, b) => b.takeaways - a.takeaways)[0];
   if (thief && thief.takeaways > 0) slides.push({ kind: "thief", eyebrow: "Takeaway king", big: String(thief.takeaways), unit: plural(thief.takeaways, "takeaways"), title: thief.name, line: "Check your pockets." });
 
-  const best = groupGameNights(games).sort((a, b) => b.wins - b.losses - (a.wins - a.losses) || b.goalsFor - b.goalsAgainst - (a.goalsFor - a.goalsAgainst))[0];
-  if (best) slides.push({ kind: "night", eyebrow: "Best game night", big: `${best.wins}-${best.losses}`, unit: "wins – losses", title: best.label, line: `${best.goalsFor} goals for, ${best.goalsAgainst} against` });
+  const best = groupGameNights(games).sort((a, b) => b.wins - b.losses - b.otLosses - (a.wins - a.losses - a.otLosses) || b.goalsFor - b.goalsAgainst - (a.goalsFor - a.goalsAgainst))[0];
+  if (best) slides.push({ kind: "night", eyebrow: "Best game night", big: formatRecord(best), unit: best.otLosses ? "wins – losses – OT losses" : "wins – losses", title: best.label, line: `${best.goalsFor} goals for, ${best.goalsAgainst} against` });
 
   const h2h = headToHead(games);
   const foe = nemesis(h2h, 1)[0];

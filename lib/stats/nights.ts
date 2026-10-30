@@ -1,3 +1,4 @@
+import { countRecord } from "@/lib/stats/record";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
 export type GameNight = {
@@ -5,7 +6,9 @@ export type GameNight = {
   label: string;
   games: GameLite[];
   wins: number;
+  /** Regulation losses only. */
   losses: number;
+  otLosses: number;
   goalsFor: number;
   goalsAgainst: number;
 };
@@ -37,8 +40,7 @@ export function groupGameNights(games: GameLite[], tz = "Europe/Amsterdam", gapH
         key: n === 1 ? day : `${day}-${n}`,
         label: labelFmt.format(first).replace(",", ""),
         games: [...night].reverse(),
-        wins: night.filter((g) => g.outcome === "W").length,
-        losses: night.filter((g) => g.outcome === "L").length,
+        ...countRecord(night),
         goalsFor: night.reduce((s, g) => s + g.goalsFor, 0),
         goalsAgainst: night.reduce((s, g) => s + g.goalsAgainst, 0),
       };

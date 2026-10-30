@@ -20,6 +20,7 @@ import { HeatBadge } from "@/components/club/HeatBadge";
 import { PlayerExtras } from "@/components/club/PlayerExtras";
 import { bestTeammates, nextMilestones, recordStanding, vsTeam } from "@/lib/stats/personal";
 import { clubRecords } from "@/lib/stats/records";
+import { formatRecord } from "@/lib/stats/record";
 
 const POS: Record<string, string> = { center: "Center", leftWing: "Left wing", rightWing: "Right wing", defenseMen: "Defense", goalie: "Goalie" };
 
@@ -110,7 +111,7 @@ export async function PlayerProfile({ playerId, you = false, top }: { playerId: 
             <StatTile label="GP" value={gl.gp} />
             <StatTile label="SV%" value={gl.savePct.toFixed(3).replace(/^0/, "")} glow />
             <StatTile label="GAA" value={gl.gaa.toFixed(2)} />
-            <StatTile label="Record" value={`${gl.wins}-${gl.losses}`} />
+            <StatTile label="Record" value={formatRecord(gl)} />
           </div>
         </Section>
       )}

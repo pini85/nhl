@@ -13,6 +13,7 @@ import { getClubRows } from "@/lib/data/opponents";
 import { gameAwards } from "@/lib/stats/awards";
 import { AwardChips } from "@/components/club/AwardChips";
 import { nightRecap } from "@/lib/stats/nightRecap";
+import { formatRecord } from "@/lib/stats/record";
 
 export default function NightPage({ params }: PageProps<"/nights/[key]">) {
   return (
@@ -36,7 +37,7 @@ async function NightContent({ params }: { params: Promise<{ key: string }> }) {
         <Link href="/games" className="text-xs text-[var(--muted-fg)]">
           ← Games
         </Link>
-        <ShareButton title={`${CLUB_NAME} · ${night.label}: ${night.wins}-${night.losses}`} />
+        <ShareButton title={`${CLUB_NAME} · ${night.label}: ${formatRecord(night)}`} />
       </div>
 
       <section className="arena-card my-3 p-4 text-center">
@@ -45,6 +46,12 @@ async function NightContent({ params }: { params: Promise<{ key: string }> }) {
           <span className="text-[var(--win-fg)]">{night.wins}</span>
           <span className="text-[var(--accent-blue)]">–</span>
           <span className="text-[var(--loss-fg)]">{night.losses}</span>
+          {night.otLosses > 0 && (
+            <>
+              <span className="text-[var(--accent-blue)]">–</span>
+              <span className="text-[var(--otl-fg)]">{night.otLosses}</span>
+            </>
+          )}
         </div>
         <div className="tabular text-xs text-[var(--muted-fg)]">
           {night.games.length} games · GF {night.goalsFor} · GA {night.goalsAgainst}

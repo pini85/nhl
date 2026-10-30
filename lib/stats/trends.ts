@@ -12,6 +12,7 @@ export type NightPoint = {
   goalsAgainst: number;
   wins: number;
   losses: number;
+  otLosses: number;
   /** The fields below are only set when a player is picked. */
   /** False when every game that night saved only a final score, so nobody's stats are known. */
   boxScore?: boolean;
@@ -39,7 +40,7 @@ export function nightSeries(nights: GameNight[], max = 12, mine?: { lines: Playe
   return nights
     .slice(0, max)
     .map((n) => {
-      const point: NightPoint = { key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses };
+      const point: NightPoint = { key: n.key, label: n.label, goalsFor: n.goalsFor, goalsAgainst: n.goalsAgainst, wins: n.wins, losses: n.losses, otLosses: n.otLosses };
       if (!mine) return point;
       // Score-only games have no player lines; leave them out of both sides.
       const full = n.games.filter((g) => g.source === "full");

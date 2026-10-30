@@ -23,6 +23,12 @@ export function LatestNight({
         </h2>
         <span className="tabular text-sm font-extrabold">
           <span className="text-[var(--win-fg)]">{night.wins}W</span> · <span className="text-[var(--loss-fg)]">{night.losses}L</span>
+          {night.otLosses > 0 && (
+            <>
+              {" "}
+              · <span className="text-[var(--otl-fg)]">{night.otLosses} OTL</span>
+            </>
+          )}
         </span>
       </div>
 
