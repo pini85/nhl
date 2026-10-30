@@ -50,7 +50,7 @@ const avg = (n: number, d: number) => (d ? n / d : 0);
 const one = (n: number) => n.toFixed(1);
 
 function gameLine(g: GameLite): string {
-  const icon = g.outcome === "W" ? "✅" : "❌";
+  const icon = g.outcome === "W" ? "✅" : g.overtime ? "🟨" : "❌";
   const tags = [g.overtime && "OT", g.dnf === "opponent_quit" && "they quit", g.dnf === "we_quit" && "we quit"].filter(Boolean);
   return `${icon} **${g.goalsFor}-${g.goalsAgainst}** vs ${escapeMd(opp(g))}${tags.length ? ` (${tags.join(", ")})` : ""}`;
 }

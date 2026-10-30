@@ -7,13 +7,13 @@ import type { FormPoint } from "@/lib/stats/trends";
 
 type Tick = { x?: number | string; y?: number | string; payload?: { index: number } };
 
-// W/L under each bar, in win/loss text colors.
+// W/L/OTL under each bar, in win/loss/OTL text colors.
 function renderOutcomeTick({ x = 0, y = 0, payload }: Tick, data: FormPoint[]) {
   const [px, py] = [Number(x), Number(y)];
   const d = data[payload?.index ?? 0];
   return (
-    <text x={px} y={py + 10} textAnchor="middle" fontSize={10} fontWeight={700} fill={d?.outcome === "W" ? "#5dffa8" : "#ff7a8a"}>
-      {d?.outcome}
+    <text x={px} y={py + 10} textAnchor="middle" fontSize={10} fontWeight={700} fill={d?.outcome === "W" ? "#5dffa8" : d?.overtime ? "#ffd27a" : "#ff7a8a"}>
+      {d?.outcome === "L" && d.overtime ? "OTL" : d?.outcome}
     </text>
   );
 }
@@ -24,7 +24,7 @@ export function FormChart({ data }: { data: FormPoint[] }) {
     <ChartFrame
       title={`Form · last ${data.length} games`}
       label="Points per game, last games"
-      table={{ head: ["Game", "Result", "G-A-P"], rows: [...data].reverse().map((d) => [d.label, d.outcome, `${d.goals}-${d.assists}-${d.points}`]) }}
+      table={{ head: ["Game", "Result", "G-A-P"], rows: [...data].reverse().map((d) => [d.label, d.outcome === "L" && d.overtime ? "OTL" : d.outcome, `${d.goals}-${d.assists}-${d.points}`]) }}
     >
       {data.length < 2 && <p className="mb-1 text-[11px] text-[var(--muted-fg)]">Trends appear after a few games.</p>}
       <div className="h-[160px]">

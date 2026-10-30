@@ -16,7 +16,7 @@ export default async function Image({ params }: { params: Promise<{ matchId: str
   return ogCard({
     eyebrow: `${game.outcome === "W" ? "Win" : "Loss"}${game.overtime ? " (OT)" : ""} · ${ogDay.format(game.playedAt)}`,
     big: `${game.goalsFor}–${game.goalsAgainst}`,
-    bigColor: game.outcome === "W" ? "#5dffa8" : "#ff7a8a",
+    bigColor: game.outcome === "W" ? "#5dffa8" : game.overtime ? "#ffd27a" : "#ff7a8a",
     title: `vs ${game.opponentName ?? `Club ${game.opponentClubId}`}`,
     subtitle: star ? `⭐ ${star.playerName} · ${star.goals}G ${star.assists}A` : undefined,
   });
