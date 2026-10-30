@@ -58,6 +58,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     skaters,
     pucks: [],
     controlled: 0,
+    idle: 0,
     switchLock: 0,
     fireRun: [{ who: -1, n: 0 }, { who: -1, n: 0 }],
     onFire: [],

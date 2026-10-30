@@ -114,6 +114,7 @@ export type MatchState = {
   skaters: Skater[];
   pucks: Puck[];
   controlled: number; // skater the human drives
+  idle: number; // seconds without human input (autopilot takes over off the puck)
   switchLock: number;
   fireRun: [{ who: number; n: number }, { who: number; n: number }];
   onFire: number[]; // skater indexes on fire

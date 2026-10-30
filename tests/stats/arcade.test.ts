@@ -13,7 +13,10 @@ describe("arcadeData (real fixture)", () => {
     expect(data.skaters.length).toBeGreaterThanOrEqual(3);
     expect(data.skaters.map((s) => s.name)).not.toContain("val_kaz");
     for (const s of data.skaters) {
-      for (const v of Object.values(s.r)) expect(v).toBeGreaterThanOrEqual(62), expect(v).toBeLessThanOrEqual(97);
+      for (const v of Object.values(s.r)) {
+        expect(v).toBeGreaterThanOrEqual(62);
+        expect(v).toBeLessThanOrEqual(97);
+      }
       expect(s.ovr).toBe(Math.round((s.r.skate + s.r.shot + s.r.pass + s.r.hit) / 4));
     }
   });

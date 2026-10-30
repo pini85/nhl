@@ -69,8 +69,11 @@ export function step(state: MatchState, input: Input, dt = STEP) {
     }
   }
 
-  const human = state.setup.humanless ? null : state.skaters[state.controlled];
+  let human = state.setup.humanless ? null : state.skaters[state.controlled];
   if (human && state.phase === "play") applyHuman(state, human, input, dt);
+  // Autopilot: a thumb off the stick hands the player to the AI, except while carrying the puck.
+  state.idle = Math.hypot(input.mx, input.my) > 0.1 || input.actions.length ? 0 : state.idle + dt;
+  if (human && state.idle > 0.6 && !ownedBy(state, human) && human.charge < 0) human = null;
 
   for (const s of state.skaters) {
     if (s.goalie) goalieThink(state, s, dt);

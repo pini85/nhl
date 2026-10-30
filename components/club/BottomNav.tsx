@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CircleUser, Home, Orbit, Swords, Users } from "lucide-react";
+import { CalendarDays, CircleUser, Gamepad2, Home, Orbit, Swords, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const TABS = [
   { href: "/players", label: "Players", icon: Users },
   { href: "/opponents", label: "Opponents", icon: Swords },
   { href: "/galaxy", label: "Galaxy", icon: Orbit },
+  { href: "/arcade", label: "Arcade", icon: Gamepad2 },
   { href: "/me", label: "Me", icon: CircleUser },
 ];
 
@@ -32,7 +33,7 @@ export function BottomNavView({ path }: { path: string | null }) {
               <Link
                 href={href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-2 py-1 text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium transition-colors min-[400px]:px-1.5 min-[400px]:text-[11px]",
                   active ? "text-[var(--accent-blue)]" : "text-[var(--muted-fg)]",
                 )}
               >

@@ -157,3 +157,15 @@ describe("clock", () => {
     expect(s.ot).toBe(true);
   });
 });
+
+describe("autopilot", () => {
+  it("an idle player off the puck is moved by the AI, and stops when the thumb is back", () => {
+    const s = createMatch({ home: team("Home"), away: team("Away"), seed: 4, insane: false, length: 180 });
+    run(s, 4);
+    const me = s.skaters[s.controlled];
+    expect(Math.hypot(me.vx, me.vy) + Math.abs(me.tx - me.x) + Math.abs(me.ty - me.y)).toBeGreaterThan(0.5);
+    expect(s.idle).toBeGreaterThan(0.6);
+    run(s, 0.1, { mx: 1, my: 0, burst: false, actions: [] });
+    expect(s.idle).toBe(0);
+  });
+});
