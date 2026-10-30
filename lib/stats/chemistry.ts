@@ -1,17 +1,18 @@
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
 
-export type Combo = { names: string[]; gp: number; wins: number; losses: number; winPct: number; gfPerGame: number; gaPerGame: number };
+export type Combo = { names: string[]; gp: number; wins: number; losses: number; otLosses: number; winPct: number; gfPerGame: number; gaPerGame: number };
 
 const byName = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "base" });
 
-type Acc = { names: string[]; gp: number; wins: number; gf: number; ga: number };
+type Acc = { names: string[]; gp: number; wins: number; otLosses: number; gf: number; ga: number };
 
 function add(map: Map<string, Acc>, names: string[], g: GameLite) {
   const sorted = [...names].sort(byName);
   const key = sorted.join("|");
-  const a = map.get(key) ?? { names: sorted, gp: 0, wins: 0, gf: 0, ga: 0 };
+  const a = map.get(key) ?? { names: sorted, gp: 0, wins: 0, otLosses: 0, gf: 0, ga: 0 };
   a.gp++;
   a.wins += g.outcome === "W" ? 1 : 0;
+  a.otLosses += g.outcome === "L" && g.overtime ? 1 : 0;
   a.gf += g.goalsFor;
   a.ga += g.goalsAgainst;
   map.set(key, a);
@@ -20,7 +21,7 @@ function add(map: Map<string, Acc>, names: string[], g: GameLite) {
 const finish = (map: Map<string, Acc>, minGames: number): Combo[] =>
   [...map.values()]
     .filter((a) => a.gp >= minGames)
-    .map((a) => ({ names: a.names, gp: a.gp, wins: a.wins, losses: a.gp - a.wins, winPct: a.wins / a.gp, gfPerGame: a.gf / a.gp, gaPerGame: a.ga / a.gp }))
+    .map((a) => ({ names: a.names, gp: a.gp, wins: a.wins, losses: a.gp - a.wins - a.otLosses, otLosses: a.otLosses, winPct: a.wins / a.gp, gfPerGame: a.gf / a.gp, gaPerGame: a.ga / a.gp }))
     .sort((x, y) => y.winPct - x.winPct || y.gp - x.gp);
 
 // Forward trios (one C, one LW, one RW) and D-pairs that played full games together.

@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, 
 import { ChartFrame, ChartTooltip } from "@/components/charts/ChartFrame";
 import { AXIS, GRID, THEM, US } from "@/components/charts/palette";
 import type { NightPoint } from "@/lib/stats/trends";
+import { formatRecord } from "@/lib/stats/record";
 
 export function NightTrendChart({ data }: { data: NightPoint[] }) {
   if (!data.length) return null;
@@ -17,7 +18,7 @@ export function NightTrendChart({ data }: { data: NightPoint[] }) {
         { name: "Goals for", color: US },
         { name: "Goals against", color: THEM },
       ]}
-      table={{ head: ["Night", "Record", "GF-GA"], rows: [...data].reverse().map((d) => [d.label, `${d.wins}-${d.losses}`, `${d.goalsFor}-${d.goalsAgainst}`]) }}
+      table={{ head: ["Night", "Record", "GF-GA"], rows: [...data].reverse().map((d) => [d.label, formatRecord(d), `${d.goalsFor}-${d.goalsAgainst}`]) }}
     >
       {data.length < 2 && <p className="mb-1 text-[11px] text-[var(--muted-fg)]">Trends appear after a few game nights.</p>}
       <div className="h-[180px]">
@@ -33,7 +34,7 @@ export function NightTrendChart({ data }: { data: NightPoint[] }) {
                 if (!active || !d) return null;
                 return (
                   <ChartTooltip
-                    title={`${d.label} · ${d.wins}-${d.losses}`}
+                    title={`${d.label} · ${formatRecord(d)}`}
                     rows={[
                       { name: "Goals for", value: String(d.goalsFor), color: US },
                       { name: "Goals against", value: String(d.goalsAgainst), color: THEM },

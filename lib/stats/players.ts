@@ -42,6 +42,7 @@ export type GoalieTotals = {
   gaa: number;
   wins: number;
   losses: number;
+  otLosses: number;
 };
 
 export function playerBadge(
@@ -64,7 +65,7 @@ export function playerTotals(
   ourClubId: number,
   extras: ExtraStats[] = [],
 ): { skaters: SkaterTotals[]; goalies: GoalieTotals[] } {
-  const outcomeById = new Map(games.map((g) => [g.matchId, g.outcome]));
+  const gameById = new Map(games.map((g) => [g.matchId, g]));
   const ours = lines.filter((l) => l.clubId === ourClubId);
 
   // Latest name and "ever a non-guest" per player.
@@ -95,15 +96,18 @@ export function playerTotals(
     if (isGoalie(l)) {
       const g = goalies.get(l.eaPlayerId) ?? {
         eaPlayerId: l.eaPlayerId, name: "", badge: "guest" as Badge, gp: 0, saves: 0, shotsAgainst: 0,
-        goalsAgainst: 0, savePct: 0, gaa: 0, wins: 0, losses: 0,
+        goalsAgainst: 0, savePct: 0, gaa: 0, wins: 0, losses: 0, otLosses: 0,
       };
       g.gp++;
       g.saves += l.glSaves;
       g.shotsAgainst += l.glShots;
       g.goalsAgainst += l.glGa;
-      const outcome = outcomeById.get(l.matchId);
-      if (outcome === "W") g.wins++;
-      if (outcome === "L") g.losses++;
+      const game = gameById.get(l.matchId);
+      if (game?.outcome === "W") g.wins++;
+      else if (game?.outcome === "L") {
+        if (game.overtime) g.otLosses++;
+        else g.losses++;
+      }
       goalies.set(l.eaPlayerId, g);
     } else {
       const s = skaters.get(l.eaPlayerId) ?? emptySkater(l.eaPlayerId);

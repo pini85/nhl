@@ -12,6 +12,11 @@ function ComboList({ title, combos }: { title: string; combos: Combo[] }) {
               <span className="min-w-0 truncate text-sm font-semibold">{c.names.join(" · ")}</span>
               <b className="tabular shrink-0 text-base">
                 <span className="text-[var(--win-fg)]">{c.wins}</span>-<span className="text-[var(--loss-fg)]">{c.losses}</span>
+                {c.otLosses > 0 && (
+                  <>
+                    -<span className="text-[var(--otl-fg)]">{c.otLosses}</span>
+                  </>
+                )}
               </b>
             </div>
             <div className="mt-1 flex items-center gap-2">

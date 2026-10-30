@@ -4,6 +4,7 @@ import { gameAwards } from "@/lib/stats/awards";
 import { momentText, moments, type MomentInput } from "@/lib/stats/moments";
 import { nightRecap, type NightRecap } from "@/lib/stats/nightRecap";
 import { groupGameNights, type GameNight } from "@/lib/stats/nights";
+import { formatRecord } from "@/lib/stats/record";
 import type { GameLite } from "@/lib/stats/types";
 
 const HOUR = 3_600_000;
@@ -139,7 +140,7 @@ export function recapFacts(
 export function factsForWriter(f: RecapFacts): string {
   const { night, mvp, stars, leaders } = f.recap;
   return [
-    `Night: ${night.label}, record ${night.wins}-${night.losses}, goals for ${night.goalsFor}, against ${night.goalsAgainst}`,
+    `Night: ${night.label}, record ${formatRecord(night)}${night.otLosses ? " (W-L-OTL)" : ""}, goals for ${night.goalsFor}, against ${night.goalsAgainst}`,
     `Games (first to last): ${[...night.games].reverse().map((g) => `${g.outcome} ${g.goalsFor}-${g.goalsAgainst} vs ${opp(g)}${g.overtime ? " OT" : ""}${g.dnf !== "none" && g.dnf ? ` (${g.dnf})` : ""}`).join("; ")}`,
     mvp && mvp.points > 0 ? `Night MVP: ${mvp.playerName} ${mvp.goals}G ${mvp.assists}A` : null,
     stars.length ? `Top scorers: ${stars.map((s) => `${s.name} ${s.goals}G ${s.assists}A`).join(", ")}` : null,
@@ -161,7 +162,7 @@ export function recapMessage(f: RecapFacts, intro: string | null = null): string
   const who = escapeMd; // plain names, with markdown escaped
   const head = [
     `🏒 **Game night recap · ${night.label}**`,
-    `**${night.wins}-${night.losses}** in ${night.games.length} game${night.games.length === 1 ? "" : "s"} · GF ${night.goalsFor} · GA ${night.goalsAgainst}`,
+    `**${formatRecord(night)}**${night.otLosses ? " (W-L-OTL)" : ""} in ${night.games.length} game${night.games.length === 1 ? "" : "s"} · GF ${night.goalsFor} · GA ${night.goalsAgainst}`,
   ];
   const games = ["**Games**", ...[...night.games].reverse().map(gameLine)];
 

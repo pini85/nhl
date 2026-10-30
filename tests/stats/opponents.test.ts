@@ -32,6 +32,11 @@ describe("headToHead", () => {
     const h = headToHead([...games, extra(1808, 1, 0, "2026-10-01T20:00:00Z")]);
     expect(h.find((x) => x.clubId === 1808)).toMatchObject({ name: "INFERNAL LEGION", gp: 2, wins: 1, losses: 1 });
   });
+  it("counts OT losses apart from regulation losses", () => {
+    const ot = { ...extra(77, 2, 3, "2026-10-02T20:00:00Z"), overtime: true };
+    const h = headToHead([extra(77, 3, 1, "2026-10-01T20:00:00Z"), extra(77, 1, 4, "2026-10-01T21:00:00Z"), ot]);
+    expect(h[0]).toMatchObject({ gp: 3, wins: 1, losses: 1, otLosses: 1 });
+  });
 });
 
 describe("nemesis and punching bags", () => {
@@ -204,10 +209,10 @@ describe("commonOpponents", () => {
       h2h,
       56507,
     );
-    expect(c.ours.get(10)).toEqual({ wins: 2, losses: 1 });
+    expect(c.ours.get(10)).toEqual({ wins: 2, losses: 1, otLosses: 0 });
     expect(c.ours.get(30)).toBeUndefined();
-    expect(c.theirTotal).toEqual({ wins: 2, losses: 1 });
-    expect(c.ourTotal).toEqual({ wins: 2, losses: 2 });
+    expect(c.theirTotal).toEqual({ wins: 2, losses: 1, otLosses: 0 });
+    expect(c.ourTotal).toEqual({ wins: 2, losses: 2, otLosses: 0 });
     expect(c.clubs).toBe(2);
     expect(c.rows.map((r) => r.clubId)).toEqual([10, 20]);
     // Them vs 10: 4-6 over 2 games = -1/game. Us vs 10: 8-3 over 3 games = +5/3 per game.
@@ -219,7 +224,7 @@ describe("commonOpponents", () => {
   it("empty when there is no overlap", () => {
     const c = commonOpponents([{ opponentClubId: 99, outcome: "W", goalsFor: 1, goalsAgainst: 0 }], h2h, 56507);
     expect(c.clubs).toBe(0);
-    expect(c.theirTotal).toEqual({ wins: 0, losses: 0 });
+    expect(c.theirTotal).toEqual({ wins: 0, losses: 0, otLosses: 0 });
     expect(c.rows).toEqual([]);
   });
 });

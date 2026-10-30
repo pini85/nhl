@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Section } from "@/components/club/Section";
 import { StatTile } from "@/components/club/StatTile";
 import type { LastNight, Streak } from "@/lib/stats/personal";
+import { formatRecord } from "@/lib/stats/record";
 
 const STREAK: Record<Streak["key"], string> = { points: "games in a row with a point", goals: "games in a row with a goal", games: "games in a row played" };
 
@@ -31,7 +32,7 @@ export function MyNight({ night, streaks }: { night: LastNight | null; streaks: 
                 <StatTile label="Assists" value={night.assists} />
               </>
             )}
-            <StatTile label="W-L" value={`${night.wins}-${night.losses}`} />
+            <StatTile label={night.otLosses ? "W-L-OTL" : "W-L"} value={formatRecord(night)} />
           </div>
           {night.pointsVsAvg !== null && (
             <p className="mt-2 text-xs text-[var(--muted-fg)]">
