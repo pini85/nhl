@@ -12,6 +12,7 @@ import type { MatchSetup } from "@/components/arcade/engine/types";
 import { useMyId } from "@/components/club/YouHighlight";
 import type { ArcadeData, ArcadeOpponent, ArcadeSkater } from "@/lib/stats/arcade";
 import { cn } from "@/lib/utils";
+import { formatRecord } from "@/lib/stats/record";
 
 // The game (engine + canvas) only loads when a match starts, and only in the browser.
 const Game = dynamic(() => import("@/components/arcade/Game"), {
@@ -331,7 +332,7 @@ function Exhibition({ data, onBack, onPick }: { data: ArcadeData; onBack: () => 
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-black">{o.name}</span>
                 <span className="block text-xs text-[var(--muted-fg)]">
-                  Real record <b className="tabular text-[var(--fg)]">{o.wins}-{o.losses}</b> · goals {o.gf}-{o.ga}
+                  Real record <b className="tabular text-[var(--fg)]">{formatRecord(o)}</b> · goals {o.gf}-{o.ga}
                 </span>
               </span>
               <Heat value={o.difficulty} />
@@ -532,7 +533,7 @@ function Result({
           {won
             ? lastWasLoss
               ? `Real life: they won ${opp.last.ga}-${opp.last.gf}. Arcade: justice.`
-              : `They never stood a chance. Real record ${opp.wins}-${opp.losses}, now with interest.`
+              : `They never stood a chance. Real record ${formatRecord(opp)}, now with interest.`
             : `${opp.name} got you again. Run it back.`}
         </p>
       </div>
@@ -603,13 +604,14 @@ function Result({
 
 function grudge(o: ArcadeOpponent) {
   const last = `last ${o.last.win ? "W" : "L"} ${o.last.gf}-${o.last.ga}`;
-  return `Real ${o.wins}-${o.losses} · ${last}`;
+  return `Real ${formatRecord(o)} · ${last}`;
 }
 
 function story(o: ArcadeOpponent) {
-  if (o.losses > o.wins) return o.gp === 1 ? `They beat us ${o.last.ga}-${o.last.gf} in our only game. Time to settle it.` : `${o.losses} wins to ${o.wins} for them in real life. Goals ${o.ga}-${o.gf}. Not anymore.`;
-  if (o.losses === o.wins) return `Dead even in real life at ${o.wins}-${o.losses}. Break the tie.`;
-  return `We're ${o.wins}-${o.losses} against them for real. Keep it that way.`;
+  const lost = o.gp - o.wins;
+  if (lost > o.wins) return o.gp === 1 ? `They beat us ${o.last.ga}-${o.last.gf} in our only game. Time to settle it.` : `${lost} wins to ${o.wins} for them in real life. Goals ${o.ga}-${o.gf}. Not anymore.`;
+  if (lost === o.wins) return `Dead even in real life at ${formatRecord(o)}. Break the tie.`;
+  return `We're ${formatRecord(o)} against them for real. Keep it that way.`;
 }
 
 function Back({ onClick }: { onClick: () => void }) {

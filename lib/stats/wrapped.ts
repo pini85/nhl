@@ -1,7 +1,7 @@
 import type { MatchClubRow } from "@/lib/ea/normalize";
 import { allAwards } from "@/lib/stats/awards";
 import { groupGameNights } from "@/lib/stats/nights";
-import { formatRecord } from "@/lib/stats/record";
+import { countRecord, formatRecord } from "@/lib/stats/record";
 import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { playerTotals } from "@/lib/stats/players";
 import type { ExtraStats, GameLite, PlayerLine } from "@/lib/stats/types";
@@ -22,12 +22,13 @@ export function buildWrapped(
   extras: ExtraStats[] = [],
 ): { slides: Slide[] } {
   if (!games.length) return { slides: [] };
-  const wins = games.filter((g) => g.outcome === "W").length;
+  const record = countRecord(games);
+  const wins = record.wins;
   const gf = games.reduce((s, g) => s + g.goalsFor, 0);
   const ga = games.reduce((s, g) => s + g.goalsAgainst, 0);
   const { skaters } = playerTotals(lines, games, null, ourClubId, extras);
   const slides: Slide[] = [
-    { kind: "games", eyebrow: "Games played", big: String(games.length), unit: plural(games.length, "games"), line: `${wins} wins · ${games.length - wins} losses` },
+    { kind: "games", eyebrow: "Games played", big: String(games.length), unit: plural(games.length, "games"), line: `${wins} wins · ${record.losses} losses${record.otLosses ? ` · ${record.otLosses} OT losses` : ""}` },
     { kind: "goals", eyebrow: "Goals scored", big: String(gf), unit: plural(gf, "goals"), line: `${ga} allowed · ${gf - ga >= 0 ? "+" : ""}${gf - ga} difference` },
   ];
 
@@ -49,10 +50,10 @@ export function buildWrapped(
   const h2h = headToHead(games);
   const foe = nemesis(h2h, 1)[0];
   if (foe) {
-    slides.push({ kind: "nemesis", eyebrow: "Nemesis", big: `${foe.wins}-${foe.losses}`, unit: "wins – losses vs them", title: foe.name ?? `Club ${foe.clubId}`, line: "Revenge is on the schedule." });
+    slides.push({ kind: "nemesis", eyebrow: "Nemesis", big: formatRecord(foe), unit: foe.otLosses ? "wins – losses – OT losses vs them" : "wins – losses vs them", title: foe.name ?? `Club ${foe.clubId}`, line: "Revenge is on the schedule." });
   } else {
     const most = [...h2h].sort((a, b) => b.gp - a.gp || b.lastPlayedAt.getTime() - a.lastPlayedAt.getTime())[0];
-    if (most) slides.push({ kind: "most-played", eyebrow: "Clubs faced", big: String(h2h.length), unit: plural(h2h.length, "different clubs"), title: `Latest rival: ${most.name ?? `Club ${most.clubId}`}`, line: `${most.wins}-${most.losses} against them` });
+    if (most) slides.push({ kind: "most-played", eyebrow: "Clubs faced", big: String(h2h.length), unit: plural(h2h.length, "different clubs"), title: `Latest rival: ${most.name ?? `Club ${most.clubId}`}`, line: `${formatRecord(most)} against them` });
   }
 
   const awards = allAwards(lines, games, clubs, ourClubId);

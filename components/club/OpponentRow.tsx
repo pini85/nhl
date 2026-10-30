@@ -10,17 +10,24 @@ export type OpponentRowData = {
   gp: number;
   wins: number;
   losses: number;
+  otLosses: number;
   goalsFor: number;
   goalsAgainst: number;
   lastPlayedIso: string | null;
   last: { outcome: "W" | "L"; goalsFor: number; goalsAgainst: number; overtime: boolean; dnf: string } | null;
 };
 
-// "2W 0L": a record, written so it can't be mistaken for a score.
-function Record({ wins, losses }: { wins: number; losses: number }) {
+// "2W 0L 1OTL": a record, written so it can't be mistaken for a score.
+function Record({ wins, losses, otLosses }: { wins: number; losses: number; otLosses: number }) {
   return (
     <>
       <span className="text-[var(--win-fg)]">{wins}W</span> <span className="text-[var(--loss-fg)]">{losses}L</span>
+      {otLosses > 0 && (
+        <>
+          {" "}
+          <span className="text-[var(--otl-fg)]">{otLosses}OTL</span>
+        </>
+      )}
     </>
   );
 }
@@ -39,7 +46,7 @@ export function OpponentRow({ o, mode = "recent" }: { o: OpponentRowData; mode?:
             "Scouted · not played yet"
           ) : mode === "recent" ? (
             <>
-              {date} · <Record wins={o.wins} losses={o.losses} /> overall · GF {o.goalsFor} GA {o.goalsAgainst}
+              {date} · <Record wins={o.wins} losses={o.losses} otLosses={o.otLosses} /> overall · GF {o.goalsFor} GA {o.goalsAgainst}
             </>
           ) : (
             <>
@@ -59,7 +66,7 @@ export function OpponentRow({ o, mode = "recent" }: { o: OpponentRowData; mode?:
             </>
           ) : (
             <span className="tabular text-base font-black">
-              <Record wins={o.wins} losses={o.losses} />
+              <Record wins={o.wins} losses={o.losses} otLosses={o.otLosses} />
             </span>
           )}
         </span>

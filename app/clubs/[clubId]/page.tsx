@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { countRecord, formatRecord, type WLO } from "@/lib/stats/record";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Crest } from "@/components/club/Crest";
@@ -31,8 +32,10 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 const signedRate = (n: number) => `${n > 0 ? "+" : ""}${Number.isInteger(n) ? n : n.toFixed(1)}`;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 const savePct = (n: number) => n.toFixed(3).replace(/^0/, "");
-const recordColor = (r: { wins: number; losses: number }) =>
-  r.wins > r.losses ? "text-[var(--win-fg)]" : r.losses > r.wins ? "text-[var(--loss-fg)]" : "";
+const recordColor = (r: WLO) => {
+  const lost = r.losses + r.otLosses;
+  return r.wins > lost ? "text-[var(--win-fg)]" : lost > r.wins ? "text-[var(--loss-fg)]" : "";
+};
 const plural = (n: number, word: string) => (n ? `${n} ${word}${n === 1 ? "" : "s"}` : null);
 
 export default function ClubPage({ params }: PageProps<"/clubs/[clubId]">) {
@@ -69,7 +72,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
   const leaders = rosterLeaders(snapshot?.members ?? null);
   const ourH2H = headToHead(games);
   const recent = theirRecentGames(snapshot, clubRows, scouted, ourH2H, new Set(games.map((g) => g.matchId)));
-  const recentWins = recent.filter((g) => g.outcome === "W").length;
+  const recentRecord = countRecord(recent);
   const common = commonOpponents(recent, ourH2H, CLUB_ID);
   const sameOpponents = common.rows.map((r) => ({
     clubId: r.clubId,
@@ -123,7 +126,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
       )}
 
       {recent.length > 0 && (
-        <Section title={`Their last ${recent.length} games · ${recentWins}-${recent.length - recentWins}`}>
+        <Section title={`Their last ${recent.length} games · ${formatRecord(recentRecord)}`}>
           {common.clubs > 0 && (
             <div className="mb-2 rounded-xl bg-white/[0.04] px-3 py-2 text-xs">
               <div className="text-[10px] tracking-wide text-[var(--muted-fg)] uppercase">
@@ -133,13 +136,13 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
                 <span>
                   They went{" "}
                   <b className="tabular">
-                    {common.theirTotal.wins}-{common.theirTotal.losses}
+                    {formatRecord(common.theirTotal)}
                   </b>
                 </span>
                 <span>
                   We&apos;re{" "}
                   <b className={`tabular ${recordColor(common.ourTotal)}`}>
-                    {common.ourTotal.wins}-{common.ourTotal.losses}
+                    {formatRecord(common.ourTotal)}
                   </b>{" "}
                   vs them
                 </span>
@@ -165,7 +168,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
                       className={`tabular shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold ${recordColor(ours)}`}
                       title="Our record against this club"
                     >
-                      Us {ours.wins}-{ours.losses}
+                      Us {formatRecord(ours)}
                     </span>
                   )}
                   {g.playedAt && (
@@ -242,7 +245,7 @@ async function ClubContent({ params }: { params: Promise<{ clubId: string }> }) 
         {h2h ? (
           <>
             <div className="grid grid-cols-3 gap-1.5">
-              <StatTile label="Record" value={`${h2h.wins}-${h2h.losses}`} glow />
+              <StatTile label="Record" value={formatRecord(h2h)} glow />
               <StatTile label="Goals" value={`${h2h.goalsFor}-${h2h.goalsAgainst}`} />
               <StatTile label="Diff" value={h2h.goalDiff > 0 ? `+${h2h.goalDiff}` : h2h.goalDiff} />
             </div>

@@ -2,13 +2,16 @@ import { type MatchClubRow, parseRecentResults, type RecentResult, type RosterMe
 import type { EaSeasonalStats } from "@/lib/ea/schemas";
 import type { OpponentProfile } from "@/lib/opponents/profile";
 import type { GameLite, PlayerLine } from "@/lib/stats/types";
+import { countRecord, type WLO } from "@/lib/stats/record";
 
 export type H2H = {
   clubId: number;
   name: string | null;
   gp: number;
   wins: number;
+  /** Regulation losses only. */
   losses: number;
+  otLosses: number;
   goalsFor: number;
   goalsAgainst: number;
   winPct: number;
@@ -24,7 +27,7 @@ export function headToHead(games: GameLite[]): H2H[] {
   return [...byClub.entries()]
     .map(([clubId, list]) => {
       const sorted = [...list].sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
-      const wins = sorted.filter((g) => g.outcome === "W").length;
+      const { wins, losses, otLosses } = countRecord(sorted);
       const goalsFor = sorted.reduce((s, g) => s + g.goalsFor, 0);
       const goalsAgainst = sorted.reduce((s, g) => s + g.goalsAgainst, 0);
       return {
@@ -32,7 +35,8 @@ export function headToHead(games: GameLite[]): H2H[] {
         name: sorted.find((g) => g.opponentName)?.opponentName ?? null,
         gp: sorted.length,
         wins,
-        losses: sorted.length - wins,
+        losses,
+        otLosses,
         goalsFor,
         goalsAgainst,
         winPct: wins / sorted.length,
@@ -52,7 +56,7 @@ const newestFirst = (a: H2H, b: H2H) => b.lastPlayedAt.getTime() - a.lastPlayedA
 // Clubs we have a losing record against: worst record, then worst goal difference, then fewest goals scored.
 export function nemesis(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.losses > h.wins)
+    .filter((h) => h.gp - h.wins > h.wins)
     .sort(
       (a, b) =>
         sampleGroup(a) - sampleGroup(b) ||
@@ -67,7 +71,7 @@ export function nemesis(h2h: H2H[], n = 3): H2H[] {
 // Clubs we have a winning record against: best record, then best goal difference, then most goals scored.
 export function punchingBags(h2h: H2H[], n = 3): H2H[] {
   return h2h
-    .filter((h) => h.wins > h.losses)
+    .filter((h) => h.wins > h.gp - h.wins)
     .sort(
       (a, b) =>
         sampleGroup(a) - sampleGroup(b) ||
@@ -266,7 +270,7 @@ export function rosterStats(members: RosterMember[] | null): { skaters: SkaterRo
   return { skaters, goalies };
 }
 
-export type Record2 = { wins: number; losses: number };
+export type Record2 = WLO;
 export type CommonOpponents = {
   // Our record against each club they played, for clubs we have played too.
   ours: Map<number, Record2>;
@@ -287,7 +291,7 @@ export type CommonRow = {
 
 // Clubs that show up in both their recent games and our history. Games against us don't count.
 export function commonOpponents(
-  theirGames: { opponentClubId: number; opponentName?: string | null; outcome: "W" | "L"; goalsFor: number; goalsAgainst: number }[],
+  theirGames: { opponentClubId: number; opponentName?: string | null; outcome: "W" | "L"; overtime?: boolean; goalsFor: number; goalsAgainst: number }[],
   ourH2H: H2H[],
   ourClubId: number,
 ): CommonOpponents {
@@ -295,15 +299,16 @@ export function commonOpponents(
   const ourRows = new Map<number, H2H>();
   for (const h of ourH2H) {
     if (h.clubId === ourClubId) continue;
-    ours.set(h.clubId, { wins: h.wins, losses: h.losses });
+    ours.set(h.clubId, { wins: h.wins, losses: h.losses, otLosses: h.otLosses });
     ourRows.set(h.clubId, h);
   }
-  const theirTotal = { wins: 0, losses: 0 };
+  const theirTotal: Record2 = { wins: 0, losses: 0, otLosses: 0 };
   const seen = new Set<number>();
   const byClub = new Map<number, CommonRow>();
   for (const g of theirGames) {
     if (g.opponentClubId === ourClubId || !ours.has(g.opponentClubId)) continue;
     if (g.outcome === "W") theirTotal.wins++;
+    else if (g.overtime) theirTotal.otLosses++;
     else theirTotal.losses++;
     seen.add(g.opponentClubId);
     const h = ourRows.get(g.opponentClubId)!;
@@ -319,10 +324,12 @@ export function commonOpponents(
     row.them.diffPerGame = (row.them.goalsFor - row.them.goalsAgainst) / row.them.gp;
     byClub.set(g.opponentClubId, row);
   }
-  const ourTotal = { wins: 0, losses: 0 };
+  const ourTotal: Record2 = { wins: 0, losses: 0, otLosses: 0 };
   for (const id of seen) {
-    ourTotal.wins += ours.get(id)!.wins;
-    ourTotal.losses += ours.get(id)!.losses;
+    const r = ours.get(id)!;
+    ourTotal.wins += r.wins;
+    ourTotal.losses += r.losses;
+    ourTotal.otLosses += r.otLosses;
   }
   return { ours, theirTotal, ourTotal, clubs: seen.size, rows: [...byClub.values()] };
 }

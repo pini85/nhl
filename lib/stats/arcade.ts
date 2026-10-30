@@ -30,7 +30,8 @@ export type ArcadeOpponent = {
   color: string;
   gp: number;
   wins: number; // ours
-  losses: number;
+  losses: number; // regulation
+  otLosses: number;
   gf: number;
   ga: number;
   last: { gf: number; ga: number; win: boolean; t: number };
@@ -219,7 +220,7 @@ export function arcadeData(
     .map((h) => {
       const name = h.name ?? `Club ${h.clubId}`;
       const abbr = abbreviation(name);
-      const pain = (h.losses - h.wins) / h.gp;
+      const pain = (h.gp - 2 * h.wins) / h.gp;
       const margin = (h.goalsAgainst - h.goalsFor) / h.gp;
       const difficulty = clamp01(0.5 + 0.25 * pain + 0.06 * margin);
       const sk = ratedSk.filter((_, i) => allSk[i].clubId === h.clubId).slice(0, 3);
@@ -235,13 +236,14 @@ export function arcadeData(
         gp: h.gp,
         wins: h.wins,
         losses: h.losses,
+        otLosses: h.otLosses,
         gf: h.goalsFor,
         ga: h.goalsAgainst,
         last: { gf: last.goalsFor, ga: last.goalsAgainst, win: last.outcome === "W", t: last.playedAt.getTime() },
         skaters: sk,
         goalie: gl ?? { id: `${abbr}-g`, name: `${abbr} #1`, number: 1, save: lv, gp: 0, svPct: 0 },
         difficulty,
-        revenge: h.losses >= h.wins,
+        revenge: h.gp - h.wins >= h.wins,
       };
     })
     .sort((a, b) => b.gp - a.gp || b.last.t - a.last.t);
