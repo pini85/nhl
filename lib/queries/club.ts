@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { clubSnapshots, extraPlayerStats, matchClubs, matches, matchPlayers } from "@/db/schema";
 import { CLUB_ID } from "@/lib/config";
@@ -56,6 +56,13 @@ function linesQuery(db: Db) {
 
 export async function ourPlayerLines(db: Db): Promise<PlayerLine[]> {
   return linesQuery(db).where(eq(matchPlayers.clubId, CLUB_ID)).orderBy(asc(matches.playedAt));
+}
+
+// The other club's players in our own games (for the Arcade opponents), oldest first.
+export async function opponentLinesInOurGames(db: Db): Promise<PlayerLine[]> {
+  return linesQuery(db)
+    .where(and(ne(matchPlayers.clubId, CLUB_ID), eq(matchPlayers.clubId, matches.opponentClubId)))
+    .orderBy(asc(matches.playedAt));
 }
 
 export async function matchDetail(

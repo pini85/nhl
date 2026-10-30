@@ -3,7 +3,7 @@ import type { Db } from "@/db/client";
 import { eq } from "drizzle-orm";
 import { clubSnapshots, extraPlayerStats, matches } from "@/db/schema";
 import { collect } from "@/lib/collector/collect";
-import { allGames, extraStats, latestSnapshot, matchDetail, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
+import { allGames, extraStats, latestSnapshot, matchDetail, opponentLinesInOurGames, ourPlayerLines, playerDetail, snapshotHistory } from "@/lib/queries/club";
 import { createTestDb } from "../helpers/db";
 import { createFixtureEa } from "../helpers/fixture-ea";
 
@@ -17,6 +17,7 @@ describe("club queries on an empty database", () => {
     expect(await latestSnapshot(db)).toBeNull();
     expect(await allGames(db)).toEqual([]);
     expect(await ourPlayerLines(db)).toEqual([]);
+    expect(await opponentLinesInOurGames(db)).toEqual([]);
     expect(await matchDetail(db, "nope")).toBeNull();
     expect(await playerDetail(db, "nope")).toBeNull();
   });
@@ -63,6 +64,16 @@ describe("club queries after collecting the fixtures", () => {
     const l = await ourPlayerLines(db);
     expect(l.every((x) => x.clubId === 56507)).toBe(true);
     expect(l).toHaveLength(54); // 9 full games × 6
+  });
+
+  it("returns the other club's lines from our games, never ours", async () => {
+    const [l, g] = await Promise.all([opponentLinesInOurGames(db), allGames(db)]);
+    const opp = new Map(g.map((x) => [x.matchId, x.opponentClubId]));
+    expect(l.length).toBeGreaterThan(0);
+    for (const x of l) {
+      expect(x.clubId).not.toBe(56507);
+      expect(x.clubId).toBe(opp.get(x.matchId));
+    }
   });
 
   it("returns match detail", async () => {
