@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.context().addCookies([{ name: "ddd-player", value: "skipped", url: "http://localhost:3400" }]);
 });
 
-const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare", "/me"];
+const pages = ["/", "/games", "/games/2782817800237", "/players", "/players/828785353", "/opponents", "/clubs/1808", "/nights/2026-10-22", "/players/compare", "/me", "/arcade"];
 
 for (const path of pages) {
   test(`renders ${path} on a phone without errors or sideways scroll`, async ({ page }) => {
