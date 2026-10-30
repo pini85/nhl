@@ -11,13 +11,15 @@ export function ResultPill({
   dnf?: string;
   className?: string;
 }) {
+  // An overtime loss still earns a point, so it gets the OTL yellow, not loss red.
+  const otLoss = outcome === "OTL" || (outcome === "L" && overtime);
   const style =
     outcome === "W"
       ? "bg-[var(--win-bg)] text-[var(--win-fg)]"
-      : outcome === "L"
-        ? "bg-[var(--loss-bg)] text-[var(--loss-fg)]"
-        : outcome === "OTL"
-          ? "bg-[var(--otl-bg)] text-[var(--otl-fg)]"
+      : otLoss
+        ? "bg-[var(--otl-bg)] text-[var(--otl-fg)]"
+        : outcome === "L"
+          ? "bg-[var(--loss-bg)] text-[var(--loss-fg)]"
           : "bg-white/5 text-[var(--muted-fg)]";
   return (
     <span

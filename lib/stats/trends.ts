@@ -90,7 +90,7 @@ export function nightTeammates(nights: GameNight[], lines: PlayerLine[], playerI
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", month: "short", day: "numeric" });
 
-export type FormPoint = { matchId: string; label: string; goals: number; assists: number; points: number; outcome: "W" | "L" };
+export type FormPoint = { matchId: string; label: string; goals: number; assists: number; points: number; outcome: "W" | "L"; overtime: boolean };
 
 // A player's last `n` skater games, oldest → newest.
 export function playerForm(lines: PlayerLine[], games: GameLite[], n = 10): FormPoint[] {
@@ -108,6 +108,7 @@ export function playerForm(lines: PlayerLine[], games: GameLite[], n = 10): Form
       assists: l.assists,
       points: l.goals + l.assists,
       outcome: g.outcome,
+      overtime: g.overtime,
     }));
 }
 

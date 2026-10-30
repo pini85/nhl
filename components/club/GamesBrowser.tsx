@@ -44,8 +44,6 @@ export function GamesBrowser({ nights }: { nights: NightView[] }) {
       {!visible.length && <p className="py-8 text-center text-sm text-[var(--muted-fg)]">No games of this type yet.</p>}
 
       {visible.map((night, i) => {
-        const w = night.games.filter((g) => g.outcome === "W").length;
-        const l = night.games.length - w;
         return (
           <details key={night.key + i} open={i === 0} className="arena-card group my-3 overflow-hidden">
             <summary className="flex cursor-pointer list-none items-center justify-between p-3.5">
@@ -57,7 +55,12 @@ export function GamesBrowser({ nights }: { nights: NightView[] }) {
               </div>
               <div className="text-right">
                 <div className="tabular text-lg font-black">
-                  <span className="text-[var(--win-fg)]">{w}</span>-<span className="text-[var(--loss-fg)]">{l}</span>
+                  <span className="text-[var(--win-fg)]">{night.wins}</span>-<span className="text-[var(--loss-fg)]">{night.losses}</span>
+                  {night.otLosses > 0 && (
+                    <>
+                      -<span className="text-[var(--otl-fg)]">{night.otLosses}</span>
+                    </>
+                  )}
                 </div>
                 <div className="tabular text-[11px] text-[var(--muted-fg)]">
                   GF {night.games.reduce((s, g) => s + g.goalsFor, 0)} · GA {night.games.reduce((s, g) => s + g.goalsAgainst, 0)}
