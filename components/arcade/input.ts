@@ -1,25 +1,33 @@
 import type { Action, Input } from "@/components/arcade/engine/types";
 
 // Touch: a floating stick on the left half, labelled buttons on the right. Keyboard for desktops.
-// The buttons change with the puck:
-//   with it:    SHOOT (hold for a slapshot) · PASS
-//   without it: HIT · SWITCH · POKE
+// Five buttons that never move or change: SHOOT (hold for a slapshot) · PASS · SWITCH on the bottom row,
+// HIT · POKE above. The ones that don't apply right now (SHOOT without the puck, HIT with it) just fade.
 // Screen directions are turned into world directions (screen y goes down, world y goes up).
 
 const STICK_R = 56;
 const HOLD_MS = 170;
 
-export type ButtonId = "a" | "b" | "c";
+export type ButtonId = "shoot" | "pass" | "switch" | "hit" | "poke";
+export const BUTTONS: readonly ButtonId[] = ["shoot", "pass", "switch", "hit", "poke"];
+/** Buttons that need the puck (true) or need to be without it (false). */
+export const NEEDS_PUCK: Record<ButtonId, boolean> = { shoot: true, pass: true, switch: false, hit: false, poke: false };
 export type ButtonSpot = { x: number; y: number; r: number };
 
 /** Where the buttons sit, in CSS pixels. Shared by the input and the HUD so taps land where the buttons are drawn. */
 export function buttonLayout(w: number, h: number, bottom: number): Record<ButtonId, ButtonSpot> {
   const s = Math.max(0.8, Math.min(1.15, Math.min(w, h) / 390));
   const by = h - bottom - 24;
+  const r = 29 * s;
+  const col = (i: number) => w - 50 * s - i * 70 * s; // right to left
+  const low = by - 30 * s;
+  const high = low - 70 * s;
   return {
-    a: { x: w - 74 * s, y: by - 58 * s, r: 48 * s }, // big: SHOOT / HIT
-    b: { x: w - 170 * s, y: by - 34 * s, r: 36 * s }, // PASS / SWITCH
-    c: { x: w - 62 * s, y: by - 168 * s, r: 30 * s }, // POKE (only without the puck)
+    shoot: { x: col(0), y: low, r },
+    pass: { x: col(1), y: low, r },
+    switch: { x: col(2), y: low, r },
+    hit: { x: col(0), y: high, r },
+    poke: { x: col(1), y: high, r },
   };
 }
 
@@ -71,15 +79,15 @@ export class Controls {
 
   /** Button state for the HUD. */
   get pad(): PadView {
-    const down = { a: false, b: false, c: false };
+    const down: Record<ButtonId, boolean> = { shoot: false, pass: false, switch: false, hit: false, poke: false };
     let charging = this.keyCharging;
     for (const p of this.presses.values()) {
       down[p.btn] = true;
       charging ||= p.charging;
     }
-    if (this.keys.has(" ")) down.a = true;
-    if (this.keys.has("e") || this.keys.has("j")) down.b = true;
-    if (this.keys.has("q") || this.keys.has("l")) down.c = true;
+    if (this.keys.has(" ")) down[this.hasPuck ? "shoot" : "hit"] = true;
+    if (this.keys.has("e") || this.keys.has("j")) down[this.hasPuck ? "pass" : "switch"] = true;
+    if (this.keys.has("q") || this.keys.has("l")) down.poke = true;
     return { hasPuck: this.hasPuck, down, charging };
   }
 
@@ -109,8 +117,7 @@ export class Controls {
     const L = buttonLayout(rect.width, rect.height, this.bottom);
     let best: ButtonId | null = null;
     let bestD = Infinity;
-    for (const id of ["a", "b", "c"] as const) {
-      if (id === "c" && this.hasPuck) continue;
+    for (const id of BUTTONS) {
       const b = L[id];
       const d = Math.hypot(x - b.x, y - b.y) / b.r;
       if (d < 1.35 && d < bestD) {
@@ -143,22 +150,22 @@ export class Controls {
   }
 
   private press(id: number, btn: ButtonId) {
-    this.haptic(6);
     const p: Press = { id, btn, t0: performance.now(), charging: false };
     this.presses.set(id, p);
-    if (btn === "a") {
-      if (this.hasPuck) {
-        // Hold to wind up a slapshot; a quick tap is a wrist shot (fired on release).
-        timers.set(p, setTimeout(() => {
-          if (this.presses.get(id) === p && this.hasPuck) {
-            p.charging = true;
-            this.actions.push({ kind: "charge" });
-            this.haptic(10);
-          }
-        }, HOLD_MS));
-      } else this.actions.push({ kind: "hit" });
-    } else if (btn === "b") this.actions.push({ kind: "tap" });
-    else this.actions.push({ kind: "poke" });
+    if (NEEDS_PUCK[btn] !== this.hasPuck) return; // faded: nothing to do right now
+    this.haptic(6);
+    if (btn === "shoot") {
+      // Hold to wind up a slapshot; a quick tap is a wrist shot (fired on release).
+      timers.set(p, setTimeout(() => {
+        if (this.presses.get(id) === p && this.hasPuck) {
+          p.charging = true;
+          this.actions.push({ kind: "charge" });
+          this.haptic(10);
+        }
+      }, HOLD_MS));
+    } else if (btn === "hit") this.actions.push({ kind: "hit" });
+    else if (btn === "poke") this.actions.push({ kind: "poke" });
+    else this.actions.push({ kind: "tap" }); // pass with the puck, switch without
   }
 
   private move(e: PointerEvent) {
@@ -199,7 +206,7 @@ export class Controls {
     if (!p) return;
     this.presses.delete(e.pointerId);
     this.clearTimer(p);
-    if (p.btn !== "a") return;
+    if (p.btn !== "shoot") return;
     if (p.charging) this.actions.push({ kind: "release" });
     else if (!cancel && this.hasPuck) this.actions.push({ kind: "shoot" });
   }

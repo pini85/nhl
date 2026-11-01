@@ -1,5 +1,5 @@
 import { netSegments, RINK } from "@/components/arcade/engine/rink";
-import { buttonLayout, type PadView } from "@/components/arcade/input";
+import { buttonLayout, NEEDS_PUCK, type ButtonId, type PadView } from "@/components/arcade/input";
 import type { GameEvent, MatchState, Skater } from "@/components/arcade/engine/types";
 
 // Canvas renderer. World (x, y) with +y up is drawn as (u, v) = (x, -y) so screen y goes down.
@@ -1031,17 +1031,18 @@ export class Renderer implements View {
     this.drawPad();
   }
 
-  /** SHOOT / PASS with the puck; HIT / SWITCH / POKE without it. */
+  /** Five fixed buttons; the ones that don't apply right now fade out. */
   private drawPad() {
     const pad = this.pad;
     if (!pad) return;
     const ctx = this.ctx;
     const L = buttonLayout(this.w, this.h, this.insets.bottom);
-    const btn = (id: "a" | "b" | "c", label: string, sub: string, color: string) => {
+    const btn = (id: ButtonId, label: string, sub: string, color: string) => {
       const { x, y, r } = L[id];
-      const down = pad.down[id];
+      const live = NEEDS_PUCK[id] === pad.hasPuck;
+      const down = pad.down[id] && live;
       ctx.save();
-      ctx.globalAlpha = down ? 0.95 : 0.78;
+      ctx.globalAlpha = down ? 0.95 : live ? 0.8 : 0.28;
       ctx.fillStyle = down ? color : "rgba(7,11,20,0.55)";
       ctx.strokeStyle = color;
       ctx.lineWidth = 3;
@@ -1053,23 +1054,20 @@ export class Renderer implements View {
       ctx.fillStyle = down ? "#07101e" : "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `900 ${Math.round(r * 0.36)}px system-ui, sans-serif`;
+      ctx.font = `900 ${Math.round(r * (label.length > 5 ? 0.3 : 0.36))}px system-ui, sans-serif`;
       ctx.fillText(label, x, sub ? y - r * 0.12 : y);
-      if (sub && this.hint > 0) {
+      if (sub && live && this.hint > 0) {
         ctx.globalAlpha = Math.max(0.55, this.hint);
         ctx.font = `700 ${Math.max(9, Math.round(r * 0.2))}px system-ui, sans-serif`;
         ctx.fillText(sub, x, y + r * 0.28);
       }
       ctx.restore();
     };
-    if (pad.hasPuck) {
-      btn("a", pad.charging ? "LET GO" : "SHOOT", pad.charging ? "" : "hold = slapper", "#ffd23d");
-      btn("b", "PASS", "", "#5cc8ff");
-    } else {
-      btn("a", "HIT", "", "#ff6b4a");
-      btn("b", "SWITCH", "", "#5cc8ff");
-      btn("c", "POKE", "", "#c7d2e6");
-    }
+    btn("shoot", "SHOOT", pad.charging ? "" : "hold", "#ffd23d");
+    btn("pass", "PASS", "", "#5cc8ff");
+    btn("switch", "SWITCH", "", "#a78bfa");
+    btn("hit", "HIT", "", "#ff6b4a");
+    btn("poke", "POKE", "", "#c7d2e6");
   }
 }
 
