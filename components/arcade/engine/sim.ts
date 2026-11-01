@@ -219,7 +219,7 @@ function moveSkaters(state: MatchState, human: Skater | null, input: Input, dt: 
       dvx = 0;
       dvy = 0;
     } else if (s.dash > 0) {
-      const v = 15 + 4 * s.info.skate;
+      const v = 13 + 3.4 * s.info.skate;
       dvx = s.dashX * v;
       dvy = s.dashY * v;
     } else if (s === human && state.phase === "play") {
