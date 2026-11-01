@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronLeft, Crown, Flame, Gamepad2, Repeat, Skull, Swords, Trophy, Volume2, VolumeX } from "lucide-react";
+import { Box, ChevronLeft, Crown, Flame, Gamepad2, Repeat, Skull, Swords, Trophy, Volume2, VolumeX } from "lucide-react";
 import dynamic from "next/dynamic";
 import { type ReactNode, useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Sound } from "@/components/arcade/audio";
@@ -145,6 +145,7 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
           sound={sound}
           muted={p.muted}
           calm={calm}
+          flat={p.flat}
           onMute={(m) => setProgress({ ...p, muted: m })}
           onQuit={() => setPlaying(null)}
           onEnd={(r) => {
@@ -174,7 +175,7 @@ function Home({
   onTour: () => void;
   onNext: () => void;
   onExhibition: () => void;
-  onToggle: (k: "insane" | "muted") => void;
+  onToggle: (k: "insane" | "muted" | "flat") => void;
 }) {
   const done = data.tour.filter((id) => progress.avenged.includes(id)).length;
   const total = data.tour.length;
@@ -242,6 +243,9 @@ function Home({
       <div className="mt-3 grid grid-cols-2 gap-3">
         <Toggle on={progress.insane} onClick={() => onToggle("insane")} icon={<Flame className="size-4" aria-hidden />} title="INSANE mode" hint="2 pucks · turbo · huge hits" hot />
         <Toggle on={!progress.muted} onClick={() => onToggle("muted")} icon={progress.muted ? <VolumeX className="size-4" aria-hidden /> : <Volume2 className="size-4" aria-hidden />} title="Sound" hint="Horn, organ, crowd" />
+        <div className="col-span-2">
+          <Toggle on={!progress.flat} onClick={() => onToggle("flat")} icon={<Box className="size-4" aria-hidden />} title="3D arena" hint="Off = classic top-down view" />
+        </div>
       </div>
 
       <section className="arena-card mt-3 p-4">

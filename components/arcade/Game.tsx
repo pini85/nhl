@@ -9,7 +9,8 @@ import { RINK } from "@/components/arcade/engine/rink";
 import { STEP, step } from "@/components/arcade/engine/sim";
 import type { GameEvent, MatchSetup, MatchState } from "@/components/arcade/engine/types";
 import { Controls } from "@/components/arcade/input";
-import { Renderer } from "@/components/arcade/render";
+import { Renderer, type View } from "@/components/arcade/render";
+import { Arena3D } from "@/components/arcade/render3d";
 
 export type PlayerResult = { id: string; name: string; team: 0 | 1; goalie: boolean; goals: number; assists: number; shots: number; hits: number; saves: number; you: boolean };
 export type MatchResult = { score: [number, number]; sog: [number, number]; ot: boolean; players: PlayerResult[] };
@@ -20,6 +21,7 @@ type Props = {
   sound: Sound;
   muted: boolean;
   calm: boolean;
+  flat?: boolean; // classic top-down 2D view instead of the 3D arena
   onMute: (m: boolean) => void;
   onEnd: (r: MatchResult) => void;
   onQuit: () => void;
@@ -27,7 +29,7 @@ type Props = {
 
 const HOME = "#5cc8ff";
 
-export default function Game({ setup, label, sound, muted, calm, onMute, onEnd, onQuit }: Props) {
+export default function Game({ setup, label, sound, muted, calm, flat, onMute, onEnd, onQuit }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const measure = useRef<HTMLDivElement>(null);
@@ -42,7 +44,22 @@ export default function Game({ setup, label, sound, muted, calm, onMute, onEnd, 
   useEffect(() => {
     const el = wrap.current!;
     const cv = canvas.current!;
-    const r = new Renderer(cv);
+    // The 3D canvas is made per mount: a WebGL context released on unmount can't be reused.
+    let gl: HTMLCanvasElement | null = null;
+    let r: View;
+    try {
+      if (flat) throw new Error("flat");
+      gl = document.createElement("canvas");
+      gl.setAttribute("aria-hidden", "true");
+      gl.className = "absolute inset-0 block h-full w-full";
+      el.insertBefore(gl, cv);
+      r = new Arena3D(gl, cv, setup.away.color);
+    } catch {
+      // No WebGL (or the player chose 2D): the flat renderer draws everything.
+      gl?.remove();
+      gl = null;
+      r = new Renderer(cv);
+    }
     r.calm = calm;
     const haptic = (p: number | number[]) => {
       try {
@@ -67,6 +84,7 @@ export default function Game({ setup, label, sound, muted, calm, onMute, onEnd, 
     sound.whistle();
 
     const handle = (e: GameEvent) => {
+      r.event?.(e, state);
       const ours = (i: number) => state.skaters[i]?.team === 0;
       switch (e.kind) {
         case "shot":
@@ -233,6 +251,8 @@ export default function Game({ setup, label, sound, muted, calm, onMute, onEnd, 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      r.destroy?.();
+      gl?.remove();
       controls.destroy();
       document.removeEventListener("visibilitychange", vis);
       document.body.style.overflow = prevOverflow;
@@ -249,7 +269,7 @@ export default function Game({ setup, label, sound, muted, calm, onMute, onEnd, 
     <div className="fixed inset-0 z-[70] touch-none overscroll-none bg-[#03060d] select-none" style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
       <div ref={measure} aria-hidden className="pointer-events-none absolute inset-0" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }} />
       <div ref={wrap} className="absolute inset-0 touch-none">
-        <canvas ref={canvas} className="block h-full w-full" aria-label="Hockey game. Left thumb skates, right thumb passes, shoots and checks." />
+        <canvas ref={canvas} className="absolute inset-0 block h-full w-full" aria-label="Hockey game. Left thumb skates, right thumb passes, shoots and checks." />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-between px-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 58px)" }}>
         <button type="button" aria-label="Pause" onClick={() => setPaused(true)} className="pointer-events-auto rounded-full border border-[var(--card-border)] bg-[rgba(7,11,20,0.6)] p-2 text-[var(--fg)] backdrop-blur">

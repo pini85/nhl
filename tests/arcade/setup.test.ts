@@ -50,6 +50,12 @@ describe("progress", () => {
     expect(parseProgress(JSON.stringify({ avenged: [1, "x", 2], wins: 3, muted: true }))).toMatchObject({ avenged: [1, 2], wins: 3, muted: true });
   });
 
+  it("defaults to the 3D arena and remembers the classic 2D view", () => {
+    expect(parseProgress(null).flat).toBeFalsy();
+    expect(parseProgress(JSON.stringify({ flat: "yes" })).flat).toBe(false);
+    expect(parseProgress(JSON.stringify({ flat: true })).flat).toBe(true);
+  });
+
   it("avenges a club only with a tour win", () => {
     let p = parseProgress(null);
     p = recordResult(p, 5, false, true);

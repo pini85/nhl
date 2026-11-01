@@ -1,9 +1,9 @@
 import { netSegments, RINK } from "@/components/arcade/engine/rink";
-import type { MatchState, Skater } from "@/components/arcade/engine/types";
+import type { GameEvent, MatchState, Skater } from "@/components/arcade/engine/types";
 
 // Canvas renderer. World (x, y) with +y up is drawn as (u, v) = (x, -y) so screen y goes down.
 
-type Particle = {
+export type Particle = {
   x: number;
   y: number;
   z: number;
@@ -27,7 +27,31 @@ const HOME = "#5cc8ff";
 
 export type Insets = { top: number; bottom: number };
 
-export class Renderer {
+/** World point → CSS pixels on screen, or null when it is behind the camera. Used by the HUD over the 3D view. */
+export type Project = (x: number, y: number, z: number) => { x: number; y: number } | null;
+
+/** What Game.tsx drives: the flat canvas renderer, or the 3D arena with this renderer as its HUD. */
+export interface View {
+  calm: boolean;
+  insets: Insets;
+  joy: { ox: number; oy: number; x: number; y: number } | null;
+  hint: number;
+  resize(w: number, h: number, dpr: number): void;
+  frame(state: MatchState, dt: number, focus: { x: number; y: number; vx: number; vy: number }): void;
+  shake(mag: number): void;
+  flashScreen(color: string, a?: number): void;
+  banner(text: string, sub?: string, color?: string, big?: boolean, max?: number): void;
+  float(text: string, x: number, y: number, color?: string): void;
+  say(text: string): void;
+  netBulge(side: number): void;
+  burst(kind: Particle["kind"], x: number, y: number, n: number, color: string | string[], speed?: number, size?: number): void;
+  ring(x: number, y: number, color: string, size?: number): void;
+  hats(): void;
+  event?(e: GameEvent, state: MatchState): void;
+  destroy?(): void;
+}
+
+export class Renderer implements View {
   private ctx: CanvasRenderingContext2D;
   private dpr = 1;
   w = 0;
@@ -54,9 +78,15 @@ export class Renderer {
   insets: Insets = { top: 0, bottom: 0 };
   joy: { ox: number; oy: number; x: number; y: number } | null = null;
   hint = 1; // controls hint opacity
+  /** Set when this renderer only draws the HUD over the 3D arena. */
+  project: Project | null = null;
 
-  constructor(private canvas: HTMLCanvasElement) {
-    this.ctx = canvas.getContext("2d", { alpha: false })!;
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private hudOnly = false,
+  ) {
+    this.ctx = canvas.getContext("2d", { alpha: hudOnly })!;
+    if (hudOnly) return;
     const img = new Image();
     img.onload = () => {
       this.logo = img;
@@ -72,6 +102,7 @@ export class Renderer {
     this.canvas.width = Math.round(w * this.dpr);
     this.canvas.height = Math.round(h * this.dpr);
     this.scale = Math.min(w / (RINK.hw * 2 + 1.4), h / 36);
+    if (this.hudOnly) return;
     const k = Math.min(26, Math.max(10, this.scale * this.dpr));
     if (Math.abs(k - this.k) > 1 || !this.rink) {
       this.k = k;
@@ -147,6 +178,7 @@ export class Renderer {
   frame(state: MatchState, dt: number, focus: { x: number; y: number; vx: number; vy: number }) {
     const ctx = this.ctx;
     const { w, h, dpr } = this;
+    if (this.hudOnly) return this.hudFrame(state, dt);
     this.updateCamera(state, dt, focus);
     this.carve(state, dt);
     this.stepParticles(dt);
@@ -199,6 +231,75 @@ export class Renderer {
     this.drawBanners(dt);
     this.drawTicker(dt);
     this.drawJoystick();
+  }
+
+  /** Over the 3D view: name tags and floating words follow the players on screen, then the usual HUD. */
+  private hudFrame(state: MatchState, dt: number) {
+    const ctx = this.ctx;
+    const { w, h, dpr } = this;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (this.project) {
+      this.drawTags(state, this.project);
+      this.drawScreenFloats(dt, this.project);
+    }
+    if (this.flash > 0.01) {
+      ctx.globalAlpha = this.flash;
+      ctx.fillStyle = this.flashColor;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+      this.flash *= Math.exp(-dt * 6);
+    }
+    this.vignette();
+    this.drawHud(state);
+    this.drawBanners(dt);
+    this.drawTicker(dt);
+    this.drawJoystick();
+  }
+
+  private drawTags(state: MatchState, project: Project) {
+    const ctx = this.ctx;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    for (const s of state.skaters) {
+      const controlled = !state.setup.humanless && s.i === state.controlled;
+      const carrier = state.pucks.some((p) => p.owner === s.i);
+      if (!controlled && !carrier && state.phase !== "faceoff") continue;
+      const at = project(s.x, s.y, s.goalie ? 4.2 : 4.9);
+      if (!at) continue;
+      const home = s.team === 0;
+      const label = `${s.info.number} ${s.info.name}`;
+      ctx.font = `800 ${controlled ? 13 : 11}px system-ui, sans-serif`;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(3,6,13,0.85)";
+      ctx.strokeText(label, at.x, at.y);
+      ctx.fillStyle = s.info.you ? "#ffcf5a" : home ? "#ffffff" : (state.setup.away.color ?? "#ff3d6e");
+      ctx.fillText(label, at.x, at.y);
+      if (state.onFire.includes(s.i)) ctx.fillText("🔥", at.x + ctx.measureText(label).width / 2 + 10, at.y);
+    }
+  }
+
+  private drawScreenFloats(dt: number, project: Project) {
+    const ctx = this.ctx;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const f of this.floats) {
+      f.t += dt;
+      const t = f.t / 1.1;
+      const at = project(f.x, f.y, 5.5 + t * 2.5);
+      if (!at) continue;
+      const pop = t < 0.15 ? 0.6 + (t / 0.15) * 0.6 : 1.2 - Math.min(0.2, (t - 0.15) * 0.4);
+      ctx.globalAlpha = Math.max(0, 1 - Math.max(0, t - 0.6) / 0.4);
+      ctx.font = `900 italic ${20 * pop}px system-ui, sans-serif`;
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(3,6,13,0.9)";
+      ctx.strokeText(f.text, at.x, at.y);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, at.x, at.y);
+    }
+    ctx.globalAlpha = 1;
+    this.floats = this.floats.filter((f) => f.t < 1.1);
   }
 
   private updateCamera(state: MatchState, dt: number, f: { x: number; y: number; vx: number; vy: number }) {
