@@ -15,10 +15,10 @@ export const stickX = (s: Skater) => s.x + Math.cos(s.face) * (s.r + REACH);
 export const stickY = (s: Skater) => s.y + Math.sin(s.face) * (s.r + REACH);
 
 export function maxSpeed(state: MatchState, s: Skater): number {
-  let v = 8.2 + 4 * s.info.skate;
+  let v = 7 + 3.4 * s.info.skate;
   if (s.goalie) return 2.6 + 4.2 * s.info.save;
   if (state.pucks.some((p) => p.owner === s.i)) v *= 0.9;
-  if (s.burst) v *= 1.32;
+  if (s.burst) v *= 1.28;
   if (s.charge >= 0) v *= 0.45;
   if (state.onFire.includes(s.i)) v *= 1.08;
   return v;
