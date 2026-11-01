@@ -385,7 +385,7 @@ export class Arena3D implements View {
   }
 
   private drawPlayers(state: MatchState, dt: number) {
-    const ctrl = state.setup.humanless ? -1 : state.controlled;
+    const ctrl = state.setup.humanless ? -1 : state.pilots[0].controlled;
     const scorer = state.phase === "goal" || state.phase === "end" ? (state.lastGoal?.scorer ?? -1) : -1;
     for (const s of state.skaters) {
       const m = this.players[s.i];

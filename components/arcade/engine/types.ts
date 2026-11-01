@@ -29,6 +29,7 @@ export type MatchSetup = {
   insane: boolean;
   length: number; // seconds of game clock
   humanless?: boolean; // AI plays both sides (tests, attract mode)
+  versus?: boolean; // a second human drives the away team (online play)
 };
 
 export type Skater = {
@@ -113,6 +114,13 @@ export type GameEvent =
   | { kind: "switch"; to: number }
   | { kind: "steal"; by: number };
 
+/** A human's hold on their team. */
+export type Pilot = {
+  controlled: number; // skater the human drives
+  idle: number; // seconds without input (autopilot takes over off the puck)
+  switchLock: number;
+};
+
 export type Phase = "faceoff" | "play" | "goal" | "end";
 
 export type MatchState = {
@@ -128,9 +136,7 @@ export type MatchState = {
   aiHitCd: [number, number]; // per team: seconds before the AI may throw another body check
   skaters: Skater[];
   pucks: Puck[];
-  controlled: number; // skater the human drives
-  idle: number; // seconds without human input (autopilot takes over off the puck)
-  switchLock: number;
+  pilots: [Pilot, Pilot]; // per team: the human driving it (team 1 only in versus)
   fireRun: [{ who: number; n: number }, { who: number; n: number }];
   onFire: number[]; // skater indexes on fire
   events: GameEvent[];

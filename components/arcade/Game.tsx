@@ -7,8 +7,10 @@ import { goalLine, goalWord, hitLine, hitWord, postLine, saveLine } from "@/comp
 import { createMatch, dist } from "@/components/arcade/engine/core";
 import { RINK } from "@/components/arcade/engine/rink";
 import { STEP, step } from "@/components/arcade/engine/sim";
-import type { GameEvent, MatchSetup, MatchState } from "@/components/arcade/engine/types";
+import type { GameEvent, Input, MatchSetup, MatchState } from "@/components/arcade/engine/types";
 import { Controls } from "@/components/arcade/input";
+import type { Link, Msg } from "@/components/arcade/net/peer";
+import { apply, encode, guestInput, mirrorEvent, type Snap } from "@/components/arcade/net/snapshot";
 import { Renderer, type View } from "@/components/arcade/render";
 import { Arena3D } from "@/components/arcade/render3d";
 
@@ -25,15 +27,18 @@ type Props = {
   onMute: (m: boolean) => void;
   onEnd: (r: MatchResult) => void;
   onQuit: () => void;
+  /** Online: the host runs the match, the guest draws what the host sends (its `setup` is already turned around). */
+  net?: { role: "host" | "guest"; link: Link };
 };
 
 const HOME = "#5cc8ff";
 
-export default function Game({ setup, label, sound, muted, calm, flat, onMute, onEnd, onQuit }: Props) {
+export default function Game({ setup, label, sound, muted, calm, flat, onMute, onEnd, onQuit, net }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const measure = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
+  const [lost, setLost] = useState(false); // online: the other phone is gone
   const pausedRef = useRef(false);
   const done = useRef({ onEnd, onQuit });
   useEffect(() => {
@@ -68,6 +73,38 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     };
     const controls = new Controls(el, haptic);
     const state = createMatch(setup);
+    const role = net?.role;
+    const link = net?.link;
+    const off: (() => void)[] = [];
+    // Host: the friend's thumbs. Guest: the newest snapshot and events still to play.
+    const remote: Input = { mx: 0, my: 0, burst: false, actions: [] };
+    let snap: Snap | null = null;
+    let snapAt = 0;
+    const inbox: GameEvent[] = [];
+    if (link) {
+      off.push(
+        link.on((m: Msg) => {
+          if (m.t === "in" && role === "host") {
+            const inp = guestInput(m);
+            remote.mx = inp.mx;
+            remote.my = inp.my;
+            remote.burst = inp.burst;
+            remote.actions.push(...inp.actions);
+          } else if (m.t === "ev" && role === "guest" && Array.isArray(m.e)) {
+            for (const e of m.e as GameEvent[]) inbox.push(mirrorEvent(e, state.skaters.length));
+          }
+        }),
+        link.onFast((m) => {
+          const sn = m as Snap;
+          if (role === "guest" && sn && typeof sn.n === "number" && (!snap || sn.n > snap.n)) {
+            snap = sn;
+            snapAt = performance.now();
+          }
+        }),
+        link.onClose(() => setLost(true)),
+      );
+    }
+    let sent = 0;
     const name = (i: number) => state.skaters[i]?.info.name ?? "";
 
     const fit = () => {
@@ -198,9 +235,10 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     let raf = 0;
     let ended = false;
     let started = 0;
+    let endT = 0;
     const focusOf = (s: MatchState) => {
-      const me = s.skaters[s.controlled];
-      const p = s.pucks.find((q) => q.owner === s.controlled) ?? s.pucks.slice().sort((a, b) => dist(a.x, a.y, me.x, me.y) - dist(b.x, b.y, me.x, me.y))[0];
+      const me = s.skaters[s.pilots[0].controlled];
+      const p = s.pucks.find((q) => q.owner === s.pilots[0].controlled) ?? s.pucks.slice().sort((a, b) => dist(a.x, a.y, me.x, me.y) - dist(b.x, b.y, me.x, me.y))[0];
       return p ?? { x: 0, y: 0, vx: 0, vy: 0 };
     };
 
@@ -208,24 +246,39 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (pausedRef.current) return;
+      // Online games don't pause: the other phone is still playing.
+      if (pausedRef.current && !link) return;
       started += dt;
-      if (state.freeze > 0) state.freeze -= dt;
-      else acc += dt * state.timeScale * (setup.insane ? 1.22 : 1);
-      let n = 0;
-      controls.hasPuck = state.pucks.some((q) => q.owner === state.controlled);
-      while (acc >= STEP && n < 16) {
-        step(state, controls.take());
-        acc -= STEP;
-        n++;
-        for (const e of state.events) handle(e);
-        state.events.length = 0;
-        if (state.freeze > 0) {
-          acc = 0;
-          break;
+      controls.hasPuck = state.pucks.some((q) => q.owner === state.pilots[0].controlled);
+      if (role === "guest") {
+        // Draw the host's match; send our thumbs back.
+        link!.send({ t: "in", ...controls.take() });
+        if (snap) apply(state, snap, true, Math.min(0.12, (now - snapAt) / 1000));
+        for (const e of inbox.splice(0)) handle(e);
+      } else {
+        if (state.freeze > 0) state.freeze -= dt;
+        else acc += dt * state.timeScale * (setup.insane ? 1.22 : 1);
+        let n = 0;
+        const out: GameEvent[] = [];
+        while (acc >= STEP && n < 16) {
+          const theirs = { mx: remote.mx, my: remote.my, burst: remote.burst, actions: remote.actions.splice(0) };
+          step(state, controls.take(), STEP, theirs);
+          acc -= STEP;
+          n++;
+          for (const e of state.events) handle(e);
+          if (link) out.push(...state.events);
+          state.events.length = 0;
+          if (state.freeze > 0) {
+            acc = 0;
+            break;
+          }
+        }
+        if (n >= 16) acc = 0;
+        if (link) {
+          if (out.length) link.send({ t: "ev", e: out });
+          if (n > 0 || state.freeze > 0) link.sendFast(encode(state, ++sent));
         }
       }
-      if (n >= 16) acc = 0;
       r.joy = controls.joy;
       r.pad = controls.pad;
       if (controls.used && started > 4) r.hint = Math.max(0, r.hint - dt * 0.5);
@@ -233,7 +286,8 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       const p = focusOf(state);
       sound.excitement(Math.max(0, 1 - (RINK.goalY - Math.abs(p.y)) / 14));
       r.frame(state, dt, p);
-      if (state.phase === "end" && state.phaseT > 3.2 && !ended) {
+      if (state.phase === "end") endT += dt;
+      if (state.phase === "end" && endT > 3.2 && !ended) {
         ended = true;
         done.current.onEnd({
           score: [...state.score],
@@ -252,6 +306,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      for (const f of off) f();
       cancelAnimationFrame(raf);
       ro.disconnect();
       r.destroy?.();
@@ -264,9 +319,10 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const online = !!net;
   useEffect(() => {
-    sound.pause(paused);
-  }, [paused, sound]);
+    sound.pause(paused && !online);
+  }, [paused, online, sound]);
 
   return (
     <div className="fixed inset-0 z-[70] touch-none overscroll-none bg-[#03060d] select-none" style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
@@ -292,12 +348,22 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       </div>
       {paused && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[rgba(3,6,13,0.78)] px-8 backdrop-blur-sm">
-          <p className="glow text-3xl font-black italic tracking-tight">PAUSED</p>
+          <p className="glow text-3xl font-black italic tracking-tight">{online ? "TIMEOUT?" : "PAUSED"}</p>
+          {online && <p className="-mt-2 text-center text-xs text-[var(--muted-fg)]">Online games don&apos;t stop. Your friend is still skating.</p>}
           <button type="button" onClick={() => setPaused(false)} className="flex w-full max-w-60 items-center justify-center gap-2 rounded-full bg-[var(--accent-blue)] py-3 font-black text-[#04101f]">
             <Play className="size-4" aria-hidden /> Resume
           </button>
           <button type="button" onClick={() => done.current.onQuit()} className="flex w-full max-w-60 items-center justify-center gap-2 rounded-full border border-[var(--card-border)] py-3 font-bold text-[var(--fg)]">
             <X className="size-4" aria-hidden /> Quit game
+          </button>
+        </div>
+      )}
+      {lost && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-[rgba(3,6,13,0.85)] px-8 text-center backdrop-blur-sm">
+          <p className="glow text-3xl font-black italic tracking-tight">CONNECTION LOST</p>
+          <p className="text-sm text-[var(--muted-fg)]">Your friend left the rink, or the connection dropped.</p>
+          <button type="button" onClick={() => done.current.onQuit()} className="flex w-full max-w-60 items-center justify-center gap-2 rounded-full bg-[var(--accent-blue)] py-3 font-black text-[#04101f]">
+            Back to the lobby
           </button>
         </div>
       )}

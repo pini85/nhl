@@ -212,3 +212,11 @@ export const discordPosts = pgTable("discord_posts", {
   nightKey: text("night_key").primaryKey(),
   postedAt: timestamp("posted_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Online arcade rooms: the WebRTC handshake between two phones. Short-lived.
+export const arcadeRooms = pgTable("arcade_rooms", {
+  code: text("code").primaryKey(),
+  offer: text("offer").notNull(),
+  answer: text("answer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
