@@ -160,7 +160,7 @@ export function Leaders({
           </table>
         )}
       </section>
-      <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop. Swipe the table for more stats, tap a column to sort.</p>
+      <p className="mt-2 text-[10px] text-[var(--muted-fg)]">Only games played for Drop drop drop, without private matches (the game leaves those out too). Swipe the table for more stats, tap a column to sort.</p>
       <p className="mt-1 text-[10px] text-[var(--muted-fg)]">
         OVR: average of EA&apos;s per-game offense, defense and teamplay ratings, from box-score games (needs 3+).
       </p>
