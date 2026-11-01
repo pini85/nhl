@@ -164,6 +164,12 @@ export class Arena3D implements View {
   set joy(v) {
     this.hud.joy = v;
   }
+  get pad() {
+    return this.hud.pad;
+  }
+  set pad(v) {
+    this.hud.pad = v;
+  }
   get hint() {
     return this.hud.hint;
   }
