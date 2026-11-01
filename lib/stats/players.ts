@@ -58,6 +58,9 @@ export function playerBadge(
 
 const isGoalie = (l: PlayerLine) => l.position === "goalie";
 
+// EA leaves private matches out of the in-game club stats, so the totals do too.
+export const COUNTS_FOR_CLUB_STATS = (game: GameLite | undefined) => game?.matchType !== "club_private";
+
 export function playerTotals(
   lines: PlayerLine[],
   games: GameLite[],
@@ -66,7 +69,7 @@ export function playerTotals(
   extras: ExtraStats[] = [],
 ): { skaters: SkaterTotals[]; goalies: GoalieTotals[] } {
   const gameById = new Map(games.map((g) => [g.matchId, g]));
-  const ours = lines.filter((l) => l.clubId === ourClubId);
+  const ours = lines.filter((l) => l.clubId === ourClubId && COUNTS_FOR_CLUB_STATS(gameById.get(l.matchId)));
 
   // Latest name and "ever a non-guest" per player.
   const meta = new Map<string, { name: string; everNonGuest: boolean }>();

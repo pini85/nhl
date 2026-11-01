@@ -114,3 +114,17 @@ describe("extrasInRange", () => {
   });
   it("last 10 is box scores only", () => expect(extrasInRange([e], "last10", now)).toEqual([]));
 });
+
+describe("playerTotals leaves out private matches", () => {
+  it("counts season and playoff games but not private ones, like the in-game club stats", async () => {
+    const { CLUB, ZERO, game } = await import("../helpers/builders");
+    const g = [
+      game("s1", "2026-10-20T20:00:00Z"),
+      game("p1", "2026-10-21T20:00:00Z", { matchType: "gameType10" }),
+      game("x1", "2026-10-22T20:00:00Z", { matchType: "club_private" }),
+    ];
+    const line = (matchId: string, goals: number) => ({ ...ZERO, matchId, eaPlayerId: "1", playerName: "puck_control", goals });
+    const { skaters } = playerTotals([line("s1", 1), line("p1", 2), line("x1", 3)], g, null, CLUB);
+    expect(skaters[0]).toMatchObject({ gp: 2, goals: 3 });
+  });
+});
