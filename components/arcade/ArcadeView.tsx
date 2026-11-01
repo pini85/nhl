@@ -1,9 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Box, ChevronLeft, Crown, Flame, Gamepad2, Repeat, Skull, Swords, Trophy, Volume2, VolumeX } from "lucide-react";
+import { Box, ChevronLeft, Crown, Flame, Gamepad2, Repeat, Skull, Swords, Trophy, Users, Volume2, VolumeX } from "lucide-react";
 import dynamic from "next/dynamic";
-import { type ReactNode, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Sound } from "@/components/arcade/audio";
 import type { MatchResult } from "@/components/arcade/Game";
 import { nextStop, parseProgress, type Progress, recordResult, saveProgress } from "@/components/arcade/progress";
@@ -13,6 +13,8 @@ import { useMyId } from "@/components/club/YouHighlight";
 import type { ArcadeData, ArcadeOpponent, ArcadeSkater } from "@/lib/stats/arcade";
 import { cn } from "@/lib/utils";
 import { formatRecord } from "@/lib/stats/record";
+import { GoalieCard, LinePicker, PlayerCard } from "@/components/arcade/LinePicker";
+import { Versus, type VersusNet } from "@/components/arcade/Versus";
 
 // The game (engine + canvas) only loads when a match starts, and only in the browser.
 const Game = dynamic(() => import("@/components/arcade/Game"), {
@@ -50,7 +52,7 @@ function useProgress(): [Progress, (p: Progress) => void] {
   return [p, set];
 }
 
-type Screen = { kind: "home" } | { kind: "tour" } | { kind: "exhibition" } | { kind: "matchup"; clubId: number; tour: boolean } | { kind: "result"; clubId: number; tour: boolean; result: MatchResult };
+type Screen = { kind: "home" } | { kind: "versus" } | { kind: "tour" } | { kind: "exhibition" } | { kind: "matchup"; clubId: number; tour: boolean } | { kind: "result"; clubId: number; tour: boolean; result: MatchResult };
 
 const HOME = "#5cc8ff";
 
@@ -59,7 +61,17 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
   const calm = useReducedMotion() ?? false;
   const [progress, setProgress] = useProgress();
   const [screen, setScreen] = useState<Screen>({ kind: "home" });
-  const [playing, setPlaying] = useState<{ setup: MatchSetup; label: string; key: number } | null>(null);
+  const [playing, setPlaying] = useState<{ setup: MatchSetup; label: string; key: number; net?: VersusNet } | null>(null);
+  const [versusResult, setVersusResult] = useState<MatchResult | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  // An invite link (/arcade?join=ABCD) opens the online lobby with the code filled in.
+  useEffect(() => {
+    const c = new URLSearchParams(location.search).get("join");
+    if (!c) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the URL once, after hydration
+    setJoinCode(c.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4));
+    setScreen({ kind: "versus" });
+  }, []);
   const [sound] = useState(() => new Sound()); // inert until start() inside a tap
   const p = progress;
 
@@ -101,7 +113,30 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
               onTour={() => go({ kind: "tour" })}
               onNext={() => next !== null && go({ kind: "matchup", clubId: next, tour: true })}
               onExhibition={() => go({ kind: "exhibition" })}
+              onVersus={() => go({ kind: "versus" })}
               onToggle={(k) => setProgress({ ...p, [k]: !p[k] })}
+            />
+          )}
+          {screen.kind === "versus" && (
+            <Versus
+              data={data}
+              lineup={lineup}
+              goalieId={goalieId}
+              myId={myId}
+              insane={p.insane}
+              initialCode={joinCode}
+              result={versusResult}
+              playing={!!playing}
+              onLineup={(l, g) => setProgress({ ...p, lineup: l, goalie: g })}
+              onTap={() => {
+                sound.setMuted(p.muted);
+                sound.start();
+              }}
+              onPlay={(setup, label, net) => {
+                setVersusResult(null);
+                setPlaying({ setup, label, key: Date.now(), net });
+              }}
+              back={<Back onClick={() => go({ kind: "home" })} />}
             />
           )}
           {screen.kind === "tour" && <Tour data={data} avenged={p.avenged} next={next} onBack={() => go({ kind: "home" })} onPick={(id) => go({ kind: "matchup", clubId: id, tour: true })} />}
@@ -147,8 +182,19 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
           calm={calm}
           flat={p.flat}
           onMute={(m) => setProgress({ ...p, muted: m })}
-          onQuit={() => setPlaying(null)}
+          net={playing.net}
+          onQuit={() => {
+            // Quitting an online game ends it for both phones.
+            playing.net?.link.close();
+            setPlaying(null);
+          }}
           onEnd={(r) => {
+            if (playing.net) {
+              setVersusResult(r);
+              setPlaying(null);
+              window.scrollTo(0, 0);
+              return;
+            }
             const s = screen.kind === "matchup" || screen.kind === "result" ? screen : null;
             if (s) finished(s.clubId, s.tour, r);
           }}
@@ -167,6 +213,7 @@ function Home({
   onTour,
   onNext,
   onExhibition,
+  onVersus,
   onToggle,
 }: {
   data: ArcadeData;
@@ -175,6 +222,7 @@ function Home({
   onTour: () => void;
   onNext: () => void;
   onExhibition: () => void;
+  onVersus: () => void;
   onToggle: (k: "insane" | "muted" | "flat") => void;
 }) {
   const done = data.tour.filter((id) => progress.avenged.includes(id)).length;
@@ -236,6 +284,15 @@ function Home({
         <span className="flex-1">
           <span className="block font-black">Exhibition</span>
           <span className="block text-xs text-[var(--muted-fg)]">Any of the {data.opponents.length} clubs we&apos;ve played</span>
+        </span>
+        <span aria-hidden>→</span>
+      </button>
+
+      <button type="button" onClick={onVersus} className="arena-card mt-3 flex w-full items-center gap-3 p-4 text-left active:scale-[0.99]">
+        <Users className="size-6 text-[var(--accent-blue)]" aria-hidden />
+        <span className="flex-1">
+          <span className="block font-black">Play a friend</span>
+          <span className="block text-xs text-[var(--muted-fg)]">Online 1-on-1, phone vs phone</span>
         </span>
         <span aria-hidden>→</span>
       </button>
@@ -375,10 +432,8 @@ function Matchup({
   onBack: () => void;
   onStart: () => void;
 }) {
-  const [swap, setSwap] = useState<number | null>(null); // slot being changed (3 = goalie)
   const byId = new Map(data.skaters.map((s) => [s.id, s]));
   const ours = lineup.map((id) => byId.get(id)!).filter(Boolean);
-  const goalie = data.goalies.find((g) => g.id === goalieId) ?? data.goalies[0];
   const ovr = (list: ArcadeSkater[]) => Math.round(list.reduce((s, x) => s + x.ovr, 0) / Math.max(1, list.length));
   return (
     <>
@@ -406,60 +461,7 @@ function Matchup({
         </div>
       )}
 
-      <section className="arena-card mt-4 p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[10px] font-semibold tracking-[0.15em] text-[var(--muted-fg)] uppercase">Your line · tap to swap</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {ours.map((s, i) => (
-            <PlayerCard key={s.id} s={s} you={s.id === myId} onClick={() => setSwap(swap === i ? null : i)} active={swap === i} color={HOME} />
-          ))}
-          <GoalieCard name={goalie.name} save={goalie.save} svPct={goalie.svPct} you={goalie.id === myId} onClick={() => setSwap(swap === 3 ? null : 3)} active={swap === 3} color={HOME} />
-        </div>
-        <AnimatePresence>
-          {swap !== null && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              <p className="mt-3 mb-1.5 text-[10px] font-semibold tracking-[0.15em] text-[var(--muted-fg)] uppercase">{swap === 3 ? "Pick a goalie" : "Bring in"}</p>
-              <ul className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                {swap === 3
-                  ? data.goalies.map((g) => (
-                      <li key={g.id} className="w-36 shrink-0">
-                        <GoalieCard
-                          name={g.name}
-                          save={g.save}
-                          svPct={g.svPct}
-                          you={g.id === myId}
-                          active={g.id === goalie.id}
-                          color={HOME}
-                          onClick={() => {
-                            onLineup(lineup, g.id);
-                            setSwap(null);
-                          }}
-                        />
-                      </li>
-                    ))
-                  : data.skaters
-                      .filter((s) => !lineup.includes(s.id))
-                      .map((s) => (
-                        <li key={s.id} className="w-36 shrink-0">
-                          <PlayerCard
-                            s={s}
-                            you={s.id === myId}
-                            color={HOME}
-                            onClick={() => {
-                              const l = [...lineup];
-                              l[swap] = s.id;
-                              onLineup(l, goalie.id);
-                              setSwap(null);
-                            }}
-                          />
-                        </li>
-                      ))}
-              </ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
+      <LinePicker data={data} lineup={lineup} goalieId={goalieId} myId={myId} onLineup={onLineup} />
 
       <section className="arena-card mt-3 p-3">
         <h2 className="mb-2 text-[10px] font-semibold tracking-[0.15em] text-[var(--muted-fg)] uppercase">Their line · from our box scores</h2>
@@ -671,71 +673,6 @@ function Toggle({ on, onClick, icon, title, hint, hot }: { on: boolean; onClick:
       <span className="text-[11px] text-[var(--muted-fg)]">{hint}</span>
       <span className={cn("mt-1 text-[10px] font-black tracking-widest", on ? "text-[var(--fg)]" : "text-[var(--muted-fg)]")}>{on ? "ON" : "OFF"}</span>
     </button>
-  );
-}
-
-function Bar({ label, v }: { label: string; v: number }) {
-  return (
-    <div className="flex items-center gap-1.5 text-[9px] text-[var(--muted-fg)]">
-      <span className="w-6 font-bold">{label}</span>
-      <span className="h-1 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.08)]">
-        <span className="block h-full rounded-full bg-[var(--accent-blue)]" style={{ width: `${((v - 55) / 44) * 100}%` }} />
-      </span>
-      <span className="tabular w-4 text-right text-[var(--fg)]">{v}</span>
-    </div>
-  );
-}
-
-function PlayerCard({ s, you, onClick, active, color }: { s: ArcadeSkater; you?: boolean; onClick?: () => void; active?: boolean; color: string }) {
-  const Tag = onClick ? "button" : "div";
-  return (
-    <Tag
-      {...(onClick ? { type: "button" as const, onClick } : {})}
-      className={cn("block w-full rounded-xl bg-[rgba(255,255,255,0.04)] p-2.5 text-left ring-1 ring-[rgba(255,255,255,0.06)]", active && "ring-[var(--accent-blue)]", you && "ring-[#ffcf5a]")}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0">
-          <p className={cn("truncate text-xs font-black", you && "text-[#ffcf5a]")}>{s.name}</p>
-          <p className="text-[10px] text-[var(--muted-fg)]">
-            #{s.number} · {s.pos === "D" ? "Defense" : "Forward"}
-            {you && " · You"}
-          </p>
-        </div>
-        <span className="tabular text-lg leading-none font-black" style={{ color }}>
-          {s.ovr}
-        </span>
-      </div>
-      <div className="mt-1.5 space-y-0.5">
-        <Bar label="SKT" v={s.r.skate} />
-        <Bar label="SHT" v={s.r.shot} />
-        <Bar label="PAS" v={s.r.pass} />
-        <Bar label="HIT" v={s.r.hit} />
-      </div>
-    </Tag>
-  );
-}
-
-function GoalieCard({ name, save, svPct, you, onClick, active, color }: { name: string; save: number; svPct: number; you?: boolean; onClick?: () => void; active?: boolean; color: string }) {
-  const Tag = onClick ? "button" : "div";
-  return (
-    <Tag
-      {...(onClick ? { type: "button" as const, onClick } : {})}
-      className={cn("flex w-full flex-col rounded-xl bg-[rgba(255,255,255,0.04)] p-2.5 text-left ring-1 ring-[rgba(255,255,255,0.06)]", active && "ring-[var(--accent-blue)]", you && "ring-[#ffcf5a]")}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0">
-          <p className={cn("truncate text-xs font-black", you && "text-[#ffcf5a]")}>{name}</p>
-          <p className="text-[10px] text-[var(--muted-fg)]">Goalie{svPct > 0 ? ` · ${svPct.toFixed(3).replace(/^0/, "")}` : ""}</p>
-        </div>
-        <span className="tabular text-lg leading-none font-black" style={{ color }}>
-          {save}
-        </span>
-      </div>
-      <div className="mt-1.5">
-        <Bar label="SAVE" v={save} />
-      </div>
-      <p className="mt-auto pt-1 text-[22px] leading-none">🥅</p>
-    </Tag>
   );
 }
 

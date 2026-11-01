@@ -57,9 +57,10 @@ export function createMatch(setup: MatchSetup): MatchState {
     sog: [0, 0],
     skaters,
     pucks: [],
-    controlled: 0,
-    idle: 0,
-    switchLock: 0,
+    pilots: [
+      { controlled: 0, idle: 0, switchLock: 0 },
+      { controlled: 4, idle: 0, switchLock: 0 },
+    ],
     fireRun: [{ who: -1, n: 0 }, { who: -1, n: 0 }],
     onFire: [],
     events: [],
@@ -106,13 +107,16 @@ export function faceoff(state: MatchState, lostLast: 0 | 1) {
   }
   state.phase = "faceoff";
   state.phaseT = 0;
-  state.controlled = state.skaters.findIndex((s) => s.team === 0 && !s.goalie);
+  for (const team of [0, 1] as const) state.pilots[team].controlled = state.skaters.findIndex((s) => s.team === team && !s.goalie);
   state.events.push({ kind: "faceoff" });
 }
 
 export const teammates = (state: MatchState, s: Skater) => state.skaters.filter((o) => o.team === s.team && o !== s);
 export const opponents = (state: MatchState, s: Skater) => state.skaters.filter((o) => o.team !== s.team);
 export const ownedBy = (state: MatchState, s: Skater) => state.pucks.find((p) => p.owner === s.i);
+/** Does a human drive this team? */
+export const humanTeam = (state: MatchState, team: 0 | 1) => (team === 0 ? !state.setup.humanless : !!state.setup.versus);
+
 export const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 
 /** Distance from point to segment. */

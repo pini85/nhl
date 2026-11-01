@@ -19,7 +19,7 @@ function run(s: MatchState, seconds: number, input: Input = NO_INPUT) {
 function setUp(x: number, y: number) {
   const s = createMatch({ home: team("Home"), away: team("Away"), seed: 3, insane: false, length: 180 });
   run(s, 1.4);
-  const me = s.skaters[s.controlled];
+  const me = s.skaters[s.pilots[0].controlled];
   for (const o of s.skaters) if (!o.goalie && o !== me) Object.assign(o, { x: o.team ? -12 : 12, y: -20, vx: 0, vy: 0, tx: o.team ? -12 : 12, ty: -20, think: 99 });
   const g = s.skaters.find((k) => k.goalie && k.team === 1)!;
   Object.assign(g, { x: -1.6, y: RINK.goalY - 1, info: { ...g.info, save: 0 } });
@@ -98,7 +98,7 @@ describe("the human's player", () => {
     const ev = run(s, 0.8, { mx: 0, my: 0, burst: false, actions: [{ kind: "swipe", dx: 0.3, dy: 1, power: 1 }] });
     expect(ev.find((e) => e.kind === "shot")).toBeTruthy();
     const goal = ev.find((e) => e.kind === "goal");
-    expect(goal).toMatchObject({ team: 0, scorer: s.controlled });
+    expect(goal).toMatchObject({ team: 0, scorer: s.pilots[0].controlled });
     expect(s.score).toEqual([1, 0]);
     expect(s.phase).toBe("goal");
     expect(s.timeScale).toBeLessThan(1);
@@ -106,18 +106,18 @@ describe("the human's player", () => {
 
   it("passes with a tap and the receiver becomes the human's player", () => {
     const s = setUp(0, 0);
-    const me = s.controlled;
+    const me = s.pilots[0].controlled;
     const mate = s.skaters.find((k) => k.team === 0 && !k.goalie && k.i !== me)!;
     Object.assign(mate, { x: 6, y: 4, think: 99 });
     const ev = run(s, 1.2, { mx: 1, my: 0.3, burst: false, actions: [{ kind: "tap" }] });
     expect(ev.find((e) => e.kind === "pass")).toMatchObject({ by: me, to: mate.i });
     expect(s.pucks[0].owner).toBe(mate.i);
-    expect(s.controlled).toBe(mate.i);
+    expect(s.pilots[0].controlled).toBe(mate.i);
   });
 
   it("a body check flattens the carrier and knocks the puck loose", () => {
     const s = setUp(0, 0);
-    const me = s.skaters[s.controlled];
+    const me = s.skaters[s.pilots[0].controlled];
     const carrier = s.skaters.find((k) => k.team === 1 && !k.goalie)!;
     Object.assign(carrier, { x: 0, y: 3, vx: 0, vy: 0, think: 99, tx: 0, ty: 3 });
     Object.assign(s.pucks[0], { owner: carrier.i, x: 0, y: 2 });
@@ -129,7 +129,7 @@ describe("the human's player", () => {
 
   it("two goals in a row by the same player sets them ON FIRE", () => {
     const s = setUp(1, RINK.goalY - 8);
-    const scorer = s.controlled;
+    const scorer = s.pilots[0].controlled;
     run(s, 5, { mx: 0, my: 0, burst: false, actions: [{ kind: "swipe", dx: 0.3, dy: 1, power: 1 }] });
     expect(s.score).toEqual([1, 0]);
     // Second goal by the same player.
@@ -139,7 +139,7 @@ describe("the human's player", () => {
     again.score = s.score;
     Object.assign(again.skaters[scorer], { x: 1, y: RINK.goalY - 8, vx: 0, vy: 0, face: Math.PI / 2 });
     Object.assign(again.pucks[0], { owner: scorer, x: 1, y: RINK.goalY - 6.5 });
-    again.controlled = scorer;
+    again.pilots[0].controlled = scorer;
     const g = again.skaters.find((k) => k.goalie && k.team === 1)!;
     Object.assign(g, { x: -1.6, y: RINK.goalY - 1, info: { ...g.info, save: 0 } });
     const ev = run(again, 1, { mx: 0, my: 0, burst: false, actions: [{ kind: "swipe", dx: 0.3, dy: 1, power: 1 }] });
@@ -162,10 +162,10 @@ describe("autopilot", () => {
   it("an idle player off the puck is moved by the AI, and stops when the thumb is back", () => {
     const s = createMatch({ home: team("Home"), away: team("Away"), seed: 4, insane: false, length: 180 });
     run(s, 4);
-    const me = s.skaters[s.controlled];
+    const me = s.skaters[s.pilots[0].controlled];
     expect(Math.hypot(me.vx, me.vy) + Math.abs(me.tx - me.x) + Math.abs(me.ty - me.y)).toBeGreaterThan(0.5);
-    expect(s.idle).toBeGreaterThan(0.6);
+    expect(s.pilots[0].idle).toBeGreaterThan(0.6);
     run(s, 0.1, { mx: 1, my: 0, burst: false, actions: [] });
-    expect(s.idle).toBe(0);
+    expect(s.pilots[0].idle).toBe(0);
   });
 });

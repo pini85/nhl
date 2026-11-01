@@ -1,4 +1,4 @@
-import { bodyCheck, dirOf, dist, goalYOf, opponents, ownedBy, pass, passTarget, pokeCheck, segDist, shoot, teammates } from "@/components/arcade/engine/core";
+import { bodyCheck, dirOf, dist, goalYOf, humanTeam, opponents, ownedBy, pass, passTarget, pokeCheck, segDist, shoot, teammates } from "@/components/arcade/engine/core";
 import { RINK } from "@/components/arcade/engine/rink";
 import type { MatchState, Puck, Skater } from "@/components/arcade/engine/types";
 
@@ -36,7 +36,7 @@ export function think(state: MatchState, s: Skater) {
   if (theirPucks.length && !ourPucks.length) {
     const p = theirPucks.sort((a, b) => dist(a.x, a.y, 0, ownGy) - dist(b.x, b.y, 0, ownGy))[0];
     const carrier = state.skaters[p.owner];
-    const squad = [s, ...mates].filter((m) => m.stun <= 0 && !(m.team === 0 && m.i === state.controlled && !state.setup.humanless && state.idle <= 0.6));
+    const squad = [s, ...mates].filter((m) => m.stun <= 0 && !(humanTeam(state, m.team) && m.i === state.pilots[m.team].controlled && state.pilots[m.team].idle <= 0.6));
     squad.sort((a, b) => dist(a.x, a.y, carrier.x, carrier.y) - dist(b.x, b.y, carrier.x, carrier.y));
     const rank = squad.indexOf(s);
     if (rank === 0 || (rank === -1 && dist(s.x, s.y, carrier.x, carrier.y) < 4)) {

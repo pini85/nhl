@@ -263,7 +263,7 @@ export class Renderer implements View {
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
     for (const s of state.skaters) {
-      const controlled = !state.setup.humanless && s.i === state.controlled;
+      const controlled = !state.setup.humanless && s.i === state.pilots[0].controlled;
       const carrier = state.pucks.some((p) => p.owner === s.i);
       if (!controlled && !carrier && state.phase !== "faceoff") continue;
       const at = project(s.x, s.y, s.goalie ? 4.2 : 4.9);
@@ -611,7 +611,7 @@ export class Renderer implements View {
     const color = home ? HOME : (state.setup.away.color ?? "#ff3d6e");
     const u = s.x;
     const v = -s.y;
-    const controlled = !state.setup.humanless && s.i === state.controlled;
+    const controlled = !state.setup.humanless && s.i === state.pilots[0].controlled;
     const fire = state.onFire.includes(s.i);
 
     // Shadow.

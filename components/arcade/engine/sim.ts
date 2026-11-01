@@ -6,6 +6,7 @@ import {
   dist,
   dropPuck,
   faceoff,
+  humanTeam,
   maxSpeed,
   ownedBy,
   pass,
@@ -18,17 +19,20 @@ import {
   stickY,
 } from "@/components/arcade/engine/core";
 import { boards, bumpCircle, crossedGoal, nets, RINK } from "@/components/arcade/engine/rink";
-import type { Input, MatchState, Puck, Skater } from "@/components/arcade/engine/types";
+import { type Input, type MatchState, NO_INPUT, type Puck, type Skater } from "@/components/arcade/engine/types";
 
 export const STEP = 1 / 120;
 const GOAL_PAUSE = 3.4;
 const FACEOFF_PAUSE = 1.3;
 
-/** Advance the match by one fixed step. Events for effects and sound are appended to state.events. */
-export function step(state: MatchState, input: Input, dt = STEP) {
+/**
+ * Advance the match by one fixed step. Events for effects and sound are appended to state.events.
+ * `input` drives the home team; `input2` the away team in versus play.
+ */
+export function step(state: MatchState, input: Input, dt = STEP, input2: Input = NO_INPUT) {
   state.t += dt;
   state.phaseT += dt;
-  if (state.switchLock > 0) state.switchLock -= dt;
+  for (const pl of state.pilots) if (pl.switchLock > 0) pl.switchLock -= dt;
 
   if (state.phase === "end") return;
   if (state.phase === "goal") {
@@ -69,15 +73,23 @@ export function step(state: MatchState, input: Input, dt = STEP) {
     }
   }
 
-  let human = state.setup.humanless ? null : state.skaters[state.controlled];
-  if (human && state.phase === "play") applyHuman(state, human, input, dt);
-  // Autopilot: a thumb off the stick hands the player to the AI, except while carrying the puck.
-  state.idle = Math.hypot(input.mx, input.my) > 0.1 || input.actions.length ? 0 : state.idle + dt;
-  if (human && state.idle > 0.6 && !ownedBy(state, human) && human.charge < 0) human = null;
+  // Skaters driven by a thumb this step, with the input that drives them.
+  const driven = new Map<Skater, Input>();
+  for (const team of [0, 1] as const) {
+    if (!humanTeam(state, team)) continue;
+    const inp = team === 0 ? input : input2;
+    const pl = state.pilots[team];
+    const s = state.skaters[pl.controlled];
+    if (state.phase === "play") applyHuman(state, s, inp, team);
+    // Autopilot: a thumb off the stick hands the player to the AI, except while carrying the puck.
+    pl.idle = Math.hypot(inp.mx, inp.my) > 0.1 || inp.actions.length ? 0 : pl.idle + dt;
+    const human = state.skaters[pl.controlled]; // a tap may have switched players
+    if (!(pl.idle > 0.6 && !ownedBy(state, human) && human.charge < 0)) driven.set(human, inp);
+  }
 
   for (const s of state.skaters) {
     if (s.goalie) goalieThink(state, s, dt);
-    else if (s !== human) {
+    else if (!driven.has(s)) {
       s.think -= dt;
       if (s.think <= 0 && state.phase === "play") think(state, s);
     }
@@ -85,13 +97,13 @@ export function step(state: MatchState, input: Input, dt = STEP) {
     if (s.charge >= 0 && !ownedBy(state, s)) s.charge = -1;
   }
 
-  moveSkaters(state, human, input, dt);
+  moveSkaters(state, driven, dt);
   collideSkaters(state);
   for (const p of state.pucks) movePuck(state, p, dt);
   if (state.phase === "play") {
     pickups(state);
     steals(state, dt);
-    autoSwitch(state);
+    for (const team of [0, 1] as const) if (humanTeam(state, team)) autoSwitch(state, team);
   }
 }
 
@@ -101,7 +113,7 @@ function finish(state: MatchState) {
   state.events.push({ kind: "end", winner: state.score[0] > state.score[1] ? 0 : 1 });
 }
 
-function applyHuman(state: MatchState, s: Skater, input: Input, dt: number) {
+function applyHuman(state: MatchState, s: Skater, input: Input, team: 0 | 1) {
   const has = ownedBy(state, s);
   s.burst = input.burst && s.stamina > 0.05;
   for (const a of input.actions) {
@@ -109,7 +121,7 @@ function applyHuman(state: MatchState, s: Skater, input: Input, dt: number) {
       if (has) {
         const to = passTarget(state, s, input.mx, input.my);
         if (to) pass(state, s, to);
-      } else manualSwitch(state);
+      } else manualSwitch(state, team);
     } else if (a.kind === "swipe") {
       if (ownedBy(state, s)) shoot(state, s, a.dx, a.dy, a.power, false);
       else bodyCheck(state, s, a.dx, a.dy);
@@ -126,65 +138,67 @@ function applyHuman(state: MatchState, s: Skater, input: Input, dt: number) {
       s.charge = -1;
     }
   }
-  void dt;
 }
 
-function manualSwitch(state: MatchState) {
-  const target = hotPuck(state);
+function manualSwitch(state: MatchState, team: 0 | 1) {
+  const target = hotPuck(state, team);
   if (!target) return;
-  const cands = state.skaters.filter((s) => s.team === 0 && !s.goalie && s.i !== state.controlled);
+  const pl = state.pilots[team];
+  const cands = state.skaters.filter((s) => s.team === team && !s.goalie && s.i !== pl.controlled);
   cands.sort((a, b) => dist(a.x, a.y, target.x, target.y) - dist(b.x, b.y, target.x, target.y));
   if (cands[0]) {
-    state.controlled = cands[0].i;
-    state.switchLock = 1;
+    pl.controlled = cands[0].i;
+    pl.switchLock = 1;
     state.events.push({ kind: "switch", to: cands[0].i });
   }
 }
 
-/** The puck the human team should care about most: theirs/loose, nearest our net. */
-function hotPuck(state: MatchState): Puck | undefined {
-  return state.pucks.slice().sort((a, b) => a.y - b.y)[0];
+/** The puck a human team should care about most: the one nearest its own net. */
+function hotPuck(state: MatchState, team: 0 | 1): Puck | undefined {
+  const d = dirOf(team);
+  return state.pucks.slice().sort((a, b) => (a.y - b.y) * d)[0];
 }
 
-function autoSwitch(state: MatchState) {
-  if (state.setup.humanless) return;
-  const owned = state.pucks.find((p) => p.owner >= 0 && state.skaters[p.owner].team === 0 && !state.skaters[p.owner].goalie);
+function autoSwitch(state: MatchState, team: 0 | 1) {
+  const pl = state.pilots[team];
+  const owned = state.pucks.find((p) => p.owner >= 0 && state.skaters[p.owner].team === team && !state.skaters[p.owner].goalie);
   if (owned) {
-    if (owned.owner !== state.controlled) {
-      state.controlled = owned.owner;
+    if (owned.owner !== pl.controlled) {
+      pl.controlled = owned.owner;
       state.events.push({ kind: "switch", to: owned.owner });
     }
     return;
   }
-  if (state.switchLock > 0) return;
-  const p = hotPuck(state);
+  if (pl.switchLock > 0) return;
+  const p = hotPuck(state, team);
   if (!p) return;
   // A pass on its way to a teammate: switch to the receiver.
-  if (p.passTo >= 0 && state.skaters[p.passTo].team === 0 && p.passTo !== state.controlled) {
-    state.controlled = p.passTo;
-    state.switchLock = 0.4;
+  if (p.passTo >= 0 && state.skaters[p.passTo].team === team && p.passTo !== pl.controlled) {
+    pl.controlled = p.passTo;
+    pl.switchLock = 0.4;
     return;
   }
-  const cur = state.skaters[state.controlled];
+  const cur = state.skaters[pl.controlled];
   const best = state.skaters
-    .filter((s) => s.team === 0 && !s.goalie && s.stun <= 0)
+    .filter((s) => s.team === team && !s.goalie && s.stun <= 0)
     .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
   if (best && best !== cur && dist(cur.x, cur.y, p.x, p.y) - dist(best.x, best.y, p.x, p.y) > 4) {
-    state.controlled = best.i;
-    state.switchLock = 0.6;
+    pl.controlled = best.i;
+    pl.switchLock = 0.6;
     state.events.push({ kind: "switch", to: best.i });
   }
 }
 
-function moveSkaters(state: MatchState, human: Skater | null, input: Input, dt: number) {
+function moveSkaters(state: MatchState, driven: Map<Skater, Input>, dt: number) {
   const frozen = state.phase !== "play";
   for (const s of state.skaters) {
+    const input = driven.get(s);
     if (s.stun > 0) s.stun -= dt;
     if (s.dash > -0.6) s.dash -= dt;
     if (s.poke > -0.5) s.poke -= dt;
     if (s.pickupCd > 0) s.pickupCd -= dt;
     s.recvT += dt;
-    const bursting = s.burst && (Math.hypot(s.vx, s.vy) > 3 || s === human);
+    const bursting = s.burst && (Math.hypot(s.vx, s.vy) > 3 || !!input);
     s.stamina = Math.max(0, Math.min(1, s.stamina + (bursting ? -0.4 : 0.18) * dt));
     if (s.stamina <= 0.01) s.burst = false;
 
@@ -198,7 +212,7 @@ function moveSkaters(state: MatchState, human: Skater | null, input: Input, dt: 
       const v = 15 + 4 * s.info.skate;
       dvx = s.dashX * v;
       dvy = s.dashY * v;
-    } else if (s === human && state.phase === "play") {
+    } else if (input && state.phase === "play") {
       dvx = input.mx * max;
       dvy = input.my * max;
     } else {

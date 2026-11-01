@@ -35,6 +35,25 @@ const CALL_UP: ArcadeSkater = { id: "call-up", name: "Call-up", number: 77, pos:
 /** The opponent's AI level: harder for clubs that beat us more, and a little more at each tour stop. */
 export const levelFor = (o: ArcadeOpponent, stop: number | null) => Math.min(0.95, 0.3 + 0.55 * o.difficulty + (stop ?? 0) * 0.03);
 
+/** Our club's team from a saved line. */
+export function ourTeam(data: ArcadeData, lineup: string[], goalieId: string | null, myId: string | null): TeamSetup {
+  const byId = new Map(data.skaters.map((s) => [s.id, s]));
+  const sk = lineup.map((id) => byId.get(id)).filter((s): s is ArcadeSkater => !!s);
+  let k = 0;
+  while (sk.length < 3) sk.push({ ...CALL_UP, id: `call-up-${k}`, name: `Call-up ${++k}`, number: 70 + k });
+  const g = data.goalies.find((x) => x.id === goalieId) ?? data.goalies[0];
+  return { name: "Drop drop drop", abbr: "DDD", color: "#5cc8ff", skaters: sk.map((s) => skaterInfo(s, myId)), goalie: goalieInfo(g, myId), level: 0.62 };
+}
+
+/** A team for online play, named after whoever holds the phone. */
+export function versusTeam(data: ArcadeData, lineup: string[], goalieId: string | null, myId: string | null, fallback: string): TeamSetup {
+  const t = ourTeam(data, lineup, goalieId, myId);
+  const me = [...t.skaters, t.goalie].find((p) => p.you)?.name;
+  const name = (me ?? fallback).slice(0, 24);
+  const abbr = name.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() || fallback.slice(0, 3).toUpperCase();
+  return { ...t, name: `Team ${name}`, abbr };
+}
+
 export function buildSetup(
   data: ArcadeData,
   opp: ArcadeOpponent,
@@ -43,12 +62,7 @@ export function buildSetup(
   myId: string | null,
   opts: { insane: boolean; stop: number | null; seed: number; length?: number },
 ): MatchSetup {
-  const byId = new Map(data.skaters.map((s) => [s.id, s]));
-  const sk = lineup.map((id) => byId.get(id)).filter((s): s is ArcadeSkater => !!s);
-  let k = 0;
-  while (sk.length < 3) sk.push({ ...CALL_UP, id: `call-up-${k}`, name: `Call-up ${++k}`, number: 70 + k });
-  const g = data.goalies.find((x) => x.id === goalieId) ?? data.goalies[0];
-  const home: TeamSetup = { name: "Drop drop drop", abbr: "DDD", color: "#5cc8ff", skaters: sk.map((s) => skaterInfo(s, myId)), goalie: goalieInfo(g, myId), level: 0.62 };
+  const home = ourTeam(data, lineup, goalieId, myId);
   const away: TeamSetup = {
     name: opp.name,
     abbr: opp.abbr,
