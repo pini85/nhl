@@ -55,6 +55,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     phaseT: 0,
     score: [0, 0],
     sog: [0, 0],
+    aiHitCd: [3, 3],
     skaters,
     pucks: [],
     controlled: 0,

@@ -28,6 +28,7 @@ const FACEOFF_PAUSE = 1.3;
 /** Advance the match by one fixed step. Events for effects and sound are appended to state.events. */
 export function step(state: MatchState, input: Input, dt = STEP) {
   state.t += dt;
+  for (const t of [0, 1] as const) state.aiHitCd[t] = Math.max(0, state.aiHitCd[t] - dt);
   state.phaseT += dt;
   if (state.switchLock > 0) state.switchLock -= dt;
 
@@ -115,20 +116,41 @@ function applyHuman(state: MatchState, s: Skater, input: Input, dt: number) {
     } else if (a.kind === "swipe") {
       if (ownedBy(state, s)) shoot(state, s, a.dx, a.dy, a.power, false);
       else bodyCheck(state, s, a.dx, a.dy);
+    } else if (a.kind === "shoot") {
+      if (ownedBy(state, s)) shootAtNet(state, s, input, 0.85, false);
+    } else if (a.kind === "hit") {
+      if (!ownedBy(state, s)) {
+        const [dx, dy] = Math.hypot(input.mx, input.my) > 0.3 ? [input.mx, input.my] : towardCarrier(state, s);
+        bodyCheck(state, s, dx, dy);
+      }
+    } else if (a.kind === "poke") {
+      if (!ownedBy(state, s)) pokeCheck(state, s);
     } else if (a.kind === "charge") {
       if (ownedBy(state, s)) s.charge = 0;
     } else if (a.kind === "release") {
-      if (s.charge >= 0 && ownedBy(state, s)) {
-        const gy = dirOf(s.team) * RINK.goalY;
-        const side = Math.abs(input.mx) > 0.25 ? Math.sign(input.mx) : -Math.sign(s.x || 1);
-        const aimX = side * (RINK.mouth - 0.45);
-        const power = Math.max(0.35, s.charge);
-        shoot(state, s, aimX - s.x, gy - s.y, power, s.charge > 0.4);
-      } else if (!ownedBy(state, s)) pokeCheck(state, s);
+      if (s.charge >= 0 && ownedBy(state, s)) shootAtNet(state, s, input, Math.max(0.35, s.charge), s.charge > 0.4);
+      else if (!ownedBy(state, s)) pokeCheck(state, s);
       s.charge = -1;
     }
   }
   void dt;
+}
+
+/** Shoots at a corner of the net: the side the stick leans to, else the side the goalie leaves open. */
+function shootAtNet(state: MatchState, s: Skater, input: Input, power: number, slap: boolean) {
+  const gy = dirOf(s.team) * RINK.goalY;
+  const gx = state.skaters.find((g) => g.goalie && g.team !== s.team)?.x ?? 0;
+  const open = Math.abs(gx) > 0.25 ? -Math.sign(gx) : -Math.sign(s.x || 1);
+  const side = Math.abs(input.mx) > 0.25 ? Math.sign(input.mx) : open;
+  shoot(state, s, side * (RINK.mouth - 0.45) - s.x, gy - s.y, power, slap);
+}
+
+/** Direction to the nearest opposing puck carrier (or the nearest puck). */
+function towardCarrier(state: MatchState, s: Skater): [number, number] {
+  const near = (x: number, y: number) => Math.hypot(x - s.x, y - s.y);
+  const carriers = state.skaters.filter((o) => o.team !== s.team && ownedBy(state, o));
+  const t = carriers.sort((a, b) => near(a.x, a.y) - near(b.x, b.y))[0] ?? state.pucks.slice().sort((a, b) => near(a.x, a.y) - near(b.x, b.y))[0];
+  return t ? [t.x - s.x, t.y - s.y] : [Math.cos(s.face), Math.sin(s.face)];
 }
 
 function manualSwitch(state: MatchState) {

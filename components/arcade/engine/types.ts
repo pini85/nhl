@@ -125,6 +125,7 @@ export type MatchState = {
   phaseT: number;
   score: [number, number];
   sog: [number, number]; // shots on goal
+  aiHitCd: [number, number]; // per team: seconds before the AI may throw another body check
   skaters: Skater[];
   pucks: Puck[];
   controlled: number; // skater the human drives
@@ -138,7 +139,14 @@ export type MatchState = {
   lastGoal: { team: 0 | 1; scorer: number; x: number; y: number } | null;
 };
 
-export type Action = { kind: "tap" } | { kind: "swipe"; dx: number; dy: number; power: number } | { kind: "charge" } | { kind: "release" };
+export type Action =
+  | { kind: "tap" } // pass, or switch player without the puck
+  | { kind: "swipe"; dx: number; dy: number; power: number } // shoot that way, or body check without the puck
+  | { kind: "shoot" } // wrist shot at the net, side picked by the stick
+  | { kind: "hit" } // body check the way the stick points, else at the nearest puck carrier
+  | { kind: "poke" }
+  | { kind: "charge" }
+  | { kind: "release" };
 
 /** Human input for one step. Move is a world direction with length 0..1. */
 export type Input = { mx: number; my: number; burst: boolean; actions: Action[] };

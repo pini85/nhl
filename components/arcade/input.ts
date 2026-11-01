@@ -1,13 +1,32 @@
 import type { Action, Input } from "@/components/arcade/engine/types";
 
-// Touch: a floating stick on the left half, gestures on the right half. Keyboard for desktops.
+// Touch: a floating stick on the left half, labelled buttons on the right. Keyboard for desktops.
+// The buttons change with the puck:
+//   with it:    SHOOT (hold for a slapshot) · PASS
+//   without it: HIT · SWITCH · POKE
 // Screen directions are turned into world directions (screen y goes down, world y goes up).
 
 const STICK_R = 56;
 const HOLD_MS = 170;
-const SWIPE_PX = 34;
 
-type Gesture = { id: number; x0: number; y0: number; t0: number; x: number; y: number; charging: boolean; done: boolean };
+export type ButtonId = "a" | "b" | "c";
+export type ButtonSpot = { x: number; y: number; r: number };
+
+/** Where the buttons sit, in CSS pixels. Shared by the input and the HUD so taps land where the buttons are drawn. */
+export function buttonLayout(w: number, h: number, bottom: number): Record<ButtonId, ButtonSpot> {
+  const s = Math.max(0.8, Math.min(1.15, Math.min(w, h) / 390));
+  const by = h - bottom - 24;
+  return {
+    a: { x: w - 74 * s, y: by - 58 * s, r: 48 * s }, // big: SHOOT / HIT
+    b: { x: w - 170 * s, y: by - 34 * s, r: 36 * s }, // PASS / SWITCH
+    c: { x: w - 62 * s, y: by - 168 * s, r: 30 * s }, // POKE (only without the puck)
+  };
+}
+
+/** What the HUD needs to draw the buttons. */
+export type PadView = { hasPuck: boolean; down: Record<ButtonId, boolean>; charging: boolean };
+
+type Press = { id: number; btn: ButtonId; t0: number; charging: boolean };
 
 export class Controls {
   mx = 0;
@@ -15,11 +34,16 @@ export class Controls {
   burst = false;
   joy: { ox: number; oy: number; x: number; y: number } | null = null;
   used = false; // any input yet (fades the hint)
+  /** Set by the game each frame: does the human's player have the puck? Picks what the buttons do. */
+  hasPuck = false;
+  /** Bottom safe-area inset in CSS pixels, so the buttons clear the home bar. */
+  bottom = 0;
   private stickId: number | null = null;
-  private gesture: Gesture | null = null;
+  private presses = new Map<number, Press>();
   private actions: Action[] = [];
   private keys = new Set<string>();
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private keyCharge: ReturnType<typeof setTimeout> | null = null;
+  private keyCharging = false;
   private off: (() => void)[] = [];
 
   constructor(private el: HTMLElement, private haptic: (ms: number) => void) {
@@ -41,7 +65,22 @@ export class Controls {
 
   destroy() {
     for (const f of this.off) f();
-    if (this.timer) clearTimeout(this.timer);
+    for (const p of this.presses.values()) this.clearTimer(p);
+    if (this.keyCharge) clearTimeout(this.keyCharge);
+  }
+
+  /** Button state for the HUD. */
+  get pad(): PadView {
+    const down = { a: false, b: false, c: false };
+    let charging = this.keyCharging;
+    for (const p of this.presses.values()) {
+      down[p.btn] = true;
+      charging ||= p.charging;
+    }
+    if (this.keys.has(" ")) down.a = true;
+    if (this.keys.has("e") || this.keys.has("j")) down.b = true;
+    if (this.keys.has("q") || this.keys.has("l")) down.c = true;
+    return { hasPuck: this.hasPuck, down, charging };
   }
 
   /** This step's input; actions are handed out once. */
@@ -65,6 +104,23 @@ export class Controls {
     return { mx, my, burst, actions };
   }
 
+  private buttonAt(x: number, y: number): ButtonId | null {
+    const rect = this.el.getBoundingClientRect();
+    const L = buttonLayout(rect.width, rect.height, this.bottom);
+    let best: ButtonId | null = null;
+    let bestD = Infinity;
+    for (const id of ["a", "b", "c"] as const) {
+      if (id === "c" && this.hasPuck) continue;
+      const b = L[id];
+      const d = Math.hypot(x - b.x, y - b.y) / b.r;
+      if (d < 1.35 && d < bestD) {
+        best = id;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
   private down(e: PointerEvent) {
     e.preventDefault();
     this.used = true;
@@ -74,61 +130,61 @@ export class Controls {
     try {
       this.el.setPointerCapture(e.pointerId);
     } catch {}
+    const btn = this.buttonAt(x, y);
+    if (btn) {
+      this.press(e.pointerId, btn);
+      return;
+    }
     if (x < rect.width / 2 && this.stickId === null) {
       this.stickId = e.pointerId;
       this.joy = { ox: x, oy: y, x, y };
       this.mx = this.my = 0;
-      return;
     }
-    if (this.gesture) return;
-    const g: Gesture = { id: e.pointerId, x0: x, y0: y, t0: performance.now(), x, y, charging: false, done: false };
-    this.gesture = g;
-    this.timer = setTimeout(() => {
-      if (this.gesture === g && !g.done && Math.hypot(g.x - g.x0, g.y - g.y0) < SWIPE_PX * 0.6) {
-        g.charging = true;
-        this.actions.push({ kind: "charge" });
-        this.haptic(8);
-      }
-    }, HOLD_MS);
+  }
+
+  private press(id: number, btn: ButtonId) {
+    this.haptic(6);
+    const p: Press = { id, btn, t0: performance.now(), charging: false };
+    this.presses.set(id, p);
+    if (btn === "a") {
+      if (this.hasPuck) {
+        // Hold to wind up a slapshot; a quick tap is a wrist shot (fired on release).
+        timers.set(p, setTimeout(() => {
+          if (this.presses.get(id) === p && this.hasPuck) {
+            p.charging = true;
+            this.actions.push({ kind: "charge" });
+            this.haptic(10);
+          }
+        }, HOLD_MS));
+      } else this.actions.push({ kind: "hit" });
+    } else if (btn === "b") this.actions.push({ kind: "tap" });
+    else this.actions.push({ kind: "poke" });
   }
 
   private move(e: PointerEvent) {
+    if (e.pointerId !== this.stickId || !this.joy) return;
     const rect = this.el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    if (e.pointerId === this.stickId && this.joy) {
-      let dx = x - this.joy.ox;
-      let dy = y - this.joy.oy;
-      let d = Math.hypot(dx, dy);
-      // The base follows a thumb that drifts too far.
-      if (d > STICK_R * 1.6) {
-        const k = (d - STICK_R * 1.6) / d;
-        this.joy.ox += dx * k;
-        this.joy.oy += dy * k;
-        dx = x - this.joy.ox;
-        dy = y - this.joy.oy;
-        d = Math.hypot(dx, dy);
-      }
-      const m = Math.min(1, d / STICK_R);
-      this.mx = d ? (dx / d) * m : 0;
-      this.my = d ? (-dy / d) * m : 0;
-      this.burst = d > STICK_R * 1.15;
-      const c = Math.min(d, STICK_R);
-      this.joy.x = this.joy.ox + (d ? (dx / d) * c : 0);
-      this.joy.y = this.joy.oy + (d ? (dy / d) * c : 0);
-      return;
+    let dx = x - this.joy.ox;
+    let dy = y - this.joy.oy;
+    let d = Math.hypot(dx, dy);
+    // The base follows a thumb that drifts too far.
+    if (d > STICK_R * 1.6) {
+      const k = (d - STICK_R * 1.6) / d;
+      this.joy.ox += dx * k;
+      this.joy.oy += dy * k;
+      dx = x - this.joy.ox;
+      dy = y - this.joy.oy;
+      d = Math.hypot(dx, dy);
     }
-    const g = this.gesture;
-    if (!g || g.id !== e.pointerId) return;
-    g.x = x;
-    g.y = y;
-    const dist = Math.hypot(x - g.x0, y - g.y0);
-    const ms = performance.now() - g.t0;
-    // A quick flick fires right away, before the finger lifts.
-    if (!g.done && !g.charging && dist > SWIPE_PX * 1.4 && ms < 260) {
-      g.done = true;
-      this.swipe(g, ms);
-    }
+    const m = Math.min(1, d / STICK_R);
+    this.mx = d ? (dx / d) * m : 0;
+    this.my = d ? (-dy / d) * m : 0;
+    this.burst = d > STICK_R * 1.15;
+    const c = Math.min(d, STICK_R);
+    this.joy.x = this.joy.ox + (d ? (dx / d) * c : 0);
+    this.joy.y = this.joy.oy + (d ? (dy / d) * c : 0);
   }
 
   private up(e: PointerEvent, cancel = false) {
@@ -139,28 +195,19 @@ export class Controls {
       this.burst = false;
       return;
     }
-    const g = this.gesture;
-    if (!g || g.id !== e.pointerId) return;
-    this.gesture = null;
-    if (this.timer) clearTimeout(this.timer);
-    if (cancel) {
-      if (g.charging) this.actions.push({ kind: "release" });
-      return;
-    }
-    if (g.charging) this.actions.push({ kind: "release" });
-    else if (!g.done) {
-      const dist = Math.hypot(g.x - g.x0, g.y - g.y0);
-      if (dist > SWIPE_PX) this.swipe(g, performance.now() - g.t0);
-      else this.actions.push({ kind: "tap" });
-    }
+    const p = this.presses.get(e.pointerId);
+    if (!p) return;
+    this.presses.delete(e.pointerId);
+    this.clearTimer(p);
+    if (p.btn !== "a") return;
+    if (p.charging) this.actions.push({ kind: "release" });
+    else if (!cancel && this.hasPuck) this.actions.push({ kind: "shoot" });
   }
 
-  private swipe(g: Gesture, ms: number) {
-    const dx = g.x - g.x0;
-    const dy = g.y - g.y0;
-    const speed = Math.hypot(dx, dy) / Math.max(16, ms); // px per ms
-    const power = Math.max(0.3, Math.min(1, (speed - 0.25) / 1.6));
-    this.actions.push({ kind: "swipe", dx, dy: -dy, power });
+  private clearTimer(p: Press) {
+    const t = timers.get(p);
+    if (t) clearTimeout(t);
+    timers.delete(p);
   }
 
   private key(e: KeyboardEvent, down: boolean) {
@@ -170,8 +217,29 @@ export class Controls {
     if (down) this.keys.add(k);
     else this.keys.delete(k);
     if (down) this.used = true;
-    if (k === " " && down) this.actions.push({ kind: "swipe", dx: (this.keys.has("a") || this.keys.has("arrowleft") ? -0.3 : 0) + (this.keys.has("d") || this.keys.has("arrowright") ? 0.3 : 0), dy: 1, power: 0.85 });
+    if (k === " ") {
+      // Space: shoot (hold for a slapshot) with the puck, hit without it.
+      if (down) {
+        if (!this.hasPuck) this.actions.push({ kind: "hit" });
+        else
+          this.keyCharge = setTimeout(() => {
+            this.keyCharge = null;
+            if (this.keys.has(" ") && this.hasPuck) {
+              this.keyCharging = true;
+              this.actions.push({ kind: "charge" });
+            }
+          }, HOLD_MS);
+      } else {
+        if (this.keyCharge) clearTimeout(this.keyCharge);
+        this.keyCharge = null;
+        if (this.keyCharging) this.actions.push({ kind: "release" });
+        else if (this.hasPuck) this.actions.push({ kind: "shoot" });
+        this.keyCharging = false;
+      }
+    }
     if ((k === "e" || k === "j") && down) this.actions.push({ kind: "tap" });
-    if (k === "k") this.actions.push({ kind: down ? "charge" : "release" });
+    if ((k === "q" || k === "l") && down) this.actions.push({ kind: "poke" });
   }
 }
+
+const timers = new WeakMap<Press, ReturnType<typeof setTimeout>>();

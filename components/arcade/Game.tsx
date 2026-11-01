@@ -74,6 +74,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       const b = el.getBoundingClientRect();
       const cs = measure.current ? getComputedStyle(measure.current) : null;
       r.insets = { top: cs ? parseFloat(cs.paddingTop) : 0, bottom: cs ? parseFloat(cs.paddingBottom) : 0 };
+      controls.bottom = r.insets.bottom;
       r.resize(b.width, b.height, window.devicePixelRatio || 1);
     };
     fit();
@@ -212,6 +213,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       if (state.freeze > 0) state.freeze -= dt;
       else acc += dt * state.timeScale * (setup.insane ? 1.22 : 1);
       let n = 0;
+      controls.hasPuck = state.pucks.some((q) => q.owner === state.controlled);
       while (acc >= STEP && n < 16) {
         step(state, controls.take());
         acc -= STEP;
@@ -225,6 +227,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       }
       if (n >= 16) acc = 0;
       r.joy = controls.joy;
+      r.pad = controls.pad;
       if (controls.used && started > 4) r.hint = Math.max(0, r.hint - dt * 0.5);
       // The crowd gets louder near either net.
       const p = focusOf(state);
@@ -269,7 +272,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     <div className="fixed inset-0 z-[70] touch-none overscroll-none bg-[#03060d] select-none" style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
       <div ref={measure} aria-hidden className="pointer-events-none absolute inset-0" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }} />
       <div ref={wrap} className="absolute inset-0 touch-none">
-        <canvas ref={canvas} className="absolute inset-0 block h-full w-full" aria-label="Hockey game. Left thumb skates, right thumb passes, shoots and checks." />
+        <canvas ref={canvas} className="absolute inset-0 block h-full w-full" aria-label="Hockey game. Left thumb skates; buttons on the right shoot, pass, hit, switch and poke." />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-between px-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 58px)" }}>
         <button type="button" aria-label="Pause" onClick={() => setPaused(true)} className="pointer-events-auto rounded-full border border-[var(--card-border)] bg-[rgba(7,11,20,0.6)] p-2 text-[var(--fg)] backdrop-blur">
