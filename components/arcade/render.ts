@@ -1,4 +1,5 @@
 import { netSegments, RINK } from "@/components/arcade/engine/rink";
+import { buttonLayout, type PadView } from "@/components/arcade/input";
 import type { GameEvent, MatchState, Skater } from "@/components/arcade/engine/types";
 
 // Canvas renderer. World (x, y) with +y up is drawn as (u, v) = (x, -y) so screen y goes down.
@@ -36,6 +37,7 @@ export interface View {
   insets: Insets;
   joy: { ox: number; oy: number; x: number; y: number } | null;
   hint: number;
+  pad: PadView | null;
   resize(w: number, h: number, dpr: number): void;
   frame(state: MatchState, dt: number, focus: { x: number; y: number; vx: number; vy: number }): void;
   shake(mag: number): void;
@@ -78,6 +80,7 @@ export class Renderer implements View {
   insets: Insets = { top: 0, bottom: 0 };
   joy: { ox: number; oy: number; x: number; y: number } | null = null;
   hint = 1; // controls hint opacity
+  pad: PadView | null = null; // the on-screen buttons
   /** Set when this renderer only draws the HUD over the 3D arena. */
   project: Project | null = null;
 
@@ -1023,12 +1026,49 @@ export class Renderer implements View {
       ctx.textAlign = "center";
       ctx.fillText("SKATE", 80, by);
       ctx.fillText("push far = BURST", 80, by + 62);
-      ctx.textAlign = "right";
-      const rx = this.w - 18;
-      ctx.fillText("TAP  pass · switch", rx, by - 22);
-      ctx.fillText("SWIPE  shoot · hit", rx, by);
-      ctx.fillText("HOLD  slapshot · poke", rx, by + 22);
       ctx.globalAlpha = 1;
+    }
+    this.drawPad();
+  }
+
+  /** SHOOT / PASS with the puck; HIT / SWITCH / POKE without it. */
+  private drawPad() {
+    const pad = this.pad;
+    if (!pad) return;
+    const ctx = this.ctx;
+    const L = buttonLayout(this.w, this.h, this.insets.bottom);
+    const btn = (id: "a" | "b" | "c", label: string, sub: string, color: string) => {
+      const { x, y, r } = L[id];
+      const down = pad.down[id];
+      ctx.save();
+      ctx.globalAlpha = down ? 0.95 : 0.78;
+      ctx.fillStyle = down ? color : "rgba(7,11,20,0.55)";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, down ? r * 0.94 : r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = down ? "#07101e" : "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${Math.round(r * 0.36)}px system-ui, sans-serif`;
+      ctx.fillText(label, x, sub ? y - r * 0.12 : y);
+      if (sub && this.hint > 0) {
+        ctx.globalAlpha = Math.max(0.55, this.hint);
+        ctx.font = `700 ${Math.max(9, Math.round(r * 0.2))}px system-ui, sans-serif`;
+        ctx.fillText(sub, x, y + r * 0.28);
+      }
+      ctx.restore();
+    };
+    if (pad.hasPuck) {
+      btn("a", pad.charging ? "LET GO" : "SHOOT", pad.charging ? "" : "hold = slapper", "#ffd23d");
+      btn("b", "PASS", "", "#5cc8ff");
+    } else {
+      btn("a", "HIT", "", "#ff6b4a");
+      btn("b", "SWITCH", "", "#5cc8ff");
+      btn("c", "POKE", "", "#c7d2e6");
     }
   }
 }

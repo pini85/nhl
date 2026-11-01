@@ -44,9 +44,13 @@ export function think(state: MatchState, s: Skater) {
       setTarget(s, carrier.x + carrier.vx * lead, carrier.y + carrier.vy * lead, 1);
       const near = dist(s.x, s.y, carrier.x, carrier.y);
       s.burst = near > 4 && s.stamina > 0.45;
-      if (near < 2.8 && !carrier.goalie && r.chance(0.07 + 0.16 * L)) {
-        if (s.info.hit > 0.45 && r.chance(0.2 + s.info.hit * 0.35) && near > 1.4) bodyCheck(state, s, carrier.x - s.x, carrier.y - s.y);
-        else pokeCheck(state, s);
+      if (near < 2.8 && !carrier.goalie && r.chance(0.06 + 0.12 * L)) {
+        // Mostly stick checks. Body checks are rare, from real hitters, and a team waits a few seconds between them.
+        const hit = state.aiHitCd[s.team] <= 0 && s.info.hit > 0.55 && near > 1.4 && r.chance(0.08 + s.info.hit * 0.17);
+        if (hit) {
+          bodyCheck(state, s, carrier.x - s.x, carrier.y - s.y);
+          state.aiHitCd[s.team] = 5 + r.next() * 4;
+        } else pokeCheck(state, s);
       }
       return;
     }

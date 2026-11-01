@@ -104,6 +104,35 @@ describe("the human's player", () => {
     expect(s.timeScale).toBeLessThan(1);
   });
 
+  it("brings the stick down to the puck before it leaves the blade", () => {
+    const s = setUp(1, RINK.goalY - 8);
+    const me = s.skaters[s.pilots[0].controlled];
+    step(s, { mx: 0, my: 0, burst: false, actions: [{ kind: "swipe", dx: 0.3, dy: 1, power: 1 }] });
+    expect(me.stroke).toBeTruthy();
+    expect(s.pucks[0].owner).toBe(me.i); // still on the blade during the downswing
+    const ev = run(s, 0.25);
+    expect(me.stroke).toBeNull();
+    expect(ev.find((e) => e.kind === "shot")).toMatchObject({ by: me.i });
+    expect(s.pucks[0].owner).toBe(-1);
+  });
+
+  it("the SHOOT button scores at an open net", () => {
+    const s = setUp(1, RINK.goalY - 8);
+    const ev = run(s, 1, { mx: 0, my: 0, burst: false, actions: [{ kind: "shoot" }] });
+    expect(ev.find((e) => e.kind === "shot")).toMatchObject({ by: s.pilots[0].controlled, slap: false });
+    expect(s.score).toEqual([1, 0]);
+  });
+
+  it("the HIT button lines up the nearest carrier without aiming", () => {
+    const s = setUp(0, 0);
+    const me = s.skaters[s.pilots[0].controlled];
+    const carrier = s.skaters.find((k) => k.team === 1 && !k.goalie)!;
+    Object.assign(carrier, { x: 2, y: 2, vx: 0, vy: 0, think: 99, tx: 2, ty: 2 });
+    Object.assign(s.pucks[0], { owner: carrier.i, x: 2, y: 1 });
+    const ev = run(s, 0.4, { mx: 0, my: 0, burst: false, actions: [{ kind: "hit" }] });
+    expect(ev.find((e) => e.kind === "hit")).toMatchObject({ by: me.i, victim: carrier.i });
+  });
+
   it("passes with a tap and the receiver becomes the human's player", () => {
     const s = setUp(0, 0);
     const me = s.pilots[0].controlled;

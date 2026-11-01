@@ -52,6 +52,8 @@ export type Skater = {
   poke: number; // poke-check time left
   pickupCd: number;
   charge: number; // slapshot wind-up 0..1, or -1
+  /** A shot on its way: the stick is coming down to the puck, which leaves the blade when `t` runs out. */
+  stroke: Stroke | null;
   recvT: number; // seconds since receiving a pass (one-timers)
   think: number; // seconds until the AI decides again
   tx: number; // AI move target
@@ -64,6 +66,18 @@ export type Skater = {
   shots: number;
   hits: number;
   saves: number;
+};
+
+export type Stroke = {
+  t: number; // seconds until the blade meets the puck
+  dur: number;
+  lift: number; // how high the stick starts, 0..1 (a full slapshot wind-up is 1)
+  dx: number;
+  dy: number;
+  power: number;
+  slap: boolean;
+  spread: number;
+  oneTimer: boolean;
 };
 
 export type Puck = {
@@ -119,6 +133,7 @@ export type MatchState = {
   phaseT: number;
   score: [number, number];
   sog: [number, number]; // shots on goal
+  aiHitCd: [number, number]; // per team: seconds before the AI may throw another body check
   skaters: Skater[];
   pucks: Puck[];
   pilots: [Pilot, Pilot]; // per team: the human driving it (team 1 only in versus)
@@ -130,7 +145,14 @@ export type MatchState = {
   lastGoal: { team: 0 | 1; scorer: number; x: number; y: number } | null;
 };
 
-export type Action = { kind: "tap" } | { kind: "swipe"; dx: number; dy: number; power: number } | { kind: "charge" } | { kind: "release" };
+export type Action =
+  | { kind: "tap" } // pass, or switch player without the puck
+  | { kind: "swipe"; dx: number; dy: number; power: number } // shoot that way, or body check without the puck
+  | { kind: "shoot" } // wrist shot at the net, side picked by the stick
+  | { kind: "hit" } // body check the way the stick points, else at the nearest puck carrier
+  | { kind: "poke" }
+  | { kind: "charge" }
+  | { kind: "release" };
 
 /** Human input for one step. Move is a world direction with length 0..1. */
 export type Input = { mx: number; my: number; burst: boolean; actions: Action[] };

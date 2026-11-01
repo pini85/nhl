@@ -23,14 +23,17 @@ export type Snap = {
   pk: number[]; // PK_FIELDS numbers per puck
 };
 
-const SK_FIELDS = 16;
+const SK_FIELDS = 20;
 const PK_FIELDS = 8;
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
+
+// The stick's downswing (only what the renderers draw), or -1s.
+const stroke = (s: MatchState["skaters"][number]) => (s.stroke ? [r3(s.stroke.t), r3(s.stroke.dur), r3(s.stroke.lift), s.stroke.slap ? 1 : 0] : [-1, -1, -1, 0]);
 
 export function encode(state: MatchState, n: number): Snap {
   const sk: number[] = [];
   for (const s of state.skaters) {
-    sk.push(r3(s.x), r3(s.y), r3(s.vx), r3(s.vy), r3(s.face), r3(s.stun), r3(s.stamina), s.burst ? 1 : 0, r3(s.dash), r3(s.poke), r3(s.charge), s.goals, s.assists, s.shots, s.hits, s.saves);
+    sk.push(r3(s.x), r3(s.y), r3(s.vx), r3(s.vy), r3(s.face), r3(s.stun), r3(s.stamina), s.burst ? 1 : 0, r3(s.dash), r3(s.poke), r3(s.charge), s.goals, s.assists, s.shots, s.hits, s.saves, ...stroke(s));
   }
   const pk: number[] = [];
   for (const p of state.pucks) pk.push(r3(p.x), r3(p.y), r3(p.z), r3(p.vx), r3(p.vy), r3(p.vz), p.owner, p.shotBy);
@@ -88,6 +91,7 @@ export function apply(view: MatchState, snap: Snap, mirror: boolean, ahead = 0) 
     s.shots = a[o + 13];
     s.hits = a[o + 14];
     s.saves = a[o + 15];
+    s.stroke = a[o + 16] >= 0 ? { t: a[o + 16], dur: a[o + 17], lift: a[o + 18], slap: a[o + 19] === 1, dx: 0, dy: 0, power: 0, spread: 1, oneTimer: false } : null;
   }
   const count = snap.pk.length / PK_FIELDS;
   for (let k = 0; k < count && k < view.pucks.length; k++) {
@@ -177,7 +181,7 @@ export function guestInput(m: Record<string, unknown>): Input {
   const actions: Action[] = [];
   for (const a of Array.isArray(m.actions) ? m.actions.slice(0, 8) : []) {
     const k = (a as { kind?: unknown })?.kind;
-    if (k === "tap" || k === "charge" || k === "release") actions.push({ kind: k });
+    if (k === "tap" || k === "shoot" || k === "hit" || k === "poke" || k === "charge" || k === "release") actions.push({ kind: k });
     else if (k === "swipe") {
       const w = a as { dx?: unknown; dy?: unknown; power?: unknown };
       actions.push({ kind: "swipe", dx: neg(clamp(w.dx, 1e4)), dy: neg(clamp(w.dy, 1e4)), power: Math.max(0, Math.min(1, Number(w.power) || 0)) });

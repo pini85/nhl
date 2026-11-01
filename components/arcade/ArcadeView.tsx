@@ -313,16 +313,13 @@ function Home({
             <p className="mt-1 text-[var(--muted-fg)]">Drag anywhere to skate. Push far for a burst.</p>
           </div>
           <div>
-            <p className="font-black text-[var(--accent-blue)]">RIGHT THUMB</p>
+            <p className="font-black text-[var(--accent-blue)]">RIGHT THUMB · BUTTONS</p>
             <ul className="mt-1 space-y-0.5 text-[var(--muted-fg)]">
               <li>
-                <b className="text-[var(--fg)]">Tap</b> pass / switch
+                <b className="text-[var(--fg)]">With the puck:</b> SHOOT (hold for a slapshot), PASS
               </li>
               <li>
-                <b className="text-[var(--fg)]">Swipe</b> shoot / hit
-              </li>
-              <li>
-                <b className="text-[var(--fg)]">Hold</b> slapshot / poke
+                <b className="text-[var(--fg)]">Without it:</b> HIT, SWITCH player, POKE
               </li>
             </ul>
           </div>
