@@ -23,6 +23,7 @@ const THIGH = 0.78;
 const SHIN = 0.72;
 const SKATE = 0.32;
 const UP = new Vector3(0, 1, 0);
+const SWING_T = 0.4; // follow-through length, seconds
 const FWD = new Vector3(0, 0, 1);
 
 export type Kit = { jersey: string; trim: string; pants: string; helmet: string; number: number; goalie: boolean };
@@ -106,6 +107,8 @@ export class PlayerModel {
   private lean = 0;
   private crouch = 0.3;
   swing = 0; // follow-through after a shot, seconds left
+  swingDur = SWING_T;
+  swingPeak = 1; // how high the follow-through rises, 0..1
   butterfly = 0; // goalie drop after a save, seconds left
   lunge = 0; // shoulder into a hit, seconds left
   cheer = 0; // celebrating a goal, seconds left
@@ -265,6 +268,10 @@ export class PlayerModel {
     this.head.rotation.x = -0.3 * c - 0.2 * Math.min(1, lunge); // eyes up ice
 
     // Stick target in body space: blade B and top hand G.
+    // A shot is down then up: the wind-up height falls to the puck during the stroke, then the follow-through rises.
+    const ks = s.stroke;
+    const down = ks ? 1 - Math.max(0, ks.t) / ks.dur : 0; // 0 → 1 as the blade comes down to the puck
+    const raise = ks ? (ks.slap ? ks.lift * (1 - down * down) : ks.lift * Math.sin(Math.PI * Math.min(1, down * 1.6)) * (1 - down)) : -1;
     const st = s.charge >= 0 ? s.charge : -1;
     const B = new Vector3();
     const G = new Vector3();
@@ -275,14 +282,16 @@ export class PlayerModel {
     } else if (s.goalie) {
       G.set(-0.45, hipY + 0.55, 0.45);
       B.set(-0.1, 0.06, 1.35);
-    } else if (st >= 0) {
-      const w = Math.min(1, st * 1.4);
+    } else if (st >= 0 || raise >= 0) {
+      const w = raise >= 0 ? raise : Math.min(1, st * 1.4);
       G.set(-0.2 + 0.3 * w, hipY + 0.35 + 0.6 * w, 0.4 - 0.3 * w);
       B.set(0.3 + 0.9 * w, 0.06 + 2.2 * w, 1.4 - 2.4 * w);
     } else if (this.swing > 0) {
-      const w = Math.min(1, this.swing * 4);
-      G.set(-0.3, hipY + 0.5 + 0.4 * w, 0.6);
-      B.set(-0.4 - 0.4 * w, 0.06 + 1.8 * w, 1.6);
+      // Follow-through: blade sweeps forward along the ice, rises fast, then settles back down.
+      const t = 1 - this.swing / this.swingDur;
+      const w = this.swingPeak * Math.max(0, Math.sin(Math.PI * Math.min(1, t * 1.25))) ** 0.7;
+      G.set(-0.25 - 0.05 * w, hipY + 0.35 + 0.55 * w, 0.4 + 0.2 * w);
+      B.set(0.3 - 0.8 * w, 0.06 + 1.8 * w, 1.45 + 0.25 * w);
     } else if (s.poke > 0) {
       G.set(-0.1, hipY + 0.3, 1.0);
       B.set(0.2, 0.06, 2.3);

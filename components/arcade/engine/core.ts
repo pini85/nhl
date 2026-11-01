@@ -30,7 +30,7 @@ function newSkater(i: number, team: 0 | 1, info: PlayerInfo, goalie: boolean): S
   return {
     i, team, goalie, info, x: 0, y: 0, vx: 0, vy: 0, face: team === 0 ? Math.PI / 2 : -Math.PI / 2,
     r: goalie ? G_R : SK_R, stun: 0, stamina: 1, burst: false, dash: -1, dashX: 0, dashY: 0, poke: -1, pickupCd: 0,
-    charge: -1, recvT: 9, think: 0, tx: 0, ty: 0, speedMul: 1, holdT: 0, goals: 0, assists: 0, shots: 0, hits: 0, saves: 0,
+    charge: -1, stroke: null, recvT: 9, think: 0, tx: 0, ty: 0, speedMul: 1, holdT: 0, goals: 0, assists: 0, shots: 0, hits: 0, saves: 0,
   };
 }
 
@@ -138,6 +138,30 @@ function release(state: MatchState, s: Skater, p: Puck) {
  * the swipe was heading for. Power 0..1.
  */
 export function shoot(state: MatchState, s: Skater, dirX: number, dirY: number, power: number, slap: boolean, aimSpread = 1) {
+  if (!ownedBy(state, s) || s.stroke) return;
+  // The stick comes down to the puck first: a slapshot falls from its wind-up, a wrist shot is a quick
+  // cock-and-snap. The puck only leaves the blade at contact (see `strokeStep`), then the stick follows through up.
+  const lift = slap ? Math.min(1, Math.max(0.35, s.charge) * 1.4) : 0.3 + 0.25 * power;
+  const dur = slap ? 0.09 : 0.08 + 0.06 * power;
+  s.stroke = { t: dur, dur, lift, dx: dirX, dy: dirY, power, slap, spread: aimSpread, oneTimer: !slap && s.recvT < 0.4 };
+  s.charge = -1;
+}
+
+/** Runs a shot's downswing; fires the puck when the blade meets it, or drops the shot if the puck is gone. */
+export function strokeStep(state: MatchState, s: Skater, dt: number) {
+  const k = s.stroke;
+  if (!k) return;
+  if (!ownedBy(state, s) || s.stun > 0) {
+    s.stroke = null;
+    return;
+  }
+  k.t -= dt;
+  if (k.t > 0) return;
+  s.stroke = null;
+  strike(state, s, k.dx, k.dy, k.power, k.slap, k.spread, k.oneTimer);
+}
+
+function strike(state: MatchState, s: Skater, dirX: number, dirY: number, power: number, slap: boolean, aimSpread: number, oneTimer: boolean) {
   const p = ownedBy(state, s);
   if (!p) return;
   const gy = goalYOf(s.team);
@@ -160,7 +184,6 @@ export function shoot(state: MatchState, s: Skater, dirX: number, dirY: number, 
     uy = (gy - p.y) / l;
   }
   const fire = state.onFire.includes(s.i);
-  const oneTimer = !slap && s.recvT < 0.4;
   const err = state.rng.gauss() * (0.022 + (1 - s.info.shot) * 0.05) * (slap ? 1.35 : 1) * (oneTimer ? 0.8 : 1) * (fire ? 0.6 : 1) * aimSpread;
   const a = Math.atan2(uy, ux) + err;
   const speed = (24 + 24 * power) * (0.85 + 0.3 * s.info.shot) * (fire ? 1.28 : 1) * (oneTimer ? 1.18 : 1) + (slap ? 7 : 0);
@@ -179,7 +202,7 @@ export function shoot(state: MatchState, s: Skater, dirX: number, dirY: number, 
 /** Passes to `to`, leading the receiver. Lifts it over a stick in the lane (saucer). */
 export function pass(state: MatchState, s: Skater, to: Skater) {
   const p = ownedBy(state, s);
-  if (!p) return;
+  if (!p || s.stroke) return;
   const d0 = dist(p.x, p.y, to.x, to.y);
   const speed = Math.min(20 + 10 * s.info.pass, 12 + d0 * 1.5);
   const lead = (d0 / speed) * 0.85;

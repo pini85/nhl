@@ -14,6 +14,7 @@ import {
   PUCK_R,
   REACH,
   shoot,
+  strokeStep,
   stickX,
   stickY,
 } from "@/components/arcade/engine/core";
@@ -81,6 +82,7 @@ export function step(state: MatchState, input: Input, dt = STEP) {
       s.think -= dt;
       if (s.think <= 0 && state.phase === "play") think(state, s);
     }
+    strokeStep(state, s, dt);
     if (s.charge >= 0) s.charge = Math.min(1, s.charge + dt / 0.75);
     if (s.charge >= 0 && !ownedBy(state, s)) s.charge = -1;
   }

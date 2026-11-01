@@ -51,6 +51,8 @@ export type Skater = {
   poke: number; // poke-check time left
   pickupCd: number;
   charge: number; // slapshot wind-up 0..1, or -1
+  /** A shot on its way: the stick is coming down to the puck, which leaves the blade when `t` runs out. */
+  stroke: Stroke | null;
   recvT: number; // seconds since receiving a pass (one-timers)
   think: number; // seconds until the AI decides again
   tx: number; // AI move target
@@ -63,6 +65,18 @@ export type Skater = {
   shots: number;
   hits: number;
   saves: number;
+};
+
+export type Stroke = {
+  t: number; // seconds until the blade meets the puck
+  dur: number;
+  lift: number; // how high the stick starts, 0..1 (a full slapshot wind-up is 1)
+  dx: number;
+  dy: number;
+  power: number;
+  slap: boolean;
+  spread: number;
+  oneTimer: boolean;
 };
 
 export type Puck = {
