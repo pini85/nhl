@@ -104,6 +104,18 @@ describe("the human's player", () => {
     expect(s.timeScale).toBeLessThan(1);
   });
 
+  it("brings the stick down to the puck before it leaves the blade", () => {
+    const s = setUp(1, RINK.goalY - 8);
+    const me = s.skaters[s.controlled];
+    step(s, { mx: 0, my: 0, burst: false, actions: [{ kind: "swipe", dx: 0.3, dy: 1, power: 1 }] });
+    expect(me.stroke).toBeTruthy();
+    expect(s.pucks[0].owner).toBe(me.i); // still on the blade during the downswing
+    const ev = run(s, 0.25);
+    expect(me.stroke).toBeNull();
+    expect(ev.find((e) => e.kind === "shot")).toMatchObject({ by: me.i });
+    expect(s.pucks[0].owner).toBe(-1);
+  });
+
   it("passes with a tap and the receiver becomes the human's player", () => {
     const s = setUp(0, 0);
     const me = s.controlled;

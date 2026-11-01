@@ -257,7 +257,11 @@ export class Arena3D implements View {
     const p = (i: number) => this.players[i];
     switch (e.kind) {
       case "shot":
-        if (p(e.by)) p(e.by).swing = 0.35;
+        if (p(e.by)) {
+          const m = p(e.by);
+          m.swingDur = m.swing = e.slap ? 0.45 : 0.32 + 0.08 * e.power;
+          m.swingPeak = e.slap ? 1 : 0.45 + 0.4 * e.power;
+        }
         break;
       case "save":
         if (p(e.by)) p(e.by).butterfly = 0.75;
