@@ -6,6 +6,7 @@ export type Progress = {
   losses: number;
   insane: boolean;
   muted: boolean;
+  flat?: boolean; // classic 2D view
   lineup?: string[];
   goalie?: string;
 };
@@ -23,6 +24,7 @@ export function parseProgress(raw: string | null): Progress {
       losses: Number.isInteger(p.losses) ? p.losses! : 0,
       insane: p.insane === true,
       muted: p.muted === true,
+      flat: p.flat === true,
       lineup: Array.isArray(p.lineup) ? p.lineup.filter((s) => typeof s === "string").slice(0, 3) : undefined,
       goalie: typeof p.goalie === "string" ? p.goalie : undefined,
     };
