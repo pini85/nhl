@@ -63,13 +63,18 @@ export function buildSetup(
   opts: { insane: boolean; stop: number | null; seed: number; length?: number },
 ): MatchSetup {
   const home = ourTeam(data, lineup, goalieId, myId);
-  const away: TeamSetup = {
+  const away = opponentTeam(opp, opts.stop);
+  return { home, away, seed: opts.seed, insane: opts.insane, length: opts.length ?? 180 };
+}
+
+/** A rival club as the AI plays it. */
+export function opponentTeam(opp: ArcadeOpponent, stop: number | null): TeamSetup {
+  return {
     name: opp.name,
     abbr: opp.abbr,
     color: opp.color,
     skaters: opp.skaters.map((s) => skaterInfo(s, null)),
     goalie: goalieInfo(opp.goalie, null),
-    level: levelFor(opp, opts.stop),
+    level: levelFor(opp, stop),
   };
-  return { home, away, seed: opts.seed, insane: opts.insane, length: opts.length ?? 180 };
 }

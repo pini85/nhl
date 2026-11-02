@@ -7,7 +7,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState, useSyncExter
 import { Sound } from "@/components/arcade/audio";
 import type { MatchResult } from "@/components/arcade/Game";
 import { nextStop, parseProgress, type Progress, recordResult, saveProgress } from "@/components/arcade/progress";
-import { buildSetup, validLineup } from "@/components/arcade/setup";
+import { buildSetup, opponentTeam, validLineup, versusTeam } from "@/components/arcade/setup";
 import type { MatchSetup } from "@/components/arcade/engine/types";
 import { useMyId } from "@/components/club/YouHighlight";
 import type { ArcadeData, ArcadeOpponent, ArcadeSkater } from "@/lib/stats/arcade";
@@ -76,7 +76,9 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
   const p = progress;
 
   const lineup = useMemo(() => validLineup(data, p.lineup, myId), [data, p.lineup, myId]);
+  const myName = data.skaters.find((s) => s.id === myId)?.name ?? "";
   const goalieId = data.goalies.some((g) => g.id === p.goalie) ? p.goalie! : data.goalies[0].id;
+  const versusLine = useMemo(() => versusTeam(data, lineup, goalieId, myId, "Guest"), [data, lineup, goalieId, myId]);
   const opp = (id: number) => data.opponents.find((o) => o.clubId === id)!;
   const next = nextStop(data.tour, p.avenged);
 
@@ -119,15 +121,15 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
           )}
           {screen.kind === "versus" && (
             <Versus
-              data={data}
-              lineup={lineup}
-              goalieId={goalieId}
-              myId={myId}
+              mine={versusLine}
+              defaultName={myName}
+              ai={() => opponentTeam(data.opponents[Math.floor(Math.random() * data.opponents.length)], null)}
               insane={p.insane}
               initialCode={joinCode}
               result={versusResult}
               playing={!!playing}
-              onLineup={(l, g) => setProgress({ ...p, lineup: l, goalie: g })}
+              picker={<LinePicker data={data} lineup={lineup} goalieId={goalieId} myId={myId} onLineup={(l, g) => setProgress({ ...p, lineup: l, goalie: g })} />}
+              invite={(c) => ({ url: `${location.origin}/arcade?join=${c}`, text: `Play with me in the Revenge Tour arcade. Room code ${c}`, title: "Arcade · play with me" })}
               onTap={() => {
                 sound.setMuted(p.muted);
                 sound.start();
@@ -182,10 +184,10 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
           calm={calm}
           flat={p.flat}
           onMute={(m) => setProgress({ ...p, muted: m })}
-          net={playing.net}
+          net={playing.net?.net}
           onQuit={() => {
-            // Quitting an online game ends it for both phones.
-            playing.net?.link.close();
+            // The host quitting closes the room; a guest quitting leaves it.
+            playing.net?.quit();
             setPlaying(null);
           }}
           onEnd={(r) => {
@@ -291,8 +293,8 @@ function Home({
       <button type="button" onClick={onVersus} className="arena-card mt-3 flex w-full items-center gap-3 p-4 text-left active:scale-[0.99]">
         <Users className="size-6 text-[var(--accent-blue)]" aria-hidden />
         <span className="flex-1">
-          <span className="block font-black">Play a friend</span>
-          <span className="block text-xs text-[var(--muted-fg)]">Online 1-on-1, phone vs phone</span>
+          <span className="block font-black">Play friends</span>
+          <span className="block text-xs text-[var(--muted-fg)]">Online with friends, up to 3 on 3</span>
         </span>
         <span aria-hidden>→</span>
       </button>

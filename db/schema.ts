@@ -213,9 +213,20 @@ export const discordPosts = pgTable("discord_posts", {
   postedAt: timestamp("posted_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Online arcade rooms: the WebRTC handshake between two phones. Short-lived.
+// Online arcade rooms: a short code for a host's lobby. Short-lived; the host's polling keeps it alive.
+// (`offer`/`answer` are from the 1-on-1 days, when a room held one handshake.)
 export const arcadeRooms = pgTable("arcade_rooms", {
   code: text("code").primaryKey(),
+  offer: text("offer").notNull(),
+  answer: text("answer"),
+  hostKey: text("host_key"), // only the host may read knocks and answer them
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A phone asking to join a room: its WebRTC offer, and the host's answer once given.
+export const arcadeKnocks = pgTable("arcade_knocks", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull(),
   offer: text("offer").notNull(),
   answer: text("answer"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
