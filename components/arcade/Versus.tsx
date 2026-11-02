@@ -39,6 +39,7 @@ type Props = {
   invite: (code: string) => { url: string; text: string; title: string };
   onPlay: (setup: MatchSetup, label: string, net: VersusNet) => void;
   onTap: () => void; // unlocks sound inside a tap (iOS)
+  music: (on: boolean) => void; // the lobby tune
   back: ReactNode;
 };
 
@@ -71,7 +72,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2,
  * side (three a side at most), and the puck drops when all are ready or the lobby clock runs out.
  * Each human skates one player; the AI fills the empty spots.
  */
-export function Versus({ mine, defaultName, ai, insane, initialCode, result, playing, picker, invite, onPlay, onTap, back }: Props) {
+export function Versus({ mine, defaultName, ai, insane, initialCode, result, playing, picker, invite, onPlay, onTap, music, back }: Props) {
   const [stage, setStage] = useState<Stage>({ k: "menu" });
   const [code, setCode] = useState(initialCode);
   const [name, setName] = useState(() => readName() ?? defaultName);
@@ -135,6 +136,17 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
     }, 1000);
     return () => clearInterval(t);
   }, [stage.k]);
+
+  // The lobby tune plays while waiting in a room, not during the game or on the way out.
+  const inLobby = stage.k === "lobby" && !playing;
+  const musicRef = useRef(music);
+  useEffect(() => {
+    musicRef.current = music;
+  });
+  useEffect(() => {
+    musicRef.current(inLobby);
+  }, [inLobby]);
+  useEffect(() => () => musicRef.current(false), []);
 
   // Back from a game: the host restarts the lobby clock.
   useEffect(() => {

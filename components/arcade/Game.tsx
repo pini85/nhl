@@ -141,6 +141,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     ro.observe(el);
 
     r.banner(setup.away.name.toUpperCase(), label, setup.away.color, true, 2.6);
+    sound.setCrowd(true);
     sound.whistle();
 
     const handle = (e: GameEvent) => {
@@ -338,6 +339,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       ro.disconnect();
       r.destroy?.();
       gl?.remove();
+      sound.setCrowd(false);
       controls.destroy();
       document.removeEventListener("visibilitychange", vis);
       document.body.style.overflow = prevOverflow;
