@@ -134,6 +134,7 @@ export function ArcadeView({ data }: { data: ArcadeData }) {
                 sound.setMuted(p.muted);
                 sound.start();
               }}
+              music={(on) => sound.setMusic(on)}
               onPlay={(setup, label, net) => {
                 setVersusResult(null);
                 setPlaying({ setup, label, key: Date.now(), net });
