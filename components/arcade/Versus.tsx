@@ -156,8 +156,9 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
       { name: latest.current.name, team: latest.current.team },
       {
         change: () => {
-          setRoom(room.info());
-          setEndsAt(Date.now() + room.left() * 1000);
+          const info = room.info();
+          setRoom(info);
+          setEndsAt(info.left === null ? 0 : Date.now() + info.left * 1000);
         },
         start: ({ setup, guests }: Start) => {
           // The host's own view: unchanged, but with its own skater marked.
@@ -181,7 +182,7 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
       hosting.current = h;
       lobby.current = room;
       setRoom(room.info());
-      setEndsAt(Date.now() + room.left() * 1000);
+      setEndsAt(0);
       setStage({ k: "lobby", code: h.code });
     } catch (e) {
       if (n === attempt.current) setStage({ k: "error", msg: (e as Error).message });
@@ -204,8 +205,9 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
         else if (m.t === "room") {
           const info = m as unknown as RoomInfo;
           if (!Array.isArray(info.members)) return;
-          setRoom({ members: info.members, left: Number(info.left) || 0, playing: !!info.playing });
-          setEndsAt(Date.now() + (Number(info.left) || 0) * 1000);
+          const secs = info.left === null ? null : Number(info.left) || 0;
+          setRoom({ members: info.members, left: secs, playing: !!info.playing });
+          setEndsAt(secs === null ? 0 : Date.now() + secs * 1000);
         } else if (m.t === "full") fail("That room is full (3 a side).");
         else if (m.t === "closed") fail(typeof m.why === "string" ? m.why : "The host closed the room.");
         else if (m.t === "start" && !latest.current.playing) {
@@ -350,8 +352,14 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
             ) : (
               <p className="mt-3 flex items-center gap-2 text-xs text-[var(--muted-fg)]" aria-live="polite">
                 <Timer className="size-3.5" aria-hidden />
-                {people < 2 ? "Waiting for friends to join · " : `${waiting ? `${waiting} not ready` : "Everyone's ready"} · `}
-                <span className="tabular font-bold text-[var(--fg)]">{people < 2 ? `closes in ${clock(left)}` : `puck drops in ${clock(left)}`}</span>
+                {people < 2 || info.left === null ? (
+                  "Waiting for friends to join…"
+                ) : (
+                  <>
+                    {waiting ? `${waiting} not ready` : "Everyone's ready"} ·{" "}
+                    <span className="tabular font-bold text-[var(--fg)]">puck drops in {clock(left)}</span>
+                  </>
+                )}
               </p>
             )}
           </section>
@@ -438,7 +446,7 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
         <h2 className="text-[10px] font-semibold tracking-[0.15em] uppercase">How it works</h2>
         <ul className="mt-2 list-disc space-y-1 pl-4">
           <li>Pick Left or Right, up to 3 a side. Uneven sides are fine; the AI fills empty spots.</li>
-          <li>The puck drops when everyone taps Ready, or after {LOBBY_SECONDS / 60} minutes with whoever is in.</li>
+          <li>The puck drops when everyone taps Ready, or {LOBBY_SECONDS / 60} minutes after a second player joins, with whoever is in.</li>
           <li>With teammates you each keep your own skater. Alone on a side, you switch players as usual.</li>
           <li>Everyone joins the host&apos;s phone. Same Wi-Fi works best. The host picks INSANE mode on the menu.</li>
         </ul>
