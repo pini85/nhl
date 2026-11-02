@@ -205,12 +205,22 @@ describe("lobby", () => {
     expect(l.room.info().members.every((m) => !m.ready)).toBe(true);
   });
 
-  it("closes when nobody joined in time", () => {
+  it("the clock waits for a second phone, and stops if the host is alone again", () => {
     const { room, starts, closes, wait } = lobby();
-    wait(LOBBY_SECONDS);
+    expect(room.left()).toBeNull();
+    wait(LOBBY_SECONDS * 5);
     room.tick();
     expect(starts).toHaveLength(0);
-    expect(closes[0]).toMatch(/Nobody joined/);
+    expect(closes).toHaveLength(0);
+    expect(room.info().left).toBeNull();
+    const a = fakeLink();
+    room.add(a.link);
+    expect(room.left()).toBe(LOBBY_SECONDS);
+    wait(30);
+    a.link.close();
+    expect(room.left()).toBeNull();
+    room.add(fakeLink().link);
+    expect(room.left()).toBe(LOBBY_SECONDS); // a full two minutes again
   });
 
   it("turns away a seventh phone, and keeps sides to three", () => {

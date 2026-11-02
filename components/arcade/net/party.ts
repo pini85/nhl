@@ -6,7 +6,7 @@ import { RIVAL } from "@/components/arcade/net/snapshot";
 
 export const SIDE_MAX = 3;
 export const PARTY_MAX = SIDE_MAX * 2;
-/** Seconds the lobby waits before the puck drops anyway. */
+/** Seconds the lobby waits, once a second phone is in, before the puck drops anyway. */
 export const LOBBY_SECONDS = 120;
 
 export type Side = 0 | 1; // 0 = left, 1 = right on the lobby screen
@@ -15,7 +15,7 @@ export type Side = 0 | 1; // 0 = left, 1 = right on the lobby screen
 export type Member = { id: number; name: string; side: Side; ready: boolean; team: TeamSetup };
 
 /** What the host tells every phone about the room. */
-export type RoomInfo = { members: { id: number; name: string; side: Side; ready: boolean }[]; left: number; playing: boolean };
+export type RoomInfo = { members: { id: number; name: string; side: Side; ready: boolean }[]; left: number | null; playing: boolean }; // left: null while the clock waits for a second phone
 
 export const sideCount = (members: Member[], side: Side) => members.filter((m) => m.side === side).length;
 

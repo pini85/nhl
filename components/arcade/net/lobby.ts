@@ -16,7 +16,7 @@ type Hooks = {
   change(): void;
   /** Time to play. */
   start(s: Start): void;
-  /** The room closed (nobody came, or the host left). */
+  /** The room closed (the host left). */
   close(why: string): void;
 };
 
@@ -28,7 +28,7 @@ export class HostLobby {
   private links = new Map<number, Link>();
   private offs = new Map<number, () => void>();
   private nextId = 1;
-  deadline: number;
+  deadline: number | null = null; // the clock only runs with two or more phones in
   playing = false;
   closed = false;
 
@@ -38,16 +38,21 @@ export class HostLobby {
     private opts: { ai: () => TeamSetup; insane: () => boolean; now?: () => number },
   ) {
     this.members = [{ id: 0, name: cleanName(me.name, "Host"), side: 0, ready: false, team: me.team }];
-    this.deadline = this.now() + LOBBY_SECONDS * 1000;
   }
 
   private now() {
     return this.opts.now?.() ?? Date.now();
   }
 
-  /** Seconds left on the lobby clock. */
+  /** Seconds left on the lobby clock, or null while it waits for a second phone. */
   left() {
-    return Math.max(0, Math.ceil((this.deadline - this.now()) / 1000));
+    return this.deadline === null ? null : Math.max(0, Math.ceil((this.deadline - this.now()) / 1000));
+  }
+
+  /** Starts the clock when a second phone arrives; stops it when the host is alone again. */
+  private clock() {
+    if (this.members.length < 2) this.deadline = null;
+    else if (this.deadline === null && !this.playing) this.deadline = this.now() + LOBBY_SECONDS * 1000;
   }
 
   info(): RoomInfo {
@@ -55,6 +60,7 @@ export class HostLobby {
   }
 
   private changed() {
+    this.clock();
     const room = this.info();
     for (const l of this.links.values()) l.send({ t: "room", ...room });
     this.hooks.change();
@@ -132,9 +138,8 @@ export class HostLobby {
   tick() {
     if (this.closed || this.playing) return;
     if (allReady(this.members)) return this.begin();
-    if (this.now() < this.deadline) return this.changed();
-    if (this.members.length >= 2) return this.begin();
-    this.shut("Nobody joined in time. Open a new room to try again.");
+    if (this.deadline !== null && this.members.length >= 2 && this.now() >= this.deadline) return this.begin();
+    this.changed();
   }
 
   private begin() {
@@ -150,6 +155,7 @@ export class HostLobby {
       guests.push({ link, pilot: k, mirror: seats[k].team === 1 });
     });
     this.playing = true;
+    this.deadline = null;
     for (const m of this.members) m.ready = false;
     this.changed();
     this.hooks.start({ setup, guests });
@@ -159,7 +165,7 @@ export class HostLobby {
   ended() {
     if (!this.playing) return;
     this.playing = false;
-    this.deadline = this.now() + LOBBY_SECONDS * 1000;
+    this.deadline = null; // a fresh clock, if there's still someone to play
     for (const m of this.members) m.ready = false;
     this.changed();
   }
