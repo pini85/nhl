@@ -27,9 +27,17 @@ type Props = {
   onMute: (m: boolean) => void;
   onEnd: (r: MatchResult) => void;
   onQuit: () => void;
-  /** Online: the host runs the match, the guest draws what the host sends (its `setup` is already turned around). */
-  net?: { role: "host" | "guest"; link: Link };
+  /** Online: the host runs the match, the guests draw what the host sends (their `setup` is already turned around). */
+  net?: Net;
 };
+
+/**
+ * Online roles. The host runs the match with a link to each guest (`pilot` is the guest's place
+ * in `setup.party`; `mirror` when it plays the away side). A guest knows its own pilot number.
+ */
+export type Net =
+  | { role: "host"; guests: { link: Link; pilot: number; mirror: boolean }[] }
+  | { role: "guest"; link: Link; me: number; mirror: boolean };
 
 const HOME = "#5cc8ff";
 
@@ -74,29 +82,42 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
     const controls = new Controls(el, haptic);
     const state = createMatch(setup);
     const role = net?.role;
-    const link = net?.link;
+    const guests = net?.role === "host" ? net.guests : [];
+    const link = net?.role === "guest" ? net.link : null;
+    const mirror = net?.role === "guest" && net.mirror;
     const off: (() => void)[] = [];
-    // Host: the friend's thumbs. Guest: the newest snapshot and events still to play.
-    const remote: Input = { mx: 0, my: 0, burst: false, actions: [] };
+    // Host: each guest's thumbs, by pilot. Guest: the newest snapshot and events still to play.
+    const pilots = Math.max(2, setup.party?.length ?? 2);
+    const remote: Input[] = Array.from({ length: pilots }, () => ({ mx: 0, my: 0, burst: false, actions: [] }));
     let snap: Snap | null = null;
     let snapAt = 0;
     const inbox: GameEvent[] = [];
+    for (const g of guests) {
+      const r = remote[g.pilot];
+      if (!r) continue;
+      off.push(
+        g.link.on((m: Msg) => {
+          if (m.t !== "in") return;
+          const inp = guestInput(m, g.mirror);
+          r.mx = inp.mx;
+          r.my = inp.my;
+          r.burst = inp.burst;
+          r.actions.push(...inp.actions);
+        }),
+        // A friend who drops out leaves their skater to the AI.
+        g.link.onClose(() => Object.assign(r, { mx: 0, my: 0, burst: false, actions: [] })),
+      );
+    }
     if (link) {
       off.push(
         link.on((m: Msg) => {
-          if (m.t === "in" && role === "host") {
-            const inp = guestInput(m);
-            remote.mx = inp.mx;
-            remote.my = inp.my;
-            remote.burst = inp.burst;
-            remote.actions.push(...inp.actions);
-          } else if (m.t === "ev" && role === "guest" && Array.isArray(m.e)) {
-            for (const e of m.e as GameEvent[]) inbox.push(mirrorEvent(e, state.skaters.length));
+          if (m.t === "ev" && Array.isArray(m.e)) {
+            for (const e of m.e as GameEvent[]) inbox.push(mirror ? mirrorEvent(e, state.skaters.length) : e);
           }
         }),
         link.onFast((m) => {
           const sn = m as Snap;
-          if (role === "guest" && sn && typeof sn.n === "number" && (!snap || sn.n > snap.n)) {
+          if (sn && typeof sn.n === "number" && (!snap || sn.n > snap.n)) {
             snap = sn;
             snapAt = performance.now();
           }
@@ -104,6 +125,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
         link.onClose(() => setLost(true)),
       );
     }
+    const isOnline = !!net;
     let sent = 0;
     const name = (i: number) => state.skaters[i]?.info.name ?? "";
 
@@ -247,13 +269,13 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       // Online games don't pause: the other phone is still playing.
-      if (pausedRef.current && !link) return;
+      if (pausedRef.current && !isOnline) return;
       started += dt;
       controls.hasPuck = state.pucks.some((q) => q.owner === state.pilots[0].controlled);
       if (role === "guest") {
         // Draw the host's match; send our thumbs back.
         link!.send({ t: "in", ...controls.take() });
-        if (snap) apply(state, snap, true, Math.min(0.12, (now - snapAt) / 1000));
+        if (snap && net?.role === "guest") apply(state, snap, mirror, Math.min(0.12, (now - snapAt) / 1000), net.me);
         for (const e of inbox.splice(0)) handle(e);
       } else {
         if (state.freeze > 0) state.freeze -= dt;
@@ -261,12 +283,13 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
         let n = 0;
         const out: GameEvent[] = [];
         while (acc >= STEP && n < 16) {
-          const theirs = { mx: remote.mx, my: remote.my, burst: remote.burst, actions: remote.actions.splice(0) };
-          step(state, controls.take(), STEP, theirs);
+          const inputs = remote.map((r) => ({ mx: r.mx, my: r.my, burst: r.burst, actions: r.actions.splice(0) }));
+          inputs[0] = controls.take();
+          step(state, inputs, STEP);
           acc -= STEP;
           n++;
           for (const e of state.events) handle(e);
-          if (link) out.push(...state.events);
+          if (isOnline) out.push(...state.events);
           state.events.length = 0;
           if (state.freeze > 0) {
             acc = 0;
@@ -274,9 +297,13 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
           }
         }
         if (n >= 16) acc = 0;
-        if (link) {
-          if (out.length) link.send({ t: "ev", e: out });
-          if (n > 0 || state.freeze > 0) link.sendFast(encode(state, ++sent));
+        if (guests.length) {
+          const sn = n > 0 || state.freeze > 0 ? encode(state, ++sent) : null;
+          for (const g of guests) {
+            if (!g.link.open) continue;
+            if (out.length) g.link.send({ t: "ev", e: out });
+            if (sn) g.link.sendFast(sn);
+          }
         }
       }
       r.joy = controls.joy;
@@ -349,7 +376,7 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       {paused && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[rgba(3,6,13,0.78)] px-8 backdrop-blur-sm">
           <p className="glow text-3xl font-black italic tracking-tight">{online ? "TIMEOUT?" : "PAUSED"}</p>
-          {online && <p className="-mt-2 text-center text-xs text-[var(--muted-fg)]">Online games don&apos;t stop. Your friend is still skating.</p>}
+          {online && <p className="-mt-2 text-center text-xs text-[var(--muted-fg)]">Online games don&apos;t stop. Your friends are still skating.</p>}
           <button type="button" onClick={() => setPaused(false)} className="flex w-full max-w-60 items-center justify-center gap-2 rounded-full bg-[var(--accent-blue)] py-3 font-black text-[#04101f]">
             <Play className="size-4" aria-hidden /> Resume
           </button>
@@ -361,9 +388,9 @@ export default function Game({ setup, label, sound, muted, calm, flat, onMute, o
       {lost && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-[rgba(3,6,13,0.85)] px-8 text-center backdrop-blur-sm">
           <p className="glow text-3xl font-black italic tracking-tight">CONNECTION LOST</p>
-          <p className="text-sm text-[var(--muted-fg)]">Your friend left the rink, or the connection dropped.</p>
+          <p className="text-sm text-[var(--muted-fg)]">The host left the rink, or the connection dropped.</p>
           <button type="button" onClick={() => done.current.onQuit()} className="flex w-full max-w-60 items-center justify-center gap-2 rounded-full bg-[var(--accent-blue)] py-3 font-black text-[#04101f]">
-            Back to the lobby
+            Back to the menu
           </button>
         </div>
       )}

@@ -64,6 +64,13 @@
       "when": 1793566323372,
       "tag": "0008_arcade_rooms",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793641273366,
+      "tag": "0009_arcade_party",
+      "breakpoints": true
     }
   ]
 }

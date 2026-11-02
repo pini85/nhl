@@ -1,6 +1,6 @@
 import { RINK } from "@/components/arcade/engine/rink";
 import { makeRng } from "@/components/arcade/engine/rng";
-import type { MatchSetup, MatchState, PlayerInfo, Puck, Skater } from "@/components/arcade/engine/types";
+import type { MatchSetup, MatchState, Pilot, PlayerInfo, Puck, Seat, Skater } from "@/components/arcade/engine/types";
 
 export const SK_R = 0.9;
 export const G_R = 0.95;
@@ -58,10 +58,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     aiHitCd: [3, 3],
     skaters,
     pucks: [],
-    pilots: [
-      { controlled: 0, idle: 0, switchLock: 0 },
-      { controlled: 4, idle: 0, switchLock: 0 },
-    ],
+    pilots: makePilots(setup),
     fireRun: [{ who: -1, n: 0 }, { who: -1, n: 0 }],
     onFire: [],
     events: [],
@@ -108,15 +105,43 @@ export function faceoff(state: MatchState, lostLast: 0 | 1) {
   }
   state.phase = "faceoff";
   state.phaseT = 0;
-  for (const team of [0, 1] as const) state.pilots[team].controlled = state.skaters.findIndex((s) => s.team === team && !s.goalie);
+  for (const pl of state.pilots) seatPilot(state, pl);
   state.events.push({ kind: "faceoff" });
+}
+
+function makePilots(setup: MatchSetup): Pilot[] {
+  const seats: Seat[] = setup.party?.length
+    ? setup.party
+    : [
+        { team: 0, slot: 0 },
+        { team: 1, slot: 0 },
+      ];
+  return seats.map((seat) => ({
+    team: seat.team,
+    fixed: !!setup.party && setup.party.filter((o) => o.team === seat.team).length > 1,
+    slot: Math.max(0, Math.min(2, Math.floor(seat.slot))),
+    controlled: seat.team * 4 + Math.max(0, Math.min(2, Math.floor(seat.slot))),
+    idle: 0,
+    switchLock: 0,
+  }));
+}
+
+/** Faceoff: a fixed pilot goes back to its own skater, a free one to the center. */
+function seatPilot(state: MatchState, pl: Pilot) {
+  const line = state.skaters.filter((s) => s.team === pl.team && !s.goalie);
+  pl.controlled = (pl.fixed ? line[pl.slot] : line[0])?.i ?? pl.controlled;
 }
 
 export const teammates = (state: MatchState, s: Skater) => state.skaters.filter((o) => o.team === s.team && o !== s);
 export const opponents = (state: MatchState, s: Skater) => state.skaters.filter((o) => o.team !== s.team);
 export const ownedBy = (state: MatchState, s: Skater) => state.pucks.find((p) => p.owner === s.i);
 /** Does a human drive this team? */
-export const humanTeam = (state: MatchState, team: 0 | 1) => (team === 0 ? !state.setup.humanless : !!state.setup.versus);
+export const humanTeam = (state: MatchState, team: 0 | 1) =>
+  state.setup.party?.length ? state.setup.party.some((p) => p.team === team) : team === 0 ? !state.setup.humanless : !!state.setup.versus;
+/** The humans actually playing (the unused away pilot of a solo game is left out). */
+export const activePilots = (state: MatchState) => state.pilots.filter((p) => humanTeam(state, p.team));
+/** Is a thumb on this skater right now? */
+export const humanDriven = (state: MatchState, s: Skater) => state.pilots.some((p) => p.controlled === s.i && p.idle <= 0.6 && humanTeam(state, p.team));
 
 export const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 

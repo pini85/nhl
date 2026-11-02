@@ -1,6 +1,9 @@
-// A direct phone-to-phone link (WebRTC data channels). The site only relays the handshake:
-// the host posts an offer under a short room code, the guest answers it, and from then on
-// game traffic goes straight between the two phones.
+// Direct phone-to-phone links (WebRTC data channels). The site only relays the handshake: the
+// host opens a short room code, each friend knocks with an offer, the host answers, and from then
+// on game traffic goes straight between the host's phone and each friend's.
+
+/** Where room codes are kept. */
+const ROOM_API = "/api/arcade/room";
 
 const ICE: RTCIceServer[] = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }, { urls: "stun:stun.cloudflare.com:3478" }];
 
@@ -19,7 +22,7 @@ export type Link = {
 };
 
 async function api<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch("/api/arcade/room", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(ROOM_API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? "The rink office is closed. Try again.");
   return json as T;
@@ -109,69 +112,101 @@ function makeLink(pc: RTCPeerConnection, ctl: RTCDataChannel, fast: RTCDataChann
   };
 }
 
-export type Hosting = { code: string; link: Promise<Link>; cancel(): void };
+export type Hosting = { code: string; close(): void };
 
-/** Opens a room. `link` resolves when a friend has joined. */
-export async function host(): Promise<Hosting> {
-  const pc = new RTCPeerConnection({ iceServers: ICE });
-  const ctl = pc.createDataChannel("ctl", { ordered: true });
-  const fast = pc.createDataChannel("fast", { ordered: false, maxRetransmits: 0 });
-  await pc.setLocalDescription(await pc.createOffer());
-  await gathered(pc);
-  let code: string;
-  try {
-    ({ code } = await api<{ code: string }>({ op: "create", sdp: pc.localDescription!.sdp }));
-  } catch (e) {
-    pc.close();
-    throw e;
-  }
-  let cancelled = false;
-  const link = (async () => {
-    // Wait for the answer (rooms last 15 minutes).
-    const until = Date.now() + 15 * 60_000;
-    while (!cancelled) {
-      if (Date.now() > until) throw new Error("Nobody joined. Open a new room.");
-      const room = await api<{ answer: string | null }>({ op: "get", code }).catch(() => ({ answer: null }));
-      if (room.answer) {
-        await pc.setRemoteDescription({ type: "answer", sdp: room.answer });
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 1200));
+/**
+ * Opens a room and keeps letting phones in: every friend who knocks gets its own link, handed to
+ * `onGuest`. `onFail` hears it when the room is gone. Close it to stop letting people in.
+ */
+export async function host(onGuest: (link: Link) => void, onFail: (msg: string) => void): Promise<Hosting> {
+  const { code, key } = await api<{ code: string; key: string }>({ op: "create" });
+  let closed = false;
+  const seen = new Set<string>();
+  const pending = new Set<RTCPeerConnection>();
+  let misses = 0;
+
+  const welcome = async (id: string, offer: string) => {
+    const pc = new RTCPeerConnection({ iceServers: ICE });
+    pending.add(pc);
+    try {
+      const both = channelsOf(pc);
+      await pc.setRemoteDescription({ type: "offer", sdp: offer });
+      await pc.setLocalDescription(await pc.createAnswer());
+      await gathered(pc);
+      await api({ op: "answer", code, key, id, sdp: pc.localDescription!.sdp });
+      const { ctl, fast } = await withTimeout(both, 25_000);
+      await withTimeout(Promise.all([opened(ctl), opened(fast)]), 20_000);
+      pending.delete(pc);
+      if (closed) return pc.close();
+      onGuest(makeLink(pc, ctl, fast));
+    } catch {
+      pending.delete(pc);
+      pc.close();
     }
-    if (cancelled) throw new Error("cancelled");
-    await withTimeout(Promise.all([opened(ctl), opened(fast)]), 20_000);
-    return makeLink(pc, ctl, fast);
+  };
+
+  (async () => {
+    while (!closed) {
+      try {
+        const { knocks } = await api<{ knocks: { id: string; offer: string }[] }>({ op: "knocks", code, key });
+        misses = 0;
+        for (const k of knocks) {
+          if (closed || seen.has(k.id)) continue;
+          seen.add(k.id);
+          void welcome(k.id, k.offer);
+        }
+      } catch (e) {
+        // A blip is fine; a room that's gone (or a long outage) ends it.
+        if (++misses >= 8 || /closed/i.test((e as Error).message)) {
+          if (!closed) onFail((e as Error).message);
+          return;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
   })();
-  link.catch(() => pc.close());
+
   return {
     code,
-    link,
-    cancel: () => {
-      cancelled = true;
-      pc.close();
+    close: () => {
+      closed = true;
+      for (const pc of pending) pc.close();
+      pending.clear();
     },
   };
 }
 
-/** Joins a friend's room by its code. */
-export async function join(code: string): Promise<Link> {
-  const room = await api<{ offer: string }>({ op: "get", code });
-  const pc = new RTCPeerConnection({ iceServers: ICE });
+function channelsOf(pc: RTCPeerConnection) {
   const channels = new Map<string, RTCDataChannel>();
-  const both = new Promise<void>((done) => {
+  return new Promise<{ ctl: RTCDataChannel; fast: RTCDataChannel }>((done) => {
     pc.ondatachannel = (e) => {
       channels.set(e.channel.label, e.channel);
-      if (channels.has("ctl") && channels.has("fast")) done();
+      if (channels.has("ctl") && channels.has("fast")) done({ ctl: channels.get("ctl")!, fast: channels.get("fast")! });
     };
   });
+}
+
+/** Joins a friend's room by its code: knocks, then waits for the host to let us in. */
+export async function join(code: string, signal?: { cancelled: boolean }): Promise<Link> {
+  const pc = new RTCPeerConnection({ iceServers: ICE });
+  const ctl = pc.createDataChannel("ctl", { ordered: true });
+  const fast = pc.createDataChannel("fast", { ordered: false, maxRetransmits: 0 });
   try {
-    await pc.setRemoteDescription({ type: "offer", sdp: room.offer });
-    await pc.setLocalDescription(await pc.createAnswer());
+    await pc.setLocalDescription(await pc.createOffer());
     await gathered(pc);
-    await api({ op: "answer", code, sdp: pc.localDescription!.sdp });
-    await withTimeout(both, 20_000);
-    const ctl = channels.get("ctl")!;
-    const fast = channels.get("fast")!;
+    const { id } = await api<{ id: string }>({ op: "knock", code, sdp: pc.localDescription!.sdp });
+    const until = Date.now() + 45_000;
+    let answer: string | null = null;
+    while (!answer) {
+      if (signal?.cancelled) throw new Error("cancelled");
+      if (Date.now() > until) throw new Error("The room didn't let you in. Ask your friend to check the room is open.");
+      await new Promise((r) => setTimeout(r, 1000));
+      ({ answer } = await api<{ answer: string | null }>({ op: "reply", id }).catch((e: Error) => {
+        if (/didn't let you in/.test(e.message)) throw e;
+        return { answer: null };
+      }));
+    }
+    await pc.setRemoteDescription({ type: "answer", sdp: answer });
     await withTimeout(Promise.all([opened(ctl), opened(fast)]), 20_000);
     return makeLink(pc, ctl, fast);
   } catch (e) {
@@ -183,6 +218,6 @@ export async function join(code: string): Promise<Link> {
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,
-    new Promise<never>((_, fail) => setTimeout(() => fail(new Error("Couldn't reach your friend's phone. Try the same Wi-Fi, or swap who hosts.")), ms)),
+    new Promise<never>((_, fail) => setTimeout(() => fail(new Error("Couldn't reach the host's phone. Try the same Wi-Fi, or let someone else host.")), ms)),
   ]);
 }

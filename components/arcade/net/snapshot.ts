@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Action, GameEvent, Input, MatchSetup, MatchState, Phase, TeamSetup } from "@/components/arcade/engine/types";
+import type { Action, GameEvent, Input, MatchSetup, MatchState, Phase, Seat, TeamSetup } from "@/components/arcade/engine/types";
 
 // Online play: the host runs the match and streams compact snapshots; the guest only draws them.
 // The guest sees the rink turned 180° with the teams swapped, so on both phones "you" are the
@@ -14,7 +14,7 @@ export type Snap = {
   pt: number; // phaseT
   sc: [number, number];
   sog: [number, number];
-  ctl: [number, number];
+  ctl: number[]; // skater each pilot drives
   fire: number[];
   ts: number; // timeScale
   fz: number; // freeze
@@ -46,7 +46,7 @@ export function encode(state: MatchState, n: number): Snap {
     pt: r3(state.phaseT),
     sc: [...state.score],
     sog: [...state.sog],
-    ctl: [state.pilots[0].controlled, state.pilots[1].controlled],
+    ctl: state.pilots.map((p) => p.controlled),
     fire: [...state.onFire],
     ts: state.timeScale,
     fz: r3(state.freeze),
@@ -63,9 +63,10 @@ const swap2 = <T>(a: [T, T]): [T, T] => [a[1], a[0]];
 
 /**
  * Writes a snapshot into a view state, turned for the guest when `mirror`. `ahead` seconds of
- * extrapolation along each velocity smooth out the gaps between snapshots.
+ * extrapolation along each velocity smooth out the gaps between snapshots. `me` is this phone's
+ * pilot in the host's list (the guest of a 1-on-1 is pilot 1).
  */
-export function apply(view: MatchState, snap: Snap, mirror: boolean, ahead = 0) {
+export function apply(view: MatchState, snap: Snap, mirror: boolean, ahead = 0, me = mirror ? 1 : 0) {
   const n = view.skaters.length;
   const f = mirror ? -1 : 1;
   const idx = (i: number) => (mirror ? swapIdx(i, n) : i);
@@ -117,9 +118,11 @@ export function apply(view: MatchState, snap: Snap, mirror: boolean, ahead = 0) 
   view.phaseT = snap.pt + ahead;
   view.score = mirror ? swap2(snap.sc) : [...snap.sc];
   view.sog = mirror ? swap2(snap.sog) : [...snap.sog];
-  const ctl = mirror ? swap2(snap.ctl) : snap.ctl;
-  view.pilots[0].controlled = idx(ctl[0]);
-  view.pilots[1].controlled = idx(ctl[1]);
+  // This phone's pilot first, the others after it.
+  const ctl = [snap.ctl[me], ...snap.ctl.filter((_, k) => k !== me)];
+  view.pilots.forEach((p, k) => {
+    if (ctl[k] !== undefined) p.controlled = idx(ctl[k]);
+  });
   view.onFire = snap.fire.map(idx);
   view.timeScale = snap.ts;
   view.freeze = 0; // the host already holds the hit-stop
@@ -173,11 +176,24 @@ export function guestView(setup: MatchSetup, mine: TeamSetup): MatchSetup {
   return { ...setup, home: { ...mine, color: setup.home.color }, away: notYou(setup.home) };
 }
 
-const clamp = (v: unknown, lim = 1) => Math.max(-lim, Math.min(lim, Number(v) || 0));
-const neg = (v: number) => (v === 0 ? 0 : -v);
+/**
+ * A party game as one phone sees it: its own team at home (in the home blue), and its own
+ * skater marked when it keeps one. `seat` is that phone's seat in the host's `setup.party`.
+ */
+export function partyView(setup: MatchSetup, seat: Seat): MatchSetup {
+  const mine = seat.team === 0 ? setup.home : setup.away;
+  const theirs = seat.team === 0 ? setup.away : setup.home;
+  const fixed = (setup.party ?? []).filter((p) => p.team === seat.team).length > 1;
+  const home: TeamSetup = { ...mine, color: setup.home.color, skaters: mine.skaters.map((p, i) => ({ ...p, you: fixed && i === seat.slot })), goalie: { ...mine.goalie, you: false } };
+  return { ...setup, home, away: notYou(theirs), party: undefined, versus: true };
+}
 
-/** A guest's input as it came over the wire: checked, and turned back into the host's world. */
-export function guestInput(m: Record<string, unknown>): Input {
+const clamp = (v: unknown, lim = 1) => Math.max(-lim, Math.min(lim, Number(v) || 0));
+const flip = (v: number) => (v === 0 ? 0 : -v);
+
+/** A guest's input as it came over the wire: checked, and turned back into the host's world (when `mirror`). */
+export function guestInput(m: Record<string, unknown>, mirror = true): Input {
+  const neg = mirror ? flip : (v: number) => v;
   const actions: Action[] = [];
   for (const a of Array.isArray(m.actions) ? m.actions.slice(0, 8) : []) {
     const k = (a as { kind?: unknown })?.kind;
@@ -218,6 +234,11 @@ const Setup = z.object({
   insane: z.boolean(),
   length: z.number().min(10).max(600),
   versus: z.literal(true),
+  party: z
+    .array(z.object({ team: z.union([z.literal(0), z.literal(1)]), slot: z.number().int().min(0).max(2) }))
+    .min(1)
+    .max(6)
+    .optional(),
 });
 
 export const readTeam = (x: unknown): TeamSetup | null => Team.safeParse(x).data ?? null;

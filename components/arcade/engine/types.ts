@@ -30,7 +30,12 @@ export type MatchSetup = {
   length: number; // seconds of game clock
   humanless?: boolean; // AI plays both sides (tests, attract mode)
   versus?: boolean; // a second human drives the away team (online play)
+  /** Online party (up to 3 a side): one seat per human, in pilot order. Pilot 0 is the host, always home. */
+  party?: Seat[];
 };
+
+/** A human's place in a party game. With 2+ humans on a team each keeps skater `slot`; a lone human switches freely. */
+export type Seat = { team: 0 | 1; slot: number };
 
 export type Skater = {
   i: number; // index in state.skaters
@@ -116,6 +121,9 @@ export type GameEvent =
 
 /** A human's hold on their team. */
 export type Pilot = {
+  team: 0 | 1;
+  fixed: boolean; // stays on one skater (a teammate is human too)
+  slot: number; // that skater, 0..2 in the team's line
   controlled: number; // skater the human drives
   idle: number; // seconds without input (autopilot takes over off the puck)
   switchLock: number;
@@ -136,7 +144,7 @@ export type MatchState = {
   aiHitCd: [number, number]; // per team: seconds before the AI may throw another body check
   skaters: Skater[];
   pucks: Puck[];
-  pilots: [Pilot, Pilot]; // per team: the human driving it (team 1 only in versus)
+  pilots: Pilot[]; // the humans: [home, away] normally, one per seat in a party game
   fireRun: [{ who: number; n: number }, { who: number; n: number }];
   onFire: number[]; // skater indexes on fire
   events: GameEvent[];
