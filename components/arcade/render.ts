@@ -25,6 +25,8 @@ type Float = { text: string; x: number; y: number; t: number; color: string };
 
 const ARENA = 6; // units of arena drawn around the rink
 const HOME = "#5cc8ff";
+// Marker color for your own player: neon lime, distinct from both team colors.
+const YOU = "#c6ff00";
 
 export type Insets = { top: number; bottom: number };
 
@@ -626,11 +628,18 @@ export class Renderer implements View {
     // Ring under the human's player / "you".
     if (controlled) {
       const pulse = 0.5 + 0.5 * Math.sin(state.t * 8);
-      ctx.strokeStyle = s.info.you ? "#ffcf5a" : "#ffffff";
-      ctx.globalAlpha = 0.65 + pulse * 0.35;
-      ctx.lineWidth = 0.14;
+      const rr = s.r + 0.4 + pulse * 0.1;
+      // Dark outline so the ring stands out on white ice.
+      ctx.strokeStyle = "rgba(11,16,32,0.55)";
+      ctx.lineWidth = 0.34;
       ctx.beginPath();
-      ctx.arc(u, v, s.r + 0.38 + pulse * 0.1, 0, Math.PI * 2);
+      ctx.arc(u, v, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = YOU;
+      ctx.globalAlpha = 0.8 + pulse * 0.2;
+      ctx.lineWidth = 0.2;
+      ctx.beginPath();
+      ctx.arc(u, v, rr, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
       // Stamina arc.
@@ -741,16 +750,19 @@ export class Renderer implements View {
       ctx.fillText(String(s.info.number), u, v - s.r - 0.6);
       ctx.globalAlpha = 1;
     }
-    if (controlled && state.phase === "play") {
-      // Arrow over the human's player.
-      ctx.fillStyle = s.info.you ? "#ffcf5a" : "#ffffff";
+    if (controlled) {
+      // Small triangle over your player.
+      ctx.fillStyle = YOU;
+      ctx.strokeStyle = "rgba(11,16,32,0.7)";
+      ctx.lineWidth = 0.1;
       const ay = v - s.r - (showName ? 1.75 : 1.2) - Math.abs(Math.sin(state.t * 5)) * 0.25;
       ctx.beginPath();
-      ctx.moveTo(u - 0.35, ay - 0.35);
-      ctx.lineTo(u + 0.35, ay - 0.35);
+      ctx.moveTo(u - 0.42, ay - 0.45);
+      ctx.lineTo(u + 0.42, ay - 0.45);
       ctx.lineTo(u, ay + 0.05);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     }
   }
 
