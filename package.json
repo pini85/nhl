@@ -17,6 +17,7 @@
     "scout:watch": "node --import tsx scripts/scout-watch.mts",
     "discord:recap": "node --import tsx scripts/discord-recap.mts",
     "discord:test": "node --import tsx scripts/discord-test.mts",
+    "discord:register": "node --env-file-if-exists=.env.local --import tsx scripts/discord-register.mts",
     "e2e": "playwright test"
   },
   "dependencies": {
