@@ -4,7 +4,6 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  ConeGeometry,
   CylinderGeometry,
   DynamicDrawUsage,
   Fog,
@@ -53,7 +52,7 @@ export class Arena3D implements View {
   private parts = new Parts();
   private players: PlayerModel[] = [];
   private pucks: { mesh: Mesh; glow: Mesh; trail: Mesh }[] = [];
-  private marker: { ring: Mesh; outline: Mesh; stamina: Mesh; charge: Mesh; arrow: Mesh };
+  private marker: { ring: Mesh; outline: Mesh; stamina: Mesh; charge: Mesh };
   private particles: Particle[] = [];
   private pts: Points;
   private rings: Ring[] = [];
@@ -107,10 +106,7 @@ export class Arena3D implements View {
       ring: flat(keep(new RingGeometry(1.15, 1.58, 48)), YOU),
       stamina: flat(keep(new RingGeometry(1.6, 1.75, 40)), "#5cffa8"),
       charge: flat(keep(new RingGeometry(1.9, 2.15, 40)), "#ffd23d"),
-      arrow: new Mesh(keep(new ConeGeometry(0.5, 0.9, 3)), keep(new MeshBasicMaterial({ color: YOU }))),
     };
-    this.marker.arrow.rotation.x = Math.PI;
-    this.scene.add(this.marker.arrow);
 
     // Particles: one point cloud.
     const g = new BufferGeometry();
@@ -403,8 +399,9 @@ export class Arena3D implements View {
     }
     // Markers under the human's player.
     const s = ctrl >= 0 ? state.skaters[ctrl] : null;
-    const { ring, outline, stamina, charge, arrow } = this.marker;
-    ring.visible = outline.visible = stamina.visible = arrow.visible = !!s;
+    // The triangle over your player is drawn on the HUD, above the name tag.
+    const { ring, outline, stamina, charge } = this.marker;
+    ring.visible = outline.visible = stamina.visible = !!s;
     charge.visible = !!s && s.charge >= 0;
     if (!s) return;
     const at = W(s.x, s.y, 0.03);
@@ -430,9 +427,6 @@ export class Arena3D implements View {
         (charge.material as MeshBasicMaterial).color.set(c >= 1 ? "#ff5a3d" : "#ffd23d");
       }
     }
-    // Small triangle floating over your player's head.
-    arrow.position.copy(W(s.x, s.y, 4.5 + Math.abs(Math.sin(state.t * 5)) * 0.3));
-    arrow.rotation.y = state.t * 2;
   }
 
   private flame(s: Skater) {

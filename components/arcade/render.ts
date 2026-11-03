@@ -282,6 +282,19 @@ export class Renderer implements View {
       ctx.fillStyle = s.info.you ? "#ffcf5a" : home ? "#ffffff" : (state.setup.away.color ?? "#ff3d6e");
       ctx.fillText(label, at.x, at.y);
       if (state.onFire.includes(s.i)) ctx.fillText("🔥", at.x + ctx.measureText(label).width / 2 + 10, at.y);
+      if (controlled) {
+        // Small triangle above your player's name.
+        const ty = at.y - 13 - Math.abs(Math.sin(state.t * 5)) * 4;
+        ctx.fillStyle = YOU;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(at.x - 10, ty - 13);
+        ctx.lineTo(at.x + 10, ty - 13);
+        ctx.lineTo(at.x, ty);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+      }
     }
   }
 
