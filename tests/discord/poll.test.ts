@@ -26,19 +26,19 @@ describe("postGameNightPoll", () => {
   it("sends the poll once per day", async () => {
     const fetch = ok();
     const deps = { db, now, webhookUrl: "https://discord.test/hook", fetch };
-    expect(await postGameNightPoll(deps)).toBe("posted");
+    expect(await postGameNightPoll(deps)).toMatchObject({ status: "posted" });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://discord.test/hook");
     expect(JSON.parse(init.body as string).poll).toEqual(gameNightPoll());
 
-    expect(await postGameNightPoll(deps)).toBe("already");
-    expect(await postGameNightPoll({ ...deps, now: new Date("2026-11-04T15:00:00Z") })).toBe("posted");
+    expect(await postGameNightPoll(deps)).toMatchObject({ status: "already" });
+    expect(await postGameNightPoll({ ...deps, now: new Date("2026-11-04T15:00:00Z") })).toMatchObject({ status: "posted" });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("lets you try again when Discord fails", async () => {
     const deps = { db, now, webhookUrl: "https://discord.test/hook" };
-    expect(await postGameNightPoll({ ...deps, fetch: vi.fn(async () => new Response("nope", { status: 400 })) })).toBe("error");
-    expect(await postGameNightPoll({ ...deps, fetch: ok() })).toBe("posted");
+    expect(await postGameNightPoll({ ...deps, fetch: vi.fn(async () => new Response("nope", { status: 400 })) })).toEqual({ status: "error", detail: "Discord answered 400: nope" });
+    expect(await postGameNightPoll({ ...deps, fetch: ok() })).toMatchObject({ status: "posted" });
   });
 });
