@@ -25,6 +25,8 @@ type Float = { text: string; x: number; y: number; t: number; color: string };
 
 const ARENA = 6; // units of arena drawn around the rink
 const HOME = "#5cc8ff";
+/** Marks the player your thumb drives: a ring around him and a triangle over his head. */
+const ME = "#d36bff";
 
 export type Insets = { top: number; bottom: number };
 
@@ -626,11 +628,16 @@ export class Renderer implements View {
     // Ring under the human's player / "you".
     if (controlled) {
       const pulse = 0.5 + 0.5 * Math.sin(state.t * 8);
-      ctx.strokeStyle = s.info.you ? "#ffcf5a" : "#ffffff";
-      ctx.globalAlpha = 0.65 + pulse * 0.35;
-      ctx.lineWidth = 0.14;
+      ctx.fillStyle = ME;
+      ctx.globalAlpha = 0.22;
       ctx.beginPath();
-      ctx.arc(u, v, s.r + 0.38 + pulse * 0.1, 0, Math.PI * 2);
+      ctx.arc(u, v, s.r + 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = ME;
+      ctx.globalAlpha = 0.75 + pulse * 0.25;
+      ctx.lineWidth = 0.22;
+      ctx.beginPath();
+      ctx.arc(u, v, s.r + 0.4 + pulse * 0.1, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
       // Stamina arc.
@@ -741,16 +748,19 @@ export class Renderer implements View {
       ctx.fillText(String(s.info.number), u, v - s.r - 0.6);
       ctx.globalAlpha = 1;
     }
-    if (controlled && state.phase === "play") {
-      // Arrow over the human's player.
-      ctx.fillStyle = s.info.you ? "#ffcf5a" : "#ffffff";
+    if (controlled) {
+      // Triangle over the human's player, pointing down at him.
       const ay = v - s.r - (showName ? 1.75 : 1.2) - Math.abs(Math.sin(state.t * 5)) * 0.25;
       ctx.beginPath();
-      ctx.moveTo(u - 0.35, ay - 0.35);
-      ctx.lineTo(u + 0.35, ay - 0.35);
+      ctx.moveTo(u - 0.45, ay - 0.5);
+      ctx.lineTo(u + 0.45, ay - 0.5);
       ctx.lineTo(u, ay + 0.05);
       ctx.closePath();
+      ctx.fillStyle = ME;
       ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 0.08;
+      ctx.stroke();
     }
   }
 

@@ -3,6 +3,7 @@ import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
+  CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -34,6 +35,8 @@ import { kitFor, Parts, PlayerModel } from "@/components/arcade/three/player";
 // Sim (x, y, height) → three (x, height, -y). The flat Renderer draws the HUD on a canvas on top.
 
 const HOME = "#5cc8ff";
+/** Marks the player your thumb drives: a ring around him and a triangle over his head. */
+const ME = "#d36bff";
 const MAX_PARTICLES = 900;
 const ELEV = (56 * Math.PI) / 180; // camera pitch above the ice
 
@@ -51,7 +54,7 @@ export class Arena3D implements View {
   private parts = new Parts();
   private players: PlayerModel[] = [];
   private pucks: { mesh: Mesh; glow: Mesh; trail: Mesh }[] = [];
-  private marker: { ring: Mesh; stamina: Mesh; charge: Mesh; arrow: Mesh };
+  private marker: { disc: Mesh; ring: Mesh; stamina: Mesh; charge: Mesh; arrow: Mesh };
   private particles: Particle[] = [];
   private pts: Points;
   private rings: Ring[] = [];
@@ -101,10 +104,11 @@ export class Arena3D implements View {
       return m;
     };
     this.marker = {
-      ring: flat(keep(new RingGeometry(1.2, 1.5, 40)), "#ffffff"),
+      disc: flat(keep(new CircleGeometry(1.2, 40)), ME, 0.25),
+      ring: flat(keep(new RingGeometry(1.15, 1.5, 40)), ME),
       stamina: flat(keep(new RingGeometry(1.6, 1.75, 40)), "#5cffa8"),
       charge: flat(keep(new RingGeometry(1.9, 2.15, 40)), "#ffd23d"),
-      arrow: new Mesh(keep(new ConeGeometry(0.35, 0.7, 4)), keep(new MeshBasicMaterial({ color: "#ffcf5a" }))),
+      arrow: new Mesh(keep(new ConeGeometry(0.5, 0.9, 3)), keep(new MeshBasicMaterial({ color: ME }))),
     };
     this.marker.arrow.rotation.x = Math.PI;
     this.scene.add(this.marker.arrow);
@@ -400,14 +404,14 @@ export class Arena3D implements View {
     }
     // Markers under the human's player.
     const s = ctrl >= 0 ? state.skaters[ctrl] : null;
-    const { ring, stamina, charge, arrow } = this.marker;
-    ring.visible = stamina.visible = arrow.visible = !!s;
+    const { disc, ring, stamina, charge, arrow } = this.marker;
+    disc.visible = ring.visible = stamina.visible = arrow.visible = !!s;
     charge.visible = !!s && s.charge >= 0;
     if (!s) return;
     const at = W(s.x, s.y, 0.03);
     const pulse = 0.5 + 0.5 * Math.sin(state.t * 8);
+    disc.position.copy(at);
     ring.position.copy(at);
-    (ring.material as MeshBasicMaterial).color.set(s.info.you ? "#ffcf5a" : "#ffffff");
     (ring.material as MeshBasicMaterial).opacity = 0.75 + pulse * 0.25;
     stamina.position.copy(at);
     const st = Math.round(s.stamina * 40) / 40;
@@ -427,9 +431,7 @@ export class Arena3D implements View {
         (charge.material as MeshBasicMaterial).color.set(c >= 1 ? "#ff5a3d" : "#ffd23d");
       }
     }
-    arrow.visible = state.phase === "play";
     arrow.position.copy(W(s.x, s.y, 4.4 + Math.abs(Math.sin(state.t * 5)) * 0.3));
-    (arrow.material as MeshBasicMaterial).color.set(s.info.you ? "#ffcf5a" : "#ffffff");
   }
 
   private flame(s: Skater) {
