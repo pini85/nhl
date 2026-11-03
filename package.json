@@ -17,7 +17,6 @@
     "scout:watch": "node --import tsx scripts/scout-watch.mts",
     "discord:recap": "node --import tsx scripts/discord-recap.mts",
     "discord:test": "node --import tsx scripts/discord-test.mts",
-    "discord:poll": "node --import tsx scripts/discord-poll.mts",
     "e2e": "playwright test"
   },
   "dependencies": {

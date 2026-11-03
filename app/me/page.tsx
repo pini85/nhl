@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import { MomentCards } from "@/components/club/MomentCards";
 import { MyNight } from "@/components/club/MyNight";
 import { Onboarding } from "@/components/club/Onboarding";
+import { PollButton } from "@/components/club/PollButton";
 import { PlayerProfile } from "@/components/club/PlayerProfile";
 import { PickerToggle, RosterPicker } from "@/components/club/RosterPicker";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CLUB_ID } from "@/lib/config";
+import { ADMIN_PLAYER_ID, CLUB_ID } from "@/lib/config";
 import { getExtraStats, getGames, getOurLines } from "@/lib/data/club";
 import { getMe, requestTime } from "@/lib/me-server";
 import { activeStreaks, lastNight, rosterChoices } from "@/lib/stats/personal";
@@ -37,6 +38,7 @@ async function MeContent() {
           you
           top={
             <>
+              {me.playerId === ADMIN_PLAYER_ID && <PollButton />}
               <MomentCards onlyMine title="Your moments" />
               <MyNight night={lastNight(lines, games, me.playerId, CLUB_ID)} streaks={activeStreaks(lines, games, me.playerId, now)} />
             </>
