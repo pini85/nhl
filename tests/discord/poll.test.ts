@@ -1,14 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { CANT_PLAY, POLL_TIMES, gameNightPoll, interactionReply, isFromDiscord } from "@/lib/discord/poll";
-
-const toHex = (buf: ArrayBuffer) => Buffer.from(buf).toString("hex");
-
-async function signer() {
-  const keys = (await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"])) as CryptoKeyPair;
-  const publicKey = toHex(await crypto.subtle.exportKey("raw", keys.publicKey));
-  const sign = async (text: string) => toHex(await crypto.subtle.sign("Ed25519", keys.privateKey, new TextEncoder().encode(text)));
-  return { publicKey, sign };
-}
+import { describe, expect, it, vi } from "vitest";
+import { CANT_PLAY, POLL_TIMES, gameNightPoll, postGameNightPoll } from "@/lib/discord/poll";
 
 describe("gameNightPoll", () => {
   it("has the five times and the can't-play option, one pick, 16 hours", () => {
@@ -22,29 +13,17 @@ describe("gameNightPoll", () => {
   });
 });
 
-describe("interactionReply", () => {
-  it("answers Discord's ping", () => {
-    expect(interactionReply({ type: 1 })).toEqual({ type: 1 });
+describe("postGameNightPoll", () => {
+  it("sends the poll to the webhook", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    await postGameNightPoll("https://discord.test/hook", fetch);
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://discord.test/hook");
+    expect(JSON.parse(init.body as string).poll).toEqual(gameNightPoll());
   });
 
-  it("answers /gamenight with the poll", () => {
-    expect(interactionReply({ type: 2, data: { name: "gamenight" } })).toEqual({ type: 4, data: { poll: gameNightPoll() } });
-  });
-
-  it("answers other commands privately", () => {
-    expect(interactionReply({ type: 2, data: { name: "other" } })).toMatchObject({ type: 4, data: { flags: 64 } });
-  });
-});
-
-describe("isFromDiscord", () => {
-  it("accepts a signed request and rejects tampered or unsigned ones", async () => {
-    const { publicKey, sign } = await signer();
-    const body = '{"type":1}';
-    const sig = await sign("1700000000" + body);
-    expect(await isFromDiscord(publicKey, sig, "1700000000", body)).toBe(true);
-    expect(await isFromDiscord(publicKey, sig, "1700000000", '{"type":2}')).toBe(false);
-    expect(await isFromDiscord(publicKey, sig, "1700000001", body)).toBe(false);
-    expect(await isFromDiscord(publicKey, null, "1700000000", body)).toBe(false);
-    expect(await isFromDiscord(publicKey, "zz", "1700000000", body)).toBe(false);
+  it("fails loudly when Discord refuses", async () => {
+    const fetch = vi.fn(async () => new Response("nope", { status: 400 }));
+    await expect(postGameNightPoll("https://discord.test/hook", fetch)).rejects.toThrow("400");
   });
 });

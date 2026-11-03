@@ -1,0 +1,21 @@
+name: discord-poll
+# Posts the game night poll (who can play, and when) to Discord.
+# Run it from the Actions tab on game days.
+on:
+  workflow_dispatch:
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm discord:poll
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_POLL_WEBHOOK_URL: ${{ secrets.DISCORD_POLL_WEBHOOK_URL }}
