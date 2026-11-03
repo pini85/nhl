@@ -108,7 +108,7 @@ export function step(state: MatchState, input: Input | Input[], dt = STEP, input
   if (state.phase === "play") {
     pickups(state);
     steals(state, dt);
-    for (const pl of activePilots(state)) if (!pl.fixed) autoSwitch(state, pl);
+    for (const pl of activePilots(state)) autoSwitch(state, pl);
   }
 }
 
@@ -126,7 +126,7 @@ function applyHuman(state: MatchState, s: Skater, input: Input, pl: Pilot) {
       if (has) {
         const to = passTarget(state, s, input.mx, input.my);
         if (to) pass(state, s, to);
-      } else if (!pl.fixed) manualSwitch(state, pl);
+      } else manualSwitch(state, pl);
     } else if (a.kind === "swipe") {
       if (ownedBy(state, s)) shoot(state, s, a.dx, a.dy, a.power, false);
       else bodyCheck(state, s, a.dx, a.dy);
@@ -166,11 +166,14 @@ function towardCarrier(state: MatchState, s: Skater): [number, number] {
   return t ? [t.x - s.x, t.y - s.y] : [Math.cos(s.face), Math.sin(s.face)];
 }
 
+/** Can this pilot take skater `s`? Not while a human teammate is already on it. */
+const free = (state: MatchState, pl: Pilot, s: Skater) => !state.pilots.some((o) => o !== pl && o.team === pl.team && o.controlled === s.i);
+
 function manualSwitch(state: MatchState, pl: Pilot) {
   const team = pl.team;
   const target = hotPuck(state, team);
   if (!target) return;
-  const cands = state.skaters.filter((s) => s.team === team && !s.goalie && s.i !== pl.controlled);
+  const cands = state.skaters.filter((s) => s.team === team && !s.goalie && s.i !== pl.controlled && free(state, pl, s));
   cands.sort((a, b) => dist(a.x, a.y, target.x, target.y) - dist(b.x, b.y, target.x, target.y));
   if (cands[0]) {
     pl.controlled = cands[0].i;
@@ -189,7 +192,7 @@ function autoSwitch(state: MatchState, pl: Pilot) {
   const team = pl.team;
   const owned = state.pucks.find((p) => p.owner >= 0 && state.skaters[p.owner].team === team && !state.skaters[p.owner].goalie);
   if (owned) {
-    if (owned.owner !== pl.controlled) {
+    if (owned.owner !== pl.controlled && free(state, pl, state.skaters[owned.owner])) {
       pl.controlled = owned.owner;
       state.events.push({ kind: "switch", to: owned.owner });
     }
@@ -200,13 +203,14 @@ function autoSwitch(state: MatchState, pl: Pilot) {
   if (!p) return;
   // A pass on its way to a teammate: switch to the receiver.
   if (p.passTo >= 0 && state.skaters[p.passTo].team === team && p.passTo !== pl.controlled) {
+    if (!free(state, pl, state.skaters[p.passTo])) return;
     pl.controlled = p.passTo;
     pl.switchLock = 0.4;
     return;
   }
   const cur = state.skaters[pl.controlled];
   const best = state.skaters
-    .filter((s) => s.team === team && !s.goalie && s.stun <= 0)
+    .filter((s) => s.team === team && !s.goalie && s.stun <= 0 && (s === cur || free(state, pl, s)))
     .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
   if (best && best !== cur && dist(cur.x, cur.y, p.x, p.y) - dist(best.x, best.y, p.x, p.y) > 4) {
     pl.controlled = best.i;

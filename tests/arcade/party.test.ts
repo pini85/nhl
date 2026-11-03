@@ -64,7 +64,7 @@ describe("party play", () => {
   // Host + friend on the left, one friend on the right.
   const setup = partySetup([member(0, 0), member(1, 0), member(2, 1)], ai, { seed: 3, insane: false, length: 60 });
 
-  it("teammates each keep their own skater; a lone human still switches", () => {
+  it("teammates start on their own skater and can switch to the bot, never to each other", () => {
     const s = createMatch(setup);
     expect(s.pilots.map((p) => [p.team, p.fixed, p.controlled])).toEqual([
       [0, true, 0],
@@ -77,12 +77,18 @@ describe("party play", () => {
     run(s, 0.6, [NO_INPUT, right, NO_INPUT]);
     expect(mine.x - x0).toBeGreaterThan(3);
     expect(s.pilots[1].controlled).toBe(1);
-    // A tap without the puck doesn't move a fixed pilot to another skater.
-    for (const sk of s.skaters) if (sk.team === 0 && sk.i !== 1) Object.assign(sk, { x: 0, y: -5 });
-    s.pucks[0].owner = -1;
-    run(s, 0.1, [NO_INPUT, { ...NO_INPUT, actions: [{ kind: "tap" }] }, NO_INPUT]);
-    expect(s.pilots[1].controlled).toBe(1);
+    // A tap without the puck moves to the bot skater, even with the host's skater nearer the puck.
+    Object.assign(s.pucks[0], { owner: -1, passTo: -1, x: 0, y: -5, vx: 0, vy: 0 });
+    Object.assign(s.skaters[0], { x: 0, y: -5 });
+    Object.assign(s.skaters[2], { x: 3, y: -5 });
+    s.pilots[1].switchLock = 0;
+    step(s, [NO_INPUT, { ...NO_INPUT, actions: [{ kind: "tap" }] }, NO_INPUT]);
+    expect(s.pilots[1].controlled).toBe(2);
     expect(s.pilots[0].controlled).toBe(0);
+    // And back: the only free skater now is its own again.
+    s.pilots[1].switchLock = 0;
+    step(s, [NO_INPUT, { ...NO_INPUT, actions: [{ kind: "tap" }] }, NO_INPUT]);
+    expect(s.pilots[1].controlled).toBe(1);
   });
 
   it("a whole game with idle humans runs out cleanly", () => {
@@ -90,10 +96,10 @@ describe("party play", () => {
     for (let n = 0; n < 120 * 60 && s.phase !== "end" && !s.ot; n++) {
       step(s, [NO_INPUT, NO_INPUT, NO_INPUT]);
       s.events.length = 0;
+      // Two humans never share a skater.
+      expect(s.pilots[0].controlled).not.toBe(s.pilots[1].controlled);
     }
     expect(s.phase === "end" || s.ot).toBe(true);
-    expect(s.pilots[0].controlled).toBe(0);
-    expect(s.pilots[1].controlled).toBe(1);
   });
 
   it("each phone sees its own skater, turned around only on the away side", () => {

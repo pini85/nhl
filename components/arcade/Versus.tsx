@@ -459,7 +459,7 @@ export function Versus({ mine, defaultName, ai, insane, initialCode, result, pla
         <ul className="mt-2 list-disc space-y-1 pl-4">
           <li>Pick Left or Right, up to 3 a side. Uneven sides are fine; the AI fills empty spots.</li>
           <li>The puck drops when everyone taps Ready, or {LOBBY_SECONDS / 60} minutes after a second player joins, with whoever is in.</li>
-          <li>With teammates you each keep your own skater. Alone on a side, you switch players as usual.</li>
+          <li>With teammates you each start on your own skater and can switch to any player the bot is skating, never onto a friend.</li>
           <li>Everyone joins the host&apos;s phone. Same Wi-Fi works best. The host picks INSANE mode on the menu.</li>
         </ul>
       </section>

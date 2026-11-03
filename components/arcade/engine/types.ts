@@ -34,7 +34,7 @@ export type MatchSetup = {
   party?: Seat[];
 };
 
-/** A human's place in a party game. With 2+ humans on a team each keeps skater `slot`; a lone human switches freely. */
+/** A human's place in a party game. With 2+ humans on a team each starts faceoffs on skater `slot` and can switch to any skater a bot drives. */
 export type Seat = { team: 0 | 1; slot: number };
 
 export type Skater = {
@@ -122,7 +122,7 @@ export type GameEvent =
 /** A human's hold on their team. */
 export type Pilot = {
   team: 0 | 1;
-  fixed: boolean; // stays on one skater (a teammate is human too)
+  fixed: boolean; // a teammate is human too: starts each faceoff on its own skater and switches only to bot-driven ones
   slot: number; // that skater, 0..2 in the team's line
   controlled: number; // skater the human drives
   idle: number; // seconds without input (autopilot takes over off the puck)
