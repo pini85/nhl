@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 const MESSAGES: Record<string, string> = {
   posted: "✅ Poll posted in Discord.",
   already: "Already posted today.",
-  error: "Couldn't reach Discord. Try again in a minute.",
+  error: "Didn't post.",
   forbidden: "Only the admin can post the poll.",
 };
 
 /** Admin only: posts the game night poll to Discord. */
 export function PollButton() {
   const [pending, start] = useTransition();
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ status: string; detail?: string } | null>(null);
 
   return (
     <div className="my-4 rounded-2xl border border-[var(--border)] p-4">
@@ -23,10 +23,10 @@ export function PollButton() {
       <Button
         className="mt-3"
         size="lg"
-        disabled={pending || result === "posted"}
+        disabled={pending || result?.status === "posted"}
         onClick={() =>
           start(async () => {
-            setResult(await postPoll().catch(() => "error"));
+            setResult(await postPoll().catch((e) => ({ status: "error", detail: `The site didn't answer: ${e instanceof Error ? e.message : e}` })));
           })
         }
       >
@@ -34,7 +34,7 @@ export function PollButton() {
       </Button>
       {result && (
         <p className="mt-2 text-sm" role="status">
-          {MESSAGES[result]}
+          {MESSAGES[result.status]} {result.detail}
         </p>
       )}
     </div>
