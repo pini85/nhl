@@ -1,0 +1,19 @@
+name: ea-match-types
+# Read-only: prints which EA match types hold the club's recent games.
+on:
+  push:
+    branches: [ccr-9f4d3a3c-3d5oyj]
+    paths: [".github/workflows/ea-match-types.yml", "scripts/ea-match-types.mts"]
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --import tsx scripts/ea-match-types.mts
