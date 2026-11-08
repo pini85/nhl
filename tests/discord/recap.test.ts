@@ -89,19 +89,19 @@ describe("club finals in the recap", () => {
     const f = recapFacts(night, finalsInput, "https://site.test", totals)!;
     expect(f.finals).toEqual([
       "🏆 Club finals cup won! Champions!",
-      "Tonight in the club finals: 2-0 in 2 games",
-      "All saved club finals games: 3-0",
-      "Club finals all-time: 4 appearances · 1 cup won",
+      "Tonight: 2-0 · reached round 2",
+      "All-time playoff record: 3-0",
+      "Club finals: 4 appearances · 1 cup won",
     ]);
     const text = recapMessage(f);
-    expect(text).toContain("**🏆 Club finals**");
-    expect(text).toContain("(club finals)");
+    expect(text).toContain("**🏆 Playoffs · club finals**");
+    expect(text).toContain("(playoffs)");
   });
 
   it("no section on a regular night", () => {
     const regular = groupGameNights([game("a", "2026-10-29T20:00:00Z")])[0];
     const f = recapFacts(regular, { ...input, games: [game("a", "2026-10-29T20:00:00Z")], lines: [] }, "https://site.test")!;
     expect(f.finals).toEqual([]);
-    expect(recapMessage(f)).not.toContain("Club finals");
+    expect(recapMessage(f)).not.toContain("Playoffs");
   });
 });

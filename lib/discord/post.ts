@@ -76,7 +76,7 @@ Every morning at **8:00 CET** after a game night, I'll post a recap of last nigh
 • the night's record and every score
 • ⭐ Night MVP, three stars and the night's leaders
 • 🏆 club records, milestones and awards
-• 🏆 club finals results, when it was a finals night
+• 🏆 playoff (club finals) results and rounds, on finals nights
 • 📈 how the night compares with the rest of the season
 • 🔗 a link to the full night page on the site
 No games, no post. Here's a sample using the most recent game night 👇`;

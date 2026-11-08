@@ -59,7 +59,7 @@ const one = (n: number) => n.toFixed(1);
 
 function gameLine(g: GameLite): string {
   const icon = g.outcome === "W" ? "✅" : g.overtime ? "🟨" : "❌";
-  const tags = [isFinals(g) && "club finals", g.overtime && "OT", g.dnf === "opponent_quit" && "they quit", g.dnf === "we_quit" && "we quit"].filter(Boolean);
+  const tags = [isFinals(g) && "playoffs", g.overtime && "OT", g.dnf === "opponent_quit" && "they quit", g.dnf === "we_quit" && "we quit"].filter(Boolean);
   return `${icon} **${g.goalsFor}-${g.goalsAgainst}** vs ${escapeMd(opp(g))}${tags.length ? ` (${tags.join(", ")})` : ""}`;
 }
 
@@ -117,11 +117,12 @@ export function finalsLines(night: GameNight, games: GameLite[], totals: FinalsT
   const { before, after } = totals;
   if (before && after && after.cups > before.cups) out.push("🏆 Club finals cup won! Champions!");
   const rec = clubFinals(null, tonight).record;
-  out.push(`Tonight in the club finals: ${formatRecord(rec)} in ${tonight.length} game${tonight.length === 1 ? "" : "s"}`);
+  const lostLast = tonight[0].outcome === "L";
+  out.push(`Tonight: ${formatRecord(rec)} · ${lostLast ? "out in" : "reached"} round ${tonight.length}`);
   const end = night.games[0].playedAt;
   const saved = clubFinals(null, games.filter((g) => g.playedAt <= end));
-  if (saved.games > tonight.length) out.push(`All saved club finals games: ${formatRecord(saved.record)}`);
-  if (after) out.push(`Club finals all-time: ${after.appearances} appearance${after.appearances === 1 ? "" : "s"} · ${after.cups} cup${after.cups === 1 ? "" : "s"} won`);
+  if (saved.games > tonight.length) out.push(`All-time playoff record: ${formatRecord(saved.record)}`);
+  if (after) out.push(`Club finals: ${after.appearances} appearance${after.appearances === 1 ? "" : "s"} · ${after.cups} cup${after.cups === 1 ? "" : "s"} won`);
   return out;
 }
 
@@ -167,12 +168,12 @@ export function factsForWriter(f: RecapFacts): string {
   const { night, mvp, stars, leaders } = f.recap;
   return [
     `Night: ${night.label}, record ${formatRecord(night)}${night.otLosses ? " (W-L-OTL)" : ""}, goals for ${night.goalsFor}, against ${night.goalsAgainst}`,
-    `Games (first to last): ${[...night.games].reverse().map((g) => `${g.outcome} ${g.goalsFor}-${g.goalsAgainst} vs ${opp(g)}${isFinals(g) ? " (club finals)" : ""}${g.overtime ? " OT" : ""}${g.dnf !== "none" && g.dnf ? ` (${g.dnf})` : ""}`).join("; ")}`,
+    `Games (first to last): ${[...night.games].reverse().map((g) => `${g.outcome} ${g.goalsFor}-${g.goalsAgainst} vs ${opp(g)}${isFinals(g) ? " (playoffs)" : ""}${g.overtime ? " OT" : ""}${g.dnf !== "none" && g.dnf ? ` (${g.dnf})` : ""}`).join("; ")}`,
     mvp && mvp.points > 0 ? `Night MVP: ${mvp.playerName} ${mvp.goals}G ${mvp.assists}A` : null,
     stars.length ? `Top scorers: ${stars.map((s) => `${s.name} ${s.goals}G ${s.assists}A`).join(", ")}` : null,
     leaders.hits ? `Most hits: ${leaders.hits.name} ${leaders.hits.value}` : null,
     leaders.goalie ? `Goalie: ${leaders.goalie.name} ${leaders.goalie.saves}/${leaders.goalie.shots} saves` : null,
-    ...f.finals.map((l) => `Club finals: ${l}`),
+    ...f.finals.map((l) => `Playoffs: ${l}`),
     ...f.awards.map((a) => `Award: ${a.text}: ${a.name}${a.vs ? ` vs ${a.vs}` : ""}`),
     ...f.highlights.map((h) => `Highlight: ${h}`),
     ...f.insights.map((i) => `Insight: ${i}`),
@@ -217,7 +218,7 @@ export function recapMessage(f: RecapFacts, intro: string | null = null): string
       head,
       intro ? [escapeMd(intro)] : [],
       games,
-      f.finals.length ? ["**🏆 Club finals**", ...f.finals.map(escapeMd)] : [],
+      f.finals.length ? ["**🏆 Playoffs · club finals**", ...f.finals.map(escapeMd)] : [],
       mvpLine,
       starLines,
       leaderLines,
