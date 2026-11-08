@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { clubSnapshots, extraPlayerStats, matchClubs, matches, matchPlayers } from "@/db/schema";
 import { CLUB_ID } from "@/lib/config";
@@ -88,6 +88,17 @@ export async function playerDetail(
     .where(inArray(matches.matchId, lines.map((l) => l.matchId)))
     .orderBy(desc(matches.playedAt));
   return { lines, games };
+}
+
+/** EA's raw season stats from the newest snapshot, or the newest one taken before `before`. */
+export async function snapshotRawAt(db: Db, before?: Date): Promise<unknown> {
+  const [row] = await db
+    .select({ raw: clubSnapshots.raw })
+    .from(clubSnapshots)
+    .where(before ? lt(clubSnapshots.takenAt, before) : undefined)
+    .orderBy(desc(clubSnapshots.takenAt), desc(clubSnapshots.id))
+    .limit(1);
+  return row?.raw ?? null;
 }
 
 export async function snapshotHistory(db: Db): Promise<{ takenAt: Date; division: number }[]> {

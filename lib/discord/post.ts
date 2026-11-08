@@ -6,7 +6,8 @@ import { CLUB_ID } from "@/lib/config";
 import { factsForWriter, nightToPost, recapFacts, recapMessage } from "@/lib/discord/recap";
 import { groupGameNights, type GameNight } from "@/lib/stats/nights";
 import type { GameLite } from "@/lib/stats/types";
-import { allGames, extraStats, ourPlayerLines, snapshotHistory } from "@/lib/queries/club";
+import { allGames, extraStats, ourPlayerLines, snapshotHistory, snapshotRawAt } from "@/lib/queries/club";
+import { clubFinals } from "@/lib/stats/finals";
 import { allClubRows } from "@/lib/queries/opponents";
 
 export type PostDeps = {
@@ -43,8 +44,18 @@ export async function postNightRecap(deps: PostDeps): Promise<PostResult> {
 
 async function buildRecap(deps: Pick<PostDeps, "db" | "siteUrl" | "writeIntro">, games: GameLite[], night: GameNight): Promise<string> {
   const { db } = deps;
-  const [lines, clubs, extras, history] = await Promise.all([ourPlayerLines(db), allClubRows(db), extraStats(db), snapshotHistory(db)]);
-  const facts = recapFacts(night, { games, lines, clubs, extras, history, ourClubId: CLUB_ID }, deps.siteUrl);
+  const start = night.games.at(-1)!.playedAt;
+  const [lines, clubs, extras, history, before, after] = await Promise.all([
+    ourPlayerLines(db),
+    allClubRows(db),
+    extraStats(db),
+    snapshotHistory(db),
+    snapshotRawAt(db, start),
+    snapshotRawAt(db),
+  ]);
+  const totals = (raw: unknown) => (raw ? clubFinals(raw, []) : null);
+  const finals = { before: totals(before), after: totals(after) };
+  const facts = recapFacts(night, { games, lines, clubs, extras, history, ourClubId: CLUB_ID }, deps.siteUrl, finals);
   if (!facts) throw new Error(`no recap for ${night.key}`);
   const intro = deps.writeIntro ? await deps.writeIntro(factsForWriter(facts)) : null;
   return recapMessage(facts, intro);
@@ -65,6 +76,7 @@ Every morning at **8:00 CET** after a game night, I'll post a recap of last nigh
 • the night's record and every score
 • ⭐ Night MVP, three stars and the night's leaders
 • 🏆 club records, milestones and awards
+• 🏆 club finals results, when it was a finals night
 • 📈 how the night compares with the rest of the season
 • 🔗 a link to the full night page on the site
 No games, no post. Here's a sample using the most recent game night 👇`;
