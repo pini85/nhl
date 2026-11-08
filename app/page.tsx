@@ -7,6 +7,8 @@ import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { LatestNight } from "@/components/club/LatestNight";
 import { SeasonCard } from "@/components/club/SeasonCard";
+import { SeasonTabs } from "@/components/club/SeasonTabs";
+import { PlayoffsCard } from "@/components/club/PlayoffsCard";
 import { EmptyState } from "@/components/club/Section";
 import { TrophyCase } from "@/components/club/TrophyCase";
 import { CLUB_ID, CLUB_NAME } from "@/lib/config";
@@ -50,6 +52,7 @@ export default async function Home() {
   }
 
   const season = snapshot ? seasonProgress(snapshot.seasonResults, snapshot.division) : null;
+  const finals = snapshot ? clubFinals(snapshot.raw, games) : null;
   const nights = groupGameNights(games);
   const latest = nights[0];
   const latestIds = new Set(latest?.games.map((g) => g.matchId));
@@ -72,10 +75,16 @@ export default async function Home() {
       <MomentCards limit={3} />
     </Suspense>,
     party && <Celebrate key="party" message={party.message} storageKey={party.key} />,
-    season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
+    season && snapshot && (
+      <SeasonTabs
+        key="season"
+        season={<SeasonCard season={season} seasonResults={snapshot.seasonResults} />}
+        playoffs={finals && <PlayoffsCard finals={finals} />}
+      />
+    ),
     snapshot && (
       <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations}
-        finals={clubFinals(snapshot.raw, games)}
+        finals={finals ?? undefined}
       />
     ),
     journey.length > 0 && <DivisionJourney key="journey" runs={journey} />,
