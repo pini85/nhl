@@ -20,6 +20,7 @@ import { headToHead, nemesis } from "@/lib/stats/opponents";
 import { groupGameNights, nightMvp } from "@/lib/stats/nights";
 import { hotPlayers } from "@/lib/stats/players";
 import { seasonProgress } from "@/lib/stats/season";
+import { clubFinals } from "@/lib/stats/finals";
 import { celebrationFor } from "@/lib/stats/celebrate";
 import { funFacts } from "@/lib/stats/funfacts";
 import { InstallCard } from "@/components/club/InstallPrompt";
@@ -73,7 +74,9 @@ export default async function Home() {
     party && <Celebrate key="party" message={party.message} storageKey={party.key} />,
     season && snapshot && <SeasonCard key="season" season={season} seasonResults={snapshot.seasonResults} />,
     snapshot && (
-      <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations} />
+      <TrophyCase key="trophies" titles={snapshot.titles} promotions={snapshot.promotions} holds={snapshot.holds} relegations={snapshot.relegations}
+        finals={clubFinals(snapshot.raw, games)}
+      />
     ),
     journey.length > 0 && <DivisionJourney key="journey" runs={journey} />,
     latest && <LatestNight key="night" night={latest} mvp={mvp} />,
