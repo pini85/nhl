@@ -73,3 +73,35 @@ describe("players in the recap", () => {
     expect(escapeMd("puck_control *x*")).toBe("puck\\_control \\*x\\*");
   });
 });
+
+describe("club finals in the recap", () => {
+  const finalsGames = [
+    game("old", "2026-10-15T20:00:00Z", { matchType: "gameType10", outcome: "W", goalsFor: 3, goalsAgainst: 1 }),
+    game("s1", "2026-10-29T20:00:00Z"),
+    game("f1", "2026-10-29T20:30:00Z", { matchType: "gameType10", outcome: "W", goalsFor: 4, goalsAgainst: 2 }),
+    game("f2", "2026-10-29T21:00:00Z", { matchType: "gameType10", outcome: "W", goalsFor: 2, goalsAgainst: 1 }),
+  ];
+  const night = groupGameNights(finalsGames)[0];
+  const finalsInput = { ...input, games: finalsGames, lines: [] };
+
+  it("adds a club finals section with tonight's record, a cup won and all-time totals", () => {
+    const totals = { before: { appearances: 3, cups: 0 }, after: { appearances: 4, cups: 1 } };
+    const f = recapFacts(night, finalsInput, "https://site.test", totals)!;
+    expect(f.finals).toEqual([
+      "🏆 Club finals cup won! Champions!",
+      "Tonight: 2-0 · reached round 2",
+      "All-time playoff record: 3-0",
+      "Club finals: 4 appearances · 1 cup won",
+    ]);
+    const text = recapMessage(f);
+    expect(text).toContain("**🏆 Playoffs · club finals**");
+    expect(text).toContain("(playoffs)");
+  });
+
+  it("no section on a regular night", () => {
+    const regular = groupGameNights([game("a", "2026-10-29T20:00:00Z")])[0];
+    const f = recapFacts(regular, { ...input, games: [game("a", "2026-10-29T20:00:00Z")], lines: [] }, "https://site.test")!;
+    expect(f.finals).toEqual([]);
+    expect(recapMessage(f)).not.toContain("Playoffs");
+  });
+});
