@@ -1,0 +1,22 @@
+name: check-tonight
+# Read-only: lists the newest stored games and checks they appear on the site.
+on:
+  push:
+    branches: [ccr-9f4d3a3c-3d5oyj]
+    paths: [".github/workflows/check-tonight.yml", "scripts/check-tonight.mts"]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --import tsx scripts/check-tonight.mts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ secrets.SITE_URL }}
