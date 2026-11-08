@@ -1,5 +1,5 @@
 import { toInt } from "@/lib/ea/normalize";
-import { groupGameNights } from "@/lib/stats/nights";
+import { groupGameNights, type GameNight } from "@/lib/stats/nights";
 import { countRecord, type WLO } from "@/lib/stats/record";
 import type { GameLite } from "@/lib/stats/types";
 
@@ -13,6 +13,8 @@ export type ClubFinals = {
   games: number;
   /** Deepest round reached in one finals night (each finals game is a round). */
   furthestRound: number;
+  /** Finals nights, newest first; each game in a run is one round. */
+  runs: GameNight[];
 };
 
 /** Club Finals totals: EA's all-time counters plus the W-L and rounds of saved playoff games. */
@@ -27,5 +29,6 @@ export function clubFinals(raw: unknown, games: GameLite[]): ClubFinals {
     record: countRecord(playoffGames),
     games: playoffGames.length,
     furthestRound: Math.max(0, ...runs.map((n) => n.games.length)),
+    runs,
   };
 }
