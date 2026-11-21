@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local --import tsx db/migrate.mts",
     "collect:ci": "node --import tsx scripts/collect.mts",
-    "scout:watch": "node --import tsx scripts/scout-watch.mts",
+    "scout": "node --import tsx scripts/scout.mts",
+    "next-run-delay": "node --import tsx scripts/next-run-delay.mts",
     "discord:recap": "node --import tsx scripts/discord-recap.mts",
     "discord:test": "node --import tsx scripts/discord-test.mts",
     "e2e": "playwright test"
