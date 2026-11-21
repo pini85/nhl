@@ -1,0 +1,26 @@
+name: scout
+# Answers scout requests from the website's Scout button. The website starts this workflow
+# (needs GITHUB_DISPATCH_TOKEN in Vercel); without it, the next collect run answers them.
+on:
+  workflow_dispatch:
+# One running and one waiting at most; a waiting run picks up anything queued meanwhile.
+concurrency:
+  group: scout
+  cancel-in-progress: false
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm scout
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}

@@ -14,8 +14,8 @@ export type WatchOptions = {
 
 const MAX_PER_ROUND = 5;
 
-// Runs between collector runs: checks the scout queue every few seconds and answers
-// requests right away, so scouting from the lobby takes seconds instead of ~10 minutes.
+// Checks the scout queue a few times over a short window and answers requests right away.
+// Run by the scout workflow, which the website starts when someone presses Scout.
 export async function watchScouts(
   deps: { db: Db; ea: EaApi; now: () => Date },
   opts: WatchOptions,

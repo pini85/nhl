@@ -2,15 +2,19 @@
 
 import { updateTag } from "next/cache";
 import { getDb } from "@/db/client";
+import { startScoutRun } from "@/lib/github/dispatch";
 import { CLUB_TAG } from "@/lib/config";
 import { createScoutRequest, deleteScoutRequest, scoutRequestStatus } from "@/lib/queries/opponents";
 
 export type ScoutStatus = "created" | "exists" | "invalid" | "busy" | "error";
 
-// Queues a club for the GitHub collector to fetch from EA on its next run.
+// Queues a club to fetch from EA and starts the GitHub scout run to answer it now.
+// If that can't be started, the next collector run answers it.
 export async function requestScout(query: string, clubId?: number): Promise<{ status: ScoutStatus }> {
   try {
-    return { status: await createScoutRequest(getDb(), String(query ?? ""), clubId) };
+    const status = await createScoutRequest(getDb(), String(query ?? ""), clubId);
+    if (status === "created") await startScoutRun();
+    return { status };
   } catch {
     return { status: "error" };
   }

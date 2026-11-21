@@ -1,11 +1,14 @@
 name: collect
-# Saves new EA games every ~10 minutes. GitHub's cron is unreliable on new repos,
-# so each run also starts the next one (workflow_dispatch from GITHUB_TOKEN is allowed).
+# Saves new EA games every ~10 minutes during game hours (18:00-03:00 Amsterdam) and does
+# nothing the rest of the day, so the database can sleep. One morning check (08:00-11:00)
+# posts last night's Discord recap. GitHub's cron is unreliable on new repos, so during game
+# hours each run waits, then starts the next one; the hourly cron starts the chain at 18:05
+# (and restarts it if it ever breaks). Runs outside game hours stop before touching the database.
 # The concurrency group keeps at most one running + one waiting, so chains can't pile up.
 # To stop collecting: disable this workflow in the Actions tab.
 on:
   schedule:
-    - cron: "3-59/10 * * * *"
+    - cron: "5 * * * *"
   workflow_dispatch:
 concurrency:
   group: collect
@@ -14,9 +17,25 @@ permissions:
   actions: write
   contents: read
 jobs:
-  collect:
+  # Decides from the Amsterdam clock alone (no database): "evening", "recap" or "off".
+  gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - id: mode
+        run: |
+          h=$(TZ=Europe/Amsterdam date +%-H)
+          if [ "$h" -ge 18 ] || [ "$h" -lt 3 ]; then mode=evening
+          elif [ "$h" -ge 8 ] && [ "$h" -lt 11 ]; then mode=recap
+          else mode=off; fi
+          echo "Amsterdam hour $h: $mode"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+  collect:
+    needs: gate
+    if: needs.gate.outputs.mode != 'off'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -41,17 +60,13 @@ jobs:
           SITE_URL: ${{ secrets.SITE_URL }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      # Instead of sleeping until the next run, answer scout requests as they come in.
-      - name: Watch for scout requests until the next run
-        if: always()
-        run: pnpm scout:watch || sleep 60
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          SITE_URL: ${{ secrets.SITE_URL }}
-          SCOUT_WATCH_SECONDS: "480"
+      # Scout requests are answered by the scout workflow, which the website starts.
+      # During game hours only: wait, then start the next run (the chain ends after 03:00).
+      - name: Wait until the next run
+        if: always() && needs.gate.outputs.mode == 'evening'
+        run: sleep 480
       - name: Start the next run
-        if: always()
+        if: always() && needs.gate.outputs.mode == 'evening'
         run: gh workflow run collect.yml --repo "${{ github.repository }}" --ref main
         env:
           GH_TOKEN: ${{ github.token }}
