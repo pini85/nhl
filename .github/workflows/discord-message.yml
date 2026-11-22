@@ -1,0 +1,25 @@
+name: discord-message
+# Posts a message to the Discord channel, e.g. a heads-up when the app is down.
+# Run it from the Actions tab and type the message ("\n" starts a new line).
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: Message to post
+        required: true
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm discord:message
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MESSAGE: ${{ inputs.message }}

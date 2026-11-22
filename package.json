@@ -18,6 +18,7 @@
     "discord:recap": "node --import tsx scripts/discord-recap.mts",
     "discord:test": "node --import tsx scripts/discord-test.mts",
     "discord:poll": "node --import tsx scripts/discord-poll.mts",
+    "discord:message": "node --import tsx scripts/discord-message.mts",
     "e2e": "playwright test"
   },
   "dependencies": {
