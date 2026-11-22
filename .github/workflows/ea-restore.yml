@@ -1,0 +1,42 @@
+name: ea-restore
+# Loads every EA backup the collector saved while the database was down (ea-backup-* artifacts)
+# into the database. Safe to run more than once: games already stored are skipped.
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download the backups
+        run: |
+          mkdir -p backups
+          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | startswith("ea-backup-")) | select(.expired | not) | .id' |
+          while read -r id; do
+            gh api "repos/${{ github.repository }}/actions/artifacts/$id/zip" > backup.zip
+            unzip -q -o backup.zip -d "backups/$id"
+            rm backup.zip
+          done
+          echo "$(find backups -name '*.json' | wc -l) backup files"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: pnpm ea:restore backups
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Refresh the website
+        run: |
+          curl -fsS -X POST -H "authorization: Bearer $CRON_SECRET" "$SITE_URL/api/revalidate" || true
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}

@@ -133,7 +133,7 @@ export async function collect(
   return summary;
 }
 
-function snapshotRow(s: EaSeasonalStats, takenAt: Date) {
+export function snapshotRow(s: EaSeasonalStats, takenAt: Date) {
   return {
     takenAt,
     clubId: CLUB_ID,

@@ -19,6 +19,8 @@
     "discord:test": "node --import tsx scripts/discord-test.mts",
     "discord:poll": "node --import tsx scripts/discord-poll.mts",
     "discord:message": "node --import tsx scripts/discord-message.mts",
+    "ea:backup": "node --import tsx scripts/ea-backup.mts",
+    "ea:restore": "node --import tsx scripts/ea-restore.mts",
     "e2e": "playwright test"
   },
   "dependencies": {

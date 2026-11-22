@@ -44,12 +44,27 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm collect:ci
+      - id: collect
+        run: pnpm collect:ci
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SITE_URL: ${{ secrets.SITE_URL }}
           COLLECT_TRIGGER: cron
+      # If the database is down, keep EA's games as a 90-day artifact (EA only keeps the last 5
+      # per type). The ea-restore workflow loads them all once the database is back.
+      - name: Back up EA games (database down)
+        id: backup
+        if: always() && steps.collect.outcome == 'failure'
+        continue-on-error: true
+        run: pnpm ea:backup ea-backup
+      - name: Upload the backup
+        if: always() && steps.backup.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ea-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ea-backup/
+          retention-days: 90
       # Posts last night's recap to Discord once per night (from 08:00 Amsterdam time the morning after). Never blocks collecting.
       - name: Discord recap
         if: always()
