@@ -40,3 +40,16 @@ describe("EA backups", () => {
     expect(await db.select().from(clubSnapshots)).toHaveLength(4);
   });
 });
+
+describe("restoreBackups when the database is down", () => {
+  it("stops after a few failures and reports the database's reason", async () => {
+    const b = JSON.parse(JSON.stringify(await takeBackup(ea, new Date("2026-11-22T20:00:00Z"))));
+    const quota = new Error("Failed query: insert into ...", { cause: new Error("Server error (HTTP status 402): exceeded the quota") });
+    const broken = { insert: () => { throw quota; } } as unknown as Db;
+    const r = await restoreBackups(broken, [b]);
+    expect(r.newMatches).toBe(0);
+    expect(r.errors).toHaveLength(4);
+    expect(r.errors[0]).toContain("HTTP status 402");
+    expect(r.errors.at(-1)).toContain("stopped");
+  });
+});
