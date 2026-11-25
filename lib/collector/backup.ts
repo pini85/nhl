@@ -35,11 +35,21 @@ export async function takeBackup(ea: EaApi, now = new Date()): Promise<EaBackup>
 
 export type RestoreSummary = { files: number; newMatches: number; snapshots: number; errors: string[] };
 
+/** The database's own reason (drizzle wraps it and only shows the SQL). */
+function reason(e: unknown): string {
+  const cause = e instanceof Error && e.cause instanceof Error ? e.cause.message : null;
+  return (cause ?? (e instanceof Error ? e.message : String(e))).slice(0, 300);
+}
+
+// After this many failures in a row the database is unreachable, not one bad game: stop.
+const MAX_FAILS_IN_A_ROW = 3;
+
 /** Loads backups into the database, oldest first. Safe to run twice: stored games are skipped. */
 export async function restoreBackups(db: Db, backups: EaBackup[]): Promise<RestoreSummary> {
   const summary: RestoreSummary = { files: backups.length, newMatches: 0, snapshots: 0, errors: [] };
   const sorted = [...backups].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
   const seen = new Set<string>();
+  let failsInARow = 0;
   for (const b of sorted) {
     for (const [type, list] of Object.entries(b.matches)) {
       for (const raw of list) {
@@ -48,8 +58,13 @@ export async function restoreBackups(db: Db, backups: EaBackup[]): Promise<Resto
           if (seen.has(match.matchId)) continue;
           seen.add(match.matchId);
           if (await insertNormalizedMatch(db, normalizeMatch(match, type, CLUB_ID))) summary.newMatches++;
+          failsInARow = 0;
         } catch (e) {
-          summary.errors.push(`match ${(raw as { matchId?: unknown }).matchId}: ${e instanceof Error ? e.message : String(e)}`);
+          summary.errors.push(`match ${(raw as { matchId?: unknown }).matchId}: ${reason(e)}`);
+          if (++failsInARow >= MAX_FAILS_IN_A_ROW) {
+            summary.errors.push("stopped: the database keeps failing");
+            return summary;
+          }
         }
       }
     }
@@ -61,7 +76,7 @@ export async function restoreBackups(db: Db, backups: EaBackup[]): Promise<Resto
       await insertSnapshot(db, { ...snapshotRow(b.seasonal, new Date(b.takenAt)), members: b.members });
       summary.snapshots++;
     } catch (e) {
-      summary.errors.push(`snapshot ${b.takenAt}: ${e instanceof Error ? e.message : String(e)}`);
+      summary.errors.push(`snapshot ${b.takenAt}: ${reason(e)}`);
     }
   }
   return summary;
